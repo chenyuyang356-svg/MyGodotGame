@@ -2,8 +2,8 @@
 
 [ext_resource type="Texture2D" uid="uid://ce3rurloyi7cn" path="res://asset/Tileset.png" id="1_c651c"]
 [ext_resource type="PackedScene" uid="uid://c3wagejl1eurc" path="res://game_object/square.tscn" id="1_pjrb6"]
-[ext_resource type="PackedScene" uid="uid://bugk3i3di06ok" path="res://manager/mouse_manager.tscn" id="1_xwkvk"]
-[ext_resource type="Script" uid="uid://cddie2r2nt5po" path="res://game_object/vector_field_manager.gd" id="2_3wy1v"]
+[ext_resource type="PackedScene" uid="uid://bugk3i3di06ok" path="res://game_object/manager/mouse_manager.tscn" id="1_xwkvk"]
+[ext_resource type="Script" uid="uid://cddie2r2nt5po" path="res://game_object/manager/vector_field_manager.gd" id="2_3wy1v"]
 [ext_resource type="Script" uid="uid://c0q5ycuxr6f1n" path="res://main/tile_map_layer.gd" id="2_kfbq2"]
 [ext_resource type="Script" uid="uid://caex71arm3xp" path="res://game_object/camera_2d.gd" id="4_kfbq2"]
 
