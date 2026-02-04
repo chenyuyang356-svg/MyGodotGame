@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://bugk3i3di06ok"]
+
+[ext_resource type="Script" uid="uid://bmwd7f6eajmpk" path="res://manager/mouse_manager.gd" id="1_m6t7o"]
+
+[node name="MouseManager" type="Node2D" unique_id=1058505236]
+script = ExtResource("1_m6t7o")
+
+[node name="Timer" type="Timer" parent="." unique_id=1126609770]
+wait_time = 0.1
+one_shot = true
