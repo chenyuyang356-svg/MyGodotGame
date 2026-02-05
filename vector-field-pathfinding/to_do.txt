@@ -1,3 +1,9 @@
+** 接下来要写的：
+	IntegrationField和VectorField的列表
+	Assembing稳定后的抖动问题
+	分离出VelocityComponent
+
+
 ** 寻路系统的完善：
 	#单位间的排斥力 
 	卡墙角问题
@@ -5,6 +11,7 @@
 	先检验是否能直线到达目的地
 	单位避障
 	靠墙时的处理
+	抖动问题
 	（队伍集体行动）
 	
 ** 攻击系统：

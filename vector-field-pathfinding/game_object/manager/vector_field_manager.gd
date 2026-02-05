@@ -3,6 +3,7 @@ extends Node2D
 @export var Tile: TileMapLayer
 @onready var TileRectangle: Rect2i = Tile.get_used_rect()
 @onready var TileSize: Vector2i = Tile.tile_set.tile_size
+#最近更新的CostField，IntegrationField，VectorField
 var CostField: Dictionary[Vector2i, int]
 var IntegrationField: Dictionary[Vector2i, int]
 var VectorField: Dictionary[Vector2i, Vector2]
@@ -23,8 +24,8 @@ func _draw() -> void:
 func _on_choosing_target_position(TargetPosition: Vector2):
 	GenerateIntegartionField(Vec2toVec2i(TargetPosition))
 	GenerateVectorField()
-	GameState.emit_signal("IntegrationFieldUpdated", IntegrationField)
-	GameState.emit_signal("VectorFieldUpdated", VectorField)
+	(GameState.IntegrationFields)[TargetPosition] = IntegrationField.duplicate()
+	(GameState.VectorFields)[TargetPosition] = VectorField.duplicate()
 	queue_redraw()
 
 
