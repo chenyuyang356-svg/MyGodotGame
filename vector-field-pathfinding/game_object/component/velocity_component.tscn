@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://b65w1fy14ird5"]
+
+[ext_resource type="Script" uid="uid://be758tke4gb81" path="res://game_object/component/velocity_component.gd" id="1_8q0pi"]
+
+[node name="VelocityComponent" type="Node" unique_id=1512861845]
+script = ExtResource("1_8q0pi")
+
+[node name="AssemblingTimer" type="Timer" parent="." unique_id=130501244]
+wait_time = 0.5

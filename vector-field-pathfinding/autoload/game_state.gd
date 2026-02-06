@@ -2,9 +2,12 @@ extends Node
 #需要添加一个向量场列表
 
 #查找时Dictionary可能有效率问题，最好换成PackedInt(Vector2)Array
+#IntegartionFields的keys就是使用中的TargetPositions，目前通过TargetPosition管理集群
 var IntegrationFields: Dictionary[Vector2, Dictionary]
 var VectorFields: Dictionary[Vector2, Dictionary]
 var UnitGrid: Dictionary[Vector2i, Array]
+var AssemblingGroups: Array[Vector2] = []
+var AssemblingStates: Dictionary[Vector2, bool]
 
 var TileSize: Vector2i
 var UsedRectangle: Rect2i
@@ -20,6 +23,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	UpdateUnitGrid.call_deferred()
 	RemoveFields.call_deferred()
+	UpdateAssemblingGroups.call_deferred()
 
 
 func UpdateUnitGrid():
@@ -43,6 +47,18 @@ func RemoveFields():
 		if not TargetPosition in NewTargetPositions:
 			IntegrationFields.erase(TargetPosition)
 			VectorFields.erase(TargetPosition) 
+
+
+func UpdateAssemblingGroups():
+	var OldAssemblingGroups: Array = AssemblingStates.keys()
+	for TargetPosition: Vector2 in OldAssemblingGroups:
+		if TargetPosition in IntegrationFields.keys():
+			AssemblingStates[TargetPosition] = false
+		else:
+			AssemblingStates.erase(TargetPosition)
+	for TargetPostion: Vector2 in AssemblingGroups:
+		AssemblingStates[TargetPostion] = true
+	AssemblingGroups.clear()
 
 
 func GetIntegration(Unit: Node2D):

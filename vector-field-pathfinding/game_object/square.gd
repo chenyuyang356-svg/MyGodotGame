@@ -1,5 +1,6 @@
 extends CharacterBody2D
 
+@onready var VelocityComponent: Node = $VelocityComponent
 @onready var SelectionArea: Area2D = $SelectionArea
 
 var CurrentState: int = GameState.UnitState.IDLE
@@ -9,20 +10,14 @@ var IsSelected: bool = false
 
 var TargetPosition: Vector2 = global_position
 var OldTargetPositon: Vector2 = global_position
-var DesiredIntegration: int = 2
 
-var Radius: float = 5
-var Speed: float = 100
-var FlowForceFactor: float = 2000
-var AssemblingFlowForceFactor: float = 500
-var SeparationForceFactor: float = 10000
-var AttractionForceFactor: float = 20
-var FrictionForceFactor: float = 100
+const Radius: float = 5
 
 
 func _ready() -> void:
 	SelectionArea.mouse_entered.connect(_on_mouse_entered)
 	SelectionArea.mouse_exited.connect(_on_mouse_exited)
+	
 	GameEvent.single_selecting.connect(_on_single_selecting, 1)
 	GameEvent.double_click_selecting.connect(_on_double_click_selecting, 1)
 	GameEvent.choosing_target_position.connect(_on_choosing_target_position, 1)
@@ -35,13 +30,8 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	match CurrentState:
-		GameState.UnitState.IDLE:
-			HandleIdle()
-		GameState.UnitState.MOVING:
-			HandleMoving(delta)
-		GameState.UnitState.ASSEMBLING:
-			HandleAssembling(delta)
+	VelocityComponent.UpdateVelocity(self, delta)
+	move_and_slide()
 
 
 func _on_mouse_entered():
@@ -100,54 +90,30 @@ func ChangeIsSelectedState():
 
 
 func ChangeStateTo(NewState: int):
+	ExistState(CurrentState)
+	EnterState(NewState)
+
+
+func ExistState(OldState: int):
+	match OldState:
+		GameState.UnitState.IDLE:
+			return
+		GameState.UnitState.MOVING:
+			return
+		GameState.UnitState.ASSEMBLING:
+			return
+
+
+func EnterState(NewState: int):
 	CurrentState = NewState
-
-
-func HandleIdle():
-	velocity = Vector2.ZERO
-
-
-func HandleMoving(delta: float):
-	if GameState.GetIntegration(self) < DesiredIntegration:
-		velocity = Vector2.ZERO
-		ChangeStateTo(GameState.UnitState.ASSEMBLING)
-	var Force: Vector2 = GetMovingForce()
-	UpdateVelocity(delta, Force)
-	move_and_slide()
-
-
-func HandleAssembling(delta: float):
-	var Force: Vector2 = GetAssemblingForce()
-	UpdateVelocity(delta, Force)
-	move_and_slide()
-
-
-func GetMovingForce():
-	var Force: Vector2 = Vector2.ZERO
-	var FlowForce = GameState.GetFlowForce(self)
-	var SeparationForce = GameState.GetSeparationForce(self)
-	Force = FlowForce * FlowForceFactor +\
-	 SeparationForce * SeparationForceFactor
-	return Force
-
-
-func GetAssemblingForce():
-	var Force: Vector2 = Vector2.ZERO
-	var SeparationForce: Vector2 = GameState.GetSeparationForce(self)
-	var FlowForce: Vector2 = GameState.GetFlowForce(self)
-	var AttractionForce: Vector2 = GameState.GetAttractionForce(self)
-	var FrictionForce: Vector2 = GameState.GetFritionForce(self)
-	Force = AttractionForce * AttractionForceFactor +\
-	 FrictionForce * FrictionForceFactor +\
-	 SeparationForce * SeparationForceFactor +\
-	 FlowForce * AssemblingFlowForceFactor
-	return Force
-
-
-func UpdateVelocity(delta: float, Force: Vector2):
-	var Acceleration: Vector2 = Force
-	velocity = velocity + Acceleration * delta
-	velocity = velocity.limit_length(Speed)
+	match CurrentState:
+		GameState.UnitState.IDLE:
+			return 
+		GameState.UnitState.MOVING:
+			return
+		GameState.UnitState.ASSEMBLING:
+			VelocityComponent.FinishAssembling = false
+			VelocityComponent.AssemblingTimer.start()
 
 
 func RestoreModulate():
