@@ -6,7 +6,8 @@ extends Node
 var IntegrationFields: Dictionary[Vector2, Dictionary]
 var VectorFields: Dictionary[Vector2, Dictionary]
 var UnitGrid: Dictionary[Vector2i, Array]
-var AssemblingGroups: Array[Vector2] = []
+#AssemblingGroups只作为一个集合，它的键值不会被使用
+var AssemblingGroups: Dictionary[Vector2, bool]
 var AssemblingStates: Dictionary[Vector2, bool]
 
 var TileSize: Vector2i
@@ -68,24 +69,28 @@ func GetIntegration(Unit: Node2D):
 
 func GetFlowForce(Unit: Node2D):
 	var VectorField: Dictionary = VectorFields[Unit.TargetPosition]
-	return VectorField[Vec2toVec2i(Unit.global_position)]
-
-#相比FlowForce，AssemblingFlowForce会随与TargetPosition的距离衰减
-func GetAssemblingFlowForce(Unit: Node2D):
-	var FlowForce: Vector2 = GetFlowForce(Unit)
-	var Distance: float = (Unit.global_position).distance_to(Unit.TargetPosition)
-	var AssemblingFlowForce: float = FlowForce * max(Distance/3, 1)
-	return AssemblingFlowForce
+	var FlowForce: Vector2 = VectorField[Vec2toVec2i(Unit.global_position)]
+	return FlowForce
 
 
 func GetSeparationForce(Unit: Node2D):
+	var IsIdle: bool = (Unit.CurrentState == UnitState.IDLE)
 	var SeparationForce: Vector2 = Vector2.ZERO
 	var GridCoords: Vector2i = Vec2toVec2i(Unit.global_position)
 	for NearbyUnit: Node2D in GetNearbyUnit(GridCoords, 1):
 		var RadiusVector: Vector2 = NearbyUnit.global_position - Unit.global_position
 		if RadiusVector.length_squared() == 0:
 				continue
-		SeparationForce += -RadiusVector / RadiusVector.length_squared()
+		if IsIdle:
+			if NearbyUnit.CurrentState == UnitState.IDLE:
+				SeparationForce += -RadiusVector / (RadiusVector.length_squared() ** 2)
+			else:
+				SeparationForce += -2 * RadiusVector / RadiusVector.length_squared()
+		else:
+			if NearbyUnit.CurrentState == UnitState.IDLE:
+				SeparationForce += -.5 * RadiusVector / RadiusVector.length_squared()
+			else:
+				SeparationForce += -RadiusVector / RadiusVector.length_squared()
 	SeparationForce = SeparationForce.limit_length(SeparationForceLimit)
 	return SeparationForce
 

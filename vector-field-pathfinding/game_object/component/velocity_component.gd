@@ -39,20 +39,27 @@ func UpdateVelocity(Unit: CharacterBody2D, delta: float):
 
 
 func HandleIdle(Unit: CharacterBody2D, delta: float):
-	Unit.velocity = Vector2.ZERO
+	var Force: Vector2 = GetForce(Unit)
+	var Acceleration: Vector2 = Force
+	Unit.velocity = Unit.velocity + Acceleration * delta
+	Unit.velocity = Unit.velocity.limit_length(MaxSpeed)
 
 
 func HandleMoving(Unit: CharacterBody2D, delta: float):
+	(GameState.AssemblingGroups)[Unit.TargetPosition] = true
+	
 	if GameState.GetIntegration(Unit) < DesiredIntegration:
 		Unit.velocity = Vector2.ZERO
 		Unit.ChangeStateTo(GameState.UnitState.ASSEMBLING)
-	var Force: Vector2 = GetMovingForce(Unit)
+	var Force: Vector2 = GetForce(Unit)
 	var Acceleration: Vector2 = Force
 	Unit.velocity = Unit.velocity + Acceleration * delta
 	Unit.velocity = Unit.velocity.limit_length(MaxSpeed)
 
 
 func HandleAssembling(Unit: CharacterBody2D, delta: float):
+	var Force: Vector2 = GetForce(Unit)
+	
 	if FinishAssembling:
 		if (GameState.AssemblingStates).has(Unit.TargetPosition):
 			if not (GameState.AssemblingStates)[Unit.TargetPosition]:
@@ -60,14 +67,31 @@ func HandleAssembling(Unit: CharacterBody2D, delta: float):
 		Unit.velocity = Vector2.ZERO
 		return
 	
-	if not (GameState.AssemblingGroups).has(Unit.TargetPosition):
-		(GameState.AssemblingGroups).append(Unit.TargetPosition)
+	(GameState.AssemblingGroups)[Unit.TargetPosition] = true
 	
 	RecentPositions.append(Unit.global_position)
-	var Force: Vector2 = GetAssemblingForce(Unit)
 	var Acceleration: Vector2 = Force
 	Unit.velocity = Unit.velocity + Acceleration * delta
 	Unit.velocity = Unit.velocity.limit_length(MaxSpeed)
+
+
+func GetForce(Unit: CharacterBody2D):
+	match Unit.CurrentState:
+		GameState.UnitState.IDLE:
+			return GetIdleForce(Unit)
+		GameState.UnitState.MOVING:
+			return GetMovingForce(Unit)
+		GameState.UnitState.ASSEMBLING:
+			return GetAssemblingForce(Unit)
+
+
+func GetIdleForce(Unit: CharacterBody2D):
+	var Force: Vector2 = Vector2.ZERO
+	var SeparationForce: Vector2 = GameState.GetSeparationForce(Unit)
+	var FrictionForce: Vector2 = GameState.GetFritionForce(Unit)
+	Force = SeparationForce * SeparationForceFactor +\
+	 FrictionForce * FrictionForceFactor
+	return Force
 
 
 func GetMovingForce(Unit: CharacterBody2D):

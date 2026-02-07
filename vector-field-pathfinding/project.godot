@@ -24,6 +24,7 @@ GameState="*uid://cdbttdl07ipfj"
 
 window/size/viewport_width=1920
 window/size/viewport_height=1080
+window/stretch/mode="viewport"
 
 [input]
 
@@ -48,9 +49,14 @@ camera_right={
 ]
 }
 
+[layer_names]
+
+2d_physics/layer_1="terrain"
+
 [physics]
 
 3d/physics_engine="Jolt Physics"
+common/physics_interpolation=true
 
 [rendering]
 

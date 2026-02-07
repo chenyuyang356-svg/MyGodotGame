@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://bexwm72bwqk7s"]
+
+[ext_resource type="Script" uid="uid://ggrhl6nefdh8" path="res://game_object/building/square_factory.gd" id="1_xwf1b"]
+[ext_resource type="Texture2D" uid="uid://b66ahi3ca5cj5" path="res://asset/SquareFactory.png" id="2_ah4rk"]
+
+[node name="SquareFactory" type="StaticBody2D" unique_id=52946929]
+collision_mask = 0
+script = ExtResource("1_xwf1b")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1481835361]
+texture = ExtResource("2_ah4rk")

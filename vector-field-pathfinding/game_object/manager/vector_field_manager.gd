@@ -4,6 +4,7 @@ extends Node2D
 @onready var TileRectangle: Rect2i = Tile.get_used_rect()
 @onready var TileSize: Vector2i = Tile.tile_set.tile_size
 #最近更新的CostField，IntegrationField，VectorField
+#CostField和IntegrationField，65535表示不可到达
 var CostField: Dictionary[Vector2i, int]
 var IntegrationField: Dictionary[Vector2i, int]
 var VectorField: Dictionary[Vector2i, Vector2]
@@ -36,7 +37,7 @@ func GenerateCostField(UsedTile: TileMapLayer):
 			var Coords: Vector2i = Vector2i(x, y)
 			var Data = UsedTile.get_cell_tile_data(Coords)
 			if Data == null or Data.get_custom_data("IsWall"):
-				CostField[Coords] = 255
+				CostField[Coords] = 65535
 			else:
 				CostField[Coords] = 1
 
@@ -52,7 +53,7 @@ func GenerateIntegartionField(TargetPosition: Vector2i):
 		var CurrentPosition = Queue.pop_front()
 		var CurrentDistance = IntegrationField[CurrentPosition]
 		for Neighbor in GetNeighbors(CurrentPosition, false):
-			if CostField[Neighbor] >= 255:
+			if CostField[Neighbor] >= 65535:
 				continue
 			var NewDistance: int = CurrentDistance + CostField[Neighbor]
 			if NewDistance < IntegrationField[Neighbor]:

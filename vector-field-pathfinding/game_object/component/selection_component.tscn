@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dgks4hd8of7yb"]
+
+[ext_resource type="Script" uid="uid://ct6dbf4qrdgis" path="res://game_object/component/selection_component.gd" id="1_sc8mn"]
+
+[node name="SelectionComponent" type="Node" unique_id=760760823]
+script = ExtResource("1_sc8mn")

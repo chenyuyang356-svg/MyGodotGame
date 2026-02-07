@@ -1,17 +1,10 @@
-extends CharacterBody2D
+extends Node
 
-@onready var VelocityComponent: Node = $VelocityComponent
-@onready var SelectionArea: Area2D = $SelectionArea
-
-var CurrentState: int = GameState.UnitState.IDLE
+@onready var Parent: CharacterBody2D = $"../"
+@onready var SelectionArea: Area2D = $"../SelectionArea"
 
 var IsMouseOn: bool = false
 var IsSelected: bool = false
-
-var TargetPosition: Vector2 = global_position
-var OldTargetPositon: Vector2 = global_position
-
-const Radius: float = 5
 
 
 func _ready() -> void:
@@ -25,19 +18,10 @@ func _ready() -> void:
 	GameEvent.end_box_selecting.connect(_on_end_box_selecting, 1)
 
 
-func _process(delta: float) -> void:
-	pass
-
-
-func _physics_process(delta: float) -> void:
-	VelocityComponent.UpdateVelocity(self, delta)
-	move_and_slide()
-
-
 func _on_mouse_entered():
 	print("Mouse is on!")
 	IsMouseOn = true
-	modulate = Color(1.5, 1.5, 1.5)
+	Highlight()
 
 
 func _on_mouse_exited():
@@ -47,14 +31,14 @@ func _on_mouse_exited():
 
 
 func _on_single_selecting(Index: int):
-	if get_index() == Index:
+	if Parent.get_index() == Index:
 		ChangeIsSelectedState()
 	elif IsSelected:
 		ChangeIsSelectedState()
 
 
 func _on_double_click_selecting(GroupName: StringName):
-	if GroupName in get_groups():
+	if GroupName in Parent.get_groups():
 		if !IsSelected:
 			ChangeIsSelectedState()
 	elif IsSelected:
@@ -62,14 +46,14 @@ func _on_double_click_selecting(GroupName: StringName):
 
 
 func _on_is_box_selecting(Indexes: Array):
-	if get_index() in Indexes:
-		modulate = Color(1.5, 1.5, 1.5)
+	if Parent.get_index() in Indexes:
+		Highlight()
 	else:
 		RestoreModulate()
 
 
 func _on_end_box_selecting(Indexes: Array):
-	if get_index() in Indexes:
+	if Parent.get_index() in Indexes:
 		if !IsSelected:
 			ChangeIsSelectedState()
 		else:
@@ -80,8 +64,8 @@ func _on_end_box_selecting(Indexes: Array):
 
 func _on_choosing_target_position(MousePosition: Vector2):
 	if IsSelected:
-		TargetPosition = MousePosition
-		ChangeStateTo(GameState.UnitState.MOVING)
+		Parent.TargetPosition = MousePosition
+		Parent.ChangeStateTo(GameState.UnitState.MOVING)
 
 
 func ChangeIsSelectedState():
@@ -89,35 +73,12 @@ func ChangeIsSelectedState():
 	RestoreModulate()
 
 
-func ChangeStateTo(NewState: int):
-	ExistState(CurrentState)
-	EnterState(NewState)
-
-
-func ExistState(OldState: int):
-	match OldState:
-		GameState.UnitState.IDLE:
-			return
-		GameState.UnitState.MOVING:
-			return
-		GameState.UnitState.ASSEMBLING:
-			return
-
-
-func EnterState(NewState: int):
-	CurrentState = NewState
-	match CurrentState:
-		GameState.UnitState.IDLE:
-			return 
-		GameState.UnitState.MOVING:
-			return
-		GameState.UnitState.ASSEMBLING:
-			VelocityComponent.FinishAssembling = false
-			VelocityComponent.AssemblingTimer.start()
+func Highlight():
+	Parent.modulate = Color(1.5, 1.5, 1.5)
 
 
 func RestoreModulate():
 	if IsSelected:
-		modulate = Color(1.2, 1.2, 1.2)
+		Parent.modulate = Color(1.2, 1.2, 1.2)
 	else:
-		modulate = Color(1.0, 1.0, 1.0)
+		Parent.modulate = Color(1.0, 1.0, 1.0)

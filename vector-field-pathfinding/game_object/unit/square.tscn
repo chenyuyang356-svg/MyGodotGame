@@ -1,0 +1,31 @@
+[gd_scene format=3 uid="uid://c3wagejl1eurc"]
+
+[ext_resource type="Script" uid="uid://dnsqxhbf0e6j3" path="res://game_object/unit/square.gd" id="1_hfnla"]
+[ext_resource type="PackedScene" uid="uid://b65w1fy14ird5" path="res://game_object/component/velocity_component.tscn" id="2_24rre"]
+[ext_resource type="Texture2D" uid="uid://dshgpl47m5epy" path="res://asset/Square.png" id="2_to03e"]
+[ext_resource type="PackedScene" uid="uid://dgks4hd8of7yb" path="res://game_object/component/selection_component.tscn" id="3_hwdgb"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hwdgb"]
+radius = 8.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_u1sg5"]
+radius = 6.0
+
+[node name="Square" type="CharacterBody2D" unique_id=2110840602 groups=["Square", "Unit"]]
+collision_layer = 0
+script = ExtResource("1_hfnla")
+
+[node name="VelocityComponent" parent="." unique_id=1512861845 instance=ExtResource("2_24rre")]
+
+[node name="SelectionComponent" parent="." unique_id=760760823 instance=ExtResource("3_hwdgb")]
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=335947656]
+texture = ExtResource("2_to03e")
+
+[node name="SelectionArea" type="Area2D" parent="." unique_id=1212100254 groups=["SelectionArea"]]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="SelectionArea" unique_id=869690677]
+shape = SubResource("CircleShape2D_hwdgb")
+
+[node name="CollisionArea" type="CollisionShape2D" parent="." unique_id=2146543854]
+shape = SubResource("CircleShape2D_u1sg5")
