@@ -4,7 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://b65w1fy14ird5" path="res://game_object/component/velocity_component.tscn" id="2_24rre"]
 [ext_resource type="Texture2D" uid="uid://dshgpl47m5epy" path="res://asset/Square.png" id="2_to03e"]
 [ext_resource type="PackedScene" uid="uid://dgks4hd8of7yb" path="res://game_object/component/selection_component.tscn" id="3_hwdgb"]
-[ext_resource type="Script" path="res://game_object/component/health_component.gd" id="4_7kkjg"]
+[ext_resource type="Script" uid="uid://b35kgm2bt8dvp" path="res://game_object/component/health_component.gd" id="4_7kkjg"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hwdgb"]
 radius = 8.0
