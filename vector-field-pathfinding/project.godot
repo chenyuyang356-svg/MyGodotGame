@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 GameEvent="*uid://c40bwulo6k0ah"
 GameState="*uid://cdbttdl07ipfj"
+GlobalFlowFieldManager="*uid://dlupoqvj2uohu"
 
 [display]
 

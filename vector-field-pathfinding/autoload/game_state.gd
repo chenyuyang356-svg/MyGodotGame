@@ -23,7 +23,6 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	UpdateUnitGrid.call_deferred()
-	RemoveFields.call_deferred()
 	UpdateAssemblingGroups.call_deferred()
 
 
@@ -35,19 +34,6 @@ func UpdateUnitGrid():
 		if not UnitGrid.has(GridPosition):
 			UnitGrid[GridPosition] = []
 		UnitGrid[GridPosition].append(Unit)
-
-
-func RemoveFields():
-	var Units: Array = get_tree().get_nodes_in_group("Unit")
-	var OldTargetPositions: Array = IntegrationFields.keys()
-	var NewTargetPositions: Array = []
-	for Unit: Node2D in Units:
-		if not Unit.TargetPosition in NewTargetPositions:
-			NewTargetPositions.append(Unit.TargetPosition)
-	for TargetPosition: Vector2 in OldTargetPositions:
-		if not TargetPosition in NewTargetPositions:
-			IntegrationFields.erase(TargetPosition)
-			VectorFields.erase(TargetPosition) 
 
 
 func UpdateAssemblingGroups():
@@ -63,13 +49,11 @@ func UpdateAssemblingGroups():
 
 
 func GetIntegration(Unit: Node2D):
-	var IntegrationField: Dictionary = IntegrationFields[Unit.TargetPosition]
-	return IntegrationField[Vec2toVec2i(Unit.global_position)]
+	return GlobalFlowFieldManager.get_integration(Unit.global_position, Unit.TargetPosition)
 
 
 func GetFlowForce(Unit: Node2D):
-	var VectorField: Dictionary = VectorFields[Unit.TargetPosition]
-	var FlowForce: Vector2 = VectorField[Vec2toVec2i(Unit.global_position)]
+	var FlowForce: Vector2 = GlobalFlowFieldManager.get_flow_direction(Unit.global_position, Unit.TargetPosition)
 	return FlowForce
 
 

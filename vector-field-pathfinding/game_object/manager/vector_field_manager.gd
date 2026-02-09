@@ -1,75 +1,25 @@
 extends Node2D
-
+#这个节点已被弃用
 @export var Tile: TileMapLayer
 @onready var TileRectangle: Rect2i = Tile.get_used_rect()
 @onready var TileSize: Vector2i = Tile.tile_set.tile_size
 #最近更新的CostField，IntegrationField，VectorField
 #CostField和IntegrationField，65535表示不可到达
-var CostField: Dictionary[Vector2i, int]
-var IntegrationField: Dictionary[Vector2i, int]
-var VectorField: Dictionary[Vector2i, Vector2]
+var CostField: Dictionary[Vector2i, int] = {}
+var IntegrationField: Dictionary[Vector2i, int] = {}
+var VectorField: Dictionary[Vector2i, Vector2] = {}
 
 func _ready() -> void:
-	GenerateCostField(Tile)
-	GenerateIntegartionField(Vector2i.ZERO)
-	GenerateVectorField()
-	queue_redraw()
 	GameEvent.choosing_target_position.connect(_on_choosing_target_position)
 
 
 func _draw() -> void:
-	DrawIntField(IntegrationField)
-	DrawVecField(VectorField)
+	pass
 
 
 func _on_choosing_target_position(TargetPosition: Vector2):
-	GenerateIntegartionField(Vec2toVec2i(TargetPosition))
-	GenerateVectorField()
 	(GameState.IntegrationFields)[TargetPosition] = IntegrationField.duplicate()
 	(GameState.VectorFields)[TargetPosition] = VectorField.duplicate()
-	queue_redraw()
-
-
-func GenerateCostField(UsedTile: TileMapLayer):
-	var UsedRectangle: Rect2i = UsedTile.get_used_rect()
-	for x in range(UsedRectangle.position.x, UsedRectangle.end.x):
-		for y in range(UsedRectangle.position.y, UsedRectangle.end.y):
-			var Coords: Vector2i = Vector2i(x, y)
-			var Data = UsedTile.get_cell_tile_data(Coords)
-			if Data == null or Data.get_custom_data("IsWall"):
-				CostField[Coords] = 65535
-			else:
-				CostField[Coords] = 1
-
-
-func GenerateIntegartionField(TargetPosition: Vector2i):
-	for Coords in CostField:
-		IntegrationField[Coords] = 65535
-	if !TileRectangle.has_point(TargetPosition):
-		return
-	IntegrationField[TargetPosition] = 0
-	var Queue: Array = [TargetPosition]
-	while Queue.size() > 0:
-		var CurrentPosition = Queue.pop_front()
-		var CurrentDistance = IntegrationField[CurrentPosition]
-		for Neighbor in GetNeighbors(CurrentPosition, false):
-			if CostField[Neighbor] >= 65535:
-				continue
-			var NewDistance: int = CurrentDistance + CostField[Neighbor]
-			if NewDistance < IntegrationField[Neighbor]:
-				IntegrationField[Neighbor] = NewDistance
-				Queue.append(Neighbor)
-
-
-func GenerateVectorField():
-	for Coords: Vector2i in IntegrationField:
-		var Integration: int = IntegrationField[Coords]
-		if Integration <= 65535 and Integration > 0:
-			var BestNeighbor: Vector2i = GetBestNeighbor(Coords)
-			var Vector: Vector2 = Vector2(BestNeighbor - Coords).normalized()
-			VectorField[Coords] = Vector	
-		else:
-			VectorField[Coords] = Vector2.ZERO
 
 
 func GetNeighbors(Coords: Vector2i, IncludeDiagonal: bool):

@@ -35,6 +35,10 @@ func _input(event: InputEvent) -> void:
 			var OverlappingIndexes: Array = GetIndexes(OverlappingAreas)
 			#选择新目标位置
 			if OverlappingIndexes.is_empty():
+				var MouseGridPosition: Vector2i = GlobalFlowFieldManager.world_to_grid(MousePosition)
+				GlobalFlowFieldManager.create_flow_field(MouseGridPosition, false)
+				GlobalFlowFieldManager.compute_integration_field(MouseGridPosition)
+				GlobalFlowFieldManager.compute_flow_directions(MouseGridPosition)
 				GameEvent.emit_signal("choosing_target_position", MousePosition)
 				print("Choosing target position!")
 

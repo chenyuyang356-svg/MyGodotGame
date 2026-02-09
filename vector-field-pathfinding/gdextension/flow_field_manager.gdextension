@@ -5,5 +5,5 @@ compatibility_minimum = "4.1"
 
 [libraries]
 
-windows.debug.x86_64 = "res://flow_field_manager_gdextension/bin/libgdextension.windows.template_debug.x86_64.dll"
-windows.release.x86_64 = "res://flow_field_manager_gdextension/bin/libgdextension.windows.template_debug.x86_64.dll"
+windows.debug.x86_64 = "res://gdextension/bin/libgdextension.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://gdextension/bin/libgdextension.windows.template_debug.x86_64.dll"
