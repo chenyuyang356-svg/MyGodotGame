@@ -53,4 +53,4 @@ script = ExtResource("4_kfbq2")
 
 [node name="SquareFactory" parent="." unique_id=52946929 instance=ExtResource("6_4dugh")]
 position = Vector2(441, -417)
-SquareNumber = 20
+SquareNumber = 10

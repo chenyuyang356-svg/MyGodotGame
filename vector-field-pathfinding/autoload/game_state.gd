@@ -1,11 +1,12 @@
 extends Node
-#需要添加一个向量场列表
 
-#查找时Dictionary可能有效率问题，最好换成PackedInt(Vector2)Array
+#IntegrationFields和VectorFields已经被弃用
 #IntegartionFields的keys就是使用中的TargetPositions，目前通过TargetPosition管理集群
 var IntegrationFields: Dictionary[Vector2, Dictionary]
 var VectorFields: Dictionary[Vector2, Dictionary]
 var UnitGrid: Dictionary[Vector2i, Array]
+var FrameCount: int = 0
+
 #AssemblingGroups只作为一个集合，它的键值不会被使用
 var AssemblingGroups: Dictionary[Vector2, bool]
 var AssemblingStates: Dictionary[Vector2, bool]
@@ -22,8 +23,12 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	UpdateUnitGrid.call_deferred()
-	UpdateAssemblingGroups.call_deferred()
+	if FrameCount < 5:
+		FrameCount += 1
+	else:
+		FrameCount = 0
+		UpdateUnitGrid.call_deferred()
+		UpdateAssemblingGroups.call_deferred()
 
 
 func UpdateUnitGrid():
