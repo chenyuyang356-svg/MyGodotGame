@@ -23,7 +23,7 @@ void UnitManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
     unit_grid_width = p_width / 2;
     unit_grid_height = p_height / 2;
     unit_grid_size = unit_grid_width * unit_grid_height;
-    unit_grid_cell_size = p_cell_size / 2;
+    unit_grid_cell_size = p_cell_size * 2;
 
     unit_grid.resize(unit_grid_size);
 
@@ -159,6 +159,8 @@ void UnitManager::_physics_process(double p_delta) {
         update_velocity(unit, p_delta);
         move(unit, p_delta);
     }
+
+    update_multimesh_buffer();
 }
 
 Vector2 UnitManager::get_flow(const UnitData& p_unit) {
@@ -231,6 +233,42 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
     p_unit.position += p_unit.velocity * p_delta;
 }
 
+void UnitManager::update_multimesh_buffer() {
+    if (!multimesh_instance) return;
+
+    Ref<MultiMesh> mesh_res = multimesh_instance->get_multimesh();
+    if (mesh_res.is_null()) return;
+
+    int current_unit_count = units.size();
+
+    // 1. 如果单位数量变化，调整 MultiMesh 的实例数量
+    if (mesh_res->get_instance_count() != current_unit_count) {
+        mesh_res->set_instance_count(current_unit_count);
+    }
+
+    // 2. 遍历单位并更新变换矩阵
+    for (int i = 0; i < current_unit_count; ++i) {
+        const UnitData& unit = units[i];
+
+        // 创建变换矩阵：设置位置、旋转（可选）和缩放
+        // 注意：如果你需要单位朝向移动方向，可以利用 unit.velocity.angle()
+        Transform2D xform;
+
+        // 如果单位正在移动，旋转它以指向移动方向
+        if (unit.velocity.length_squared() > 0.1f) {
+            xform.set_rotation(unit.velocity.angle());
+        }
+
+        xform.set_origin(unit.position);
+
+        // 将变换应用到第 i 个实例
+        mesh_res->set_instance_transform_2d(i, xform);
+
+        // 如果你有不同的单位颜色或动画帧，可以使用 set_instance_color 或 set_instance_custom_data
+        //mesh_res->set_instance_color(i, Color(1, 0, 0)); 
+    }
+}
+
 Vector2 UnitManager::get_unit_position(int p_unit_id) const {
     auto it = id_to_index.find(p_unit_id);
     
@@ -251,6 +289,14 @@ int UnitManager::get_unit_state(int p_unit_id) const {
     return (int)(IDLE);
 }
 
+void UnitManager::set_multimesh_instance(Node* p_node) {
+    multimesh_instance = Object::cast_to<MultiMeshInstance2D>(p_node);
+}
+
+void UnitManager::set_flow_field_manager(Node* p_node) {
+    flow_field_manager = Object::cast_to<FlowFieldManager>(p_node);
+}
+
 void UnitManager::_bind_methods() {
     BIND_ENUM_CONSTANT(IDLE);
     BIND_ENUM_CONSTANT(MOVING);
@@ -262,4 +308,6 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("command_units_to_move", "unit_ids", "target_world_pos"), &UnitManager::command_units_to_move);
     ClassDB::bind_method(D_METHOD("get_unit_position", "unit_id"), &UnitManager::get_unit_position);
     ClassDB::bind_method(D_METHOD("get_unit_state", "unit_id"), &UnitManager::get_unit_state);
+    ClassDB::bind_method(D_METHOD("set_multimesh_instance", "node"), &UnitManager::set_multimesh_instance);
+    ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &UnitManager::set_flow_field_manager);
 }

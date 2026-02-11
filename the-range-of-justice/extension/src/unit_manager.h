@@ -7,6 +7,8 @@
 #include <godot_cpp/variant/vector2.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
 #include <godot_cpp/variant/array.hpp>
+#include <godot_cpp/classes/multi_mesh_instance2d.hpp>
+#include <godot_cpp/classes/multi_mesh.hpp>
 
 #include "flow_field_manager.h"
 
@@ -62,6 +64,7 @@ namespace godot {
 		float friction_factor = 100;
 
 		bool is_setup = false;
+		MultiMeshInstance2D* multimesh_instance = nullptr;
 
 	protected:
 		static void _bind_methods();
@@ -92,10 +95,13 @@ namespace godot {
 		Vector2 get_force(const UnitData& p_unit);
 		void update_velocity(UnitData& p_unit, double p_delta);
 		void move(UnitData& p_unit, double p_delta);
+		void update_multimesh_buffer();
 
 		// 获取数据供 Godot 渲染
 		Vector2 get_unit_position(int p_unit_id) const;
 		int get_unit_state(int p_unit_id) const;
+		void set_multimesh_instance(Node* p_node);
+		void set_flow_field_manager(Node* p_node);
 	};
 }
 
