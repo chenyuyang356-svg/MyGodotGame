@@ -6,14 +6,6 @@
 
 using namespace godot;
 
-namespace {
-    float get_length_squared(Vector2 p_vector) {
-        float x = p_vector.x;
-        float y = p_vector.y;
-        return x * x + y * y;
-    }
-}
-
 UnitManager::UnitManager() {
     units.reserve(1000);
 }
@@ -21,6 +13,11 @@ UnitManager::UnitManager() {
 UnitManager::~UnitManager() {}
 
 void UnitManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin) {
+    if (!flow_field_manager) {
+        flow_field_manager = get_node<FlowFieldManager>("../FlowFieldManager");
+        if (!flow_field_manager) return;
+    }
+    
     flow_field_manager->setup_grid(p_width, p_height, p_origin, p_cell_size);
 
     unit_grid_width = p_width / 2;
@@ -33,6 +30,8 @@ void UnitManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
     for (int i = 0; i < unit_grid_size; ++i) {
         unit_grid[i].reserve(10);
     }
+
+    is_setup = true;
 }
 
 int UnitManager::spawn_unit(Vector2 p_world_pos, UnitType p_type) {
@@ -146,25 +145,90 @@ std::vector<int> UnitManager::get_nearby_units(Vector2 p_world_pos, float p_radi
 }
 
 void UnitManager::_physics_process(double p_delta) {
-    return;
+    if (!is_setup) return;
+    
+    if (!flow_field_manager) {
+        flow_field_manager = get_node<FlowFieldManager>("../FlowFieldManager");
+        if (!flow_field_manager) return;
+    }
+
+    update_spatial_grid();
+
+    for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
+        UnitData& unit = units[unit_idx];
+        update_velocity(unit, p_delta);
+        move(unit, p_delta);
+    }
 }
 
-Vector2 UnitManager::calculate_separation(int p_unit_idx) {
-    UnitData unit = units[p_unit_idx];
-    bool is_IDLE = (unit.state == IDLE);
-    Vector2 Separation;
-    for (int unit_idx : get_nearby_units(unit.position, 1)) {
-        UnitData nearby_unit = units[unit_idx];
-        Vector2 radius_vector = nearby_unit.position - unit.position;
-        if (get_length_squared(radius_vector) < 10e-12) {
+Vector2 UnitManager::get_flow(const UnitData& p_unit) {
+    Vector2 flow = flow_field_manager->get_flow_direction(p_unit.position, p_unit.target_pos);
+    return flow;
+}
+
+Vector2 UnitManager::get_separation(const UnitData& p_unit) {
+    bool is_IDLE = (p_unit.state == IDLE);
+    Vector2 separation;
+
+    for (int unit_idx : get_nearby_units(p_unit.position, 1)) {
+        const UnitData& nearby_unit = units[unit_idx];
+        Vector2 radius_vector = nearby_unit.position - p_unit.position;
+        float length_squared = radius_vector.length_squared();
+        if (length_squared < 10e-12) {
             return Vector2(0, 0);
         }
         if (is_IDLE) {
             if (nearby_unit.state == IDLE) {
-                return Vector2(0, 0);
+                separation -= radius_vector / length_squared / length_squared;
+            }
+            else {
+                separation -= 2 * radius_vector / length_squared;
+            }
+        }
+        else {
+            if (nearby_unit.state == IDLE) {
+                separation -= 0.5 * radius_vector / length_squared;
+            }
+            else {
+                separation -= radius_vector / length_squared;
             }
         }
     }
+
+    separation = separation.limit_length(separation_limit);
+    return separation;
+}
+
+Vector2 UnitManager::get_friction(const UnitData& p_unit) {
+    return (-p_unit.velocity);
+}
+
+Vector2 UnitManager::get_force(const UnitData& p_unit) {
+    Vector2 force = Vector2(0, 0);
+    switch (p_unit.type) {
+    case IDLE:
+        force = get_friction(p_unit) * friction_factor + get_separation(p_unit) * separation_factor;
+        break;
+    case MOVING:
+        force = get_flow(p_unit) * flow_factor + get_separation(p_unit) * separation_factor;
+        break;
+    }
+    return force;
+}
+
+void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
+    switch (p_unit.type) {
+    case IDLE:
+        p_unit.velocity += get_force(p_unit) * p_delta;
+        p_unit.velocity = (p_unit.velocity).limit_length(p_unit.speed);
+    case MOVING:
+        p_unit.velocity += get_force(p_unit) * p_delta;
+        p_unit.velocity = (p_unit.velocity).limit_length(p_unit.speed);
+    }
+}
+
+void UnitManager::move(UnitData& p_unit, double p_delta) {
+    p_unit.position += p_unit.velocity * p_delta;
 }
 
 Vector2 UnitManager::get_unit_position(int p_unit_id) const {
@@ -196,7 +260,6 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &UnitManager::setup_system);
     ClassDB::bind_method(D_METHOD("spawn_unit", "world_position", "type"), &UnitManager::spawn_unit);
     ClassDB::bind_method(D_METHOD("command_units_to_move", "unit_ids", "target_world_pos"), &UnitManager::command_units_to_move);
-    ClassDB::bind_method(D_METHOD("update_spatial_grid", "unit_ids"), &UnitManager::update_spatial_grid);
     ClassDB::bind_method(D_METHOD("get_unit_position", "unit_id"), &UnitManager::get_unit_position);
     ClassDB::bind_method(D_METHOD("get_unit_state", "unit_id"), &UnitManager::get_unit_state);
 }

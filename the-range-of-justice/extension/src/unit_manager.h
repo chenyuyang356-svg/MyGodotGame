@@ -30,7 +30,7 @@ namespace godot {
 			Vector2 position;       // 当前世界坐标
 			Vector2 velocity;       // 当前速度向量
 			Vector2 target_pos;		//目标的世界坐标
-			Vector2i target_grid;   // 目标的网格坐标
+			Vector2i target_grid;   // 目标的网格坐标（与流场坐标一致，不同于unit_grid中的坐标）
 			float speed;            // 移动速度
 			float radius;           // 碰撞半径（用于单位间排斥）
 			UnitState state;        // 状态机
@@ -59,6 +59,9 @@ namespace godot {
 		float flow_factor = 2000;
 		float separation_factor = 10000;
 		float separation_limit = 1000;
+		float friction_factor = 100;
+
+		bool is_setup = false;
 
 	protected:
 		static void _bind_methods();
@@ -83,7 +86,12 @@ namespace godot {
 		virtual void _physics_process(double p_delta) override;
 
 		// --- 逻辑计算 ---
-		Vector2 calculate_separation(int p_unit_idx);
+		Vector2 get_flow(const UnitData& p_unit);
+		Vector2 get_separation(const UnitData& p_unit);
+		Vector2 get_friction(const UnitData& p_unit);
+		Vector2 get_force(const UnitData& p_unit);
+		void update_velocity(UnitData& p_unit, double p_delta);
+		void move(UnitData& p_unit, double p_delta);
 
 		// 获取数据供 Godot 渲染
 		Vector2 get_unit_position(int p_unit_id) const;
