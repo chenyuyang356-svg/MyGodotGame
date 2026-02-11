@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://dq5bn2l7ni314"]
+
+[ext_resource type="Texture2D" uid="uid://dfd5a6isuuir3" path="res://asset/Tileset.png" id="1_53q0u"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_pjrb6"]
+texture = ExtResource("1_53q0u")
+0:0/0 = 0
+1:0/0 = 0
+0:1/0 = 0
+1:1/0 = 0
+0:2/0 = 0
+1:2/0 = 0
+0:3/0 = 0
+1:3/0 = 0
+
+[sub_resource type="TileSet" id="TileSet_xwkvk"]
+sources/0 = SubResource("TileSetAtlasSource_pjrb6")
+
+[node name="main" type="Node" unique_id=224165495]
+
+[node name="TileMapLayer" type="TileMapLayer" parent="." unique_id=374535378]
+tile_set = SubResource("TileSet_xwkvk")
