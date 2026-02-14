@@ -1,10 +1,12 @@
 #include "register_types.h"
 #include "flow_field_manager.h"
+#include "selection_manager.h"
 #include "unit_manager.h"
+#include "unit_stats.h"
+
 #include <gdextension_interface.h>
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
-#include "unit_stats.h"
 
 using namespace godot;
 
@@ -13,6 +15,7 @@ void initialize_module(ModuleInitializationLevel p_level) {
 		return;
 	}
 	GDREGISTER_CLASS(FlowFieldManager);
+	GDREGISTER_CLASS(SelectionManager);
 	GDREGISTER_CLASS(UnitManager);
 	GDREGISTER_CLASS(UnitStats);
 }
