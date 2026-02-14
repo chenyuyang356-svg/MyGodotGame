@@ -1,4 +1,4 @@
-﻿#include "flow_field_manager.h"
+#include "flow_field_manager.h"
 
 #include <queue>
 
@@ -16,7 +16,7 @@ FlowFieldManager::FlowFieldManager() {
 
 FlowFieldManager::~FlowFieldManager() {}
 
-void FlowFieldManager::_physics_process(double p_delta) {
+void FlowFieldManager::update(double p_delta) {
     process_one_task();
     
     cleanup_timer += p_delta;
@@ -123,6 +123,7 @@ void FlowFieldManager::create_flow_field(Vector2i p_target_grid_pos, bool p_over
     // 例如：将集成场初始化为极大值
     std::fill(field.integration_field.begin(), field.integration_field.end(), 65535.0f);
     std::fill(field.flow_directions.begin(), field.flow_directions.end(), Vector2(0, 0));
+    calculation_queue.push(p_target_grid_pos);
     field.is_computing = true;
 
     // 如果目标点在地图范围内，将目标点的集成场值设为 0

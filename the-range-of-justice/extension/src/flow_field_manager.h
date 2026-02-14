@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <vector>
 #include <queue>
@@ -64,7 +64,7 @@ namespace godot {
         FlowFieldManager();
         ~FlowFieldManager();
 
-        virtual void _physics_process(double p_delta) override;
+        void update(double p_delta);
 
         void process_one_task();
 
@@ -114,4 +114,6 @@ namespace godot {
 
         bool is_in_grid(Vector2i p_grid_pos);
     };
+
+
 }
