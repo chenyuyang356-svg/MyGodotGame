@@ -11,6 +11,7 @@
 #include <godot_cpp/classes/multi_mesh.hpp>
 
 #include "flow_field_manager.h"
+#include "selection_manager.h"
 
 namespace godot {
 
@@ -37,12 +38,17 @@ namespace godot {
 			float radius;           // 碰撞半径（用于单位间排斥）
 			UnitState state;        // 状态机
 			UnitType type;			// 单位种类
+			
+			bool is_selected = false;
+			bool is_mouse_on = false;
+			float selection_radius;
 
-			UnitData() : id(-1), speed(200.0f), radius(6.0f), state(IDLE) {}
+			UnitData() : id(-1), speed(200.0f), radius(6.0f), state(IDLE), selection_radius(8.0f) {}
 		};
 
 	private:
 		FlowFieldManager *flow_field_manager;
+		SelectionManager *selection_manager;
 		std::vector<UnitData> units;
 		std::unordered_map<int, size_t> id_to_index;
 		int next_unit_id = 0;
@@ -58,10 +64,10 @@ namespace godot {
 		int unit_grid_size = 0;
 		Vector2i unit_grid_cell_size = Vector2i(0, 0);
 
-		float flow_factor = 2000;
-		float separation_factor = 10000;
-		float separation_limit = 1000;
-		float friction_factor = 100;
+		float flow_factor = 2000.0f;
+		float separation_factor = 10000.0f;
+		float separation_limit = 1000.0f;
+		float friction_factor = 100.0f;
 
 		bool is_setup = false;
 		MultiMeshInstance2D* multimesh_instance = nullptr;
@@ -89,19 +95,23 @@ namespace godot {
 		virtual void _physics_process(double p_delta) override;
 
 		// --- 逻辑计算 ---
-		Vector2 get_flow(const UnitData& p_unit);
-		Vector2 get_separation(const UnitData& p_unit);
-		Vector2 get_friction(const UnitData& p_unit);
-		Vector2 get_force(const UnitData& p_unit);
+		Vector2 get_flow(UnitData& p_unit);
+		Vector2 get_separation(UnitData& p_unit);
+		Vector2 get_friction(UnitData& p_unit);
+		Vector2 get_force(UnitData& p_unit);
 		void update_velocity(UnitData& p_unit, double p_delta);
 		void move(UnitData& p_unit, double p_delta);
+
 		void update_multimesh_buffer();
+
+		void update_selection_state_and_target_position(UnitData& p_unit);
 
 		// 获取数据供 Godot 渲染
 		Vector2 get_unit_position(int p_unit_id) const;
 		int get_unit_state(int p_unit_id) const;
 		void set_multimesh_instance(Node* p_node);
 		void set_flow_field_manager(Node* p_node);
+		void set_selection_manager(Node* p_node);
 	};
 }
 
