@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://dn1a7tvm4pw6o" path="res://main/main.gd" id="1_3wy1v"]
 [ext_resource type="Texture2D" uid="uid://dfd5a6isuuir3" path="res://asset/Tileset.png" id="1_53q0u"]
 [ext_resource type="Script" uid="uid://deoc3xvywlo0v" path="res://main/camera_2d.gd" id="2_pjrb6"]
-[ext_resource type="Script" uid="uid://cxdwnig240dls" path="res://main/selection_manager.gd" id="4_3wy1v"]
 [ext_resource type="Texture2D" uid="uid://d0d5geew4q8pd" path="res://asset/Square.png" id="4_c651c"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_pjrb6"]
@@ -30,7 +29,6 @@ sources/0 = SubResource("TileSetAtlasSource_pjrb6")
 size = Vector2(16, 16)
 
 [sub_resource type="MultiMesh" id="MultiMesh_3wy1v"]
-use_colors = true
 mesh = SubResource("QuadMesh_3wy1v")
 
 [node name="main" type="Node" unique_id=224165495]
@@ -47,9 +45,6 @@ tile_set = SubResource("TileSet_xwkvk")
 [node name="MultiMeshInstance2D" type="MultiMeshInstance2D" parent="." unique_id=99750900]
 multimesh = SubResource("MultiMesh_3wy1v")
 texture = ExtResource("4_c651c")
-
-[node name="SelectionManager" type="SelectionManager" parent="." unique_id=1104047911]
-script = ExtResource("4_3wy1v")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1226521325]
 script = ExtResource("2_pjrb6")
