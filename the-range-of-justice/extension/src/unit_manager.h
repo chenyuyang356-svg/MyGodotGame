@@ -1,8 +1,7 @@
-#pragma once
+﻿#pragma once
 
 #include <vector>
 #include <unordered_map>
-
 #include <godot_cpp/classes/node2d.hpp>
 #include <godot_cpp/variant/vector2.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
@@ -11,70 +10,95 @@
 #include <godot_cpp/classes/multi_mesh.hpp>
 
 #include "flow_field_manager.h"
+#include "unit_stats.h" // 引用重命名后的头文件
 
 namespace godot {
 
-	class UnitManager : public Node2D {
-		GDCLASS(UnitManager, Node2D)
+    class UnitManager : public Node2D {
+        GDCLASS(UnitManager, Node2D)
 
-	public:
-		enum UnitState {
-			IDLE,        // 待机
-			MOVING,      // 移动中
-		};
+    public:
+        enum UnitState {
+            IDLE,
+            MOVING,
+            CHASING,
+            ATTACKING
+        };
 
-		enum UnitType {
-			SQUARE
-		};
+        struct UnitData {
+            int id;
+            Vector2 position;
+            Vector2 velocity;
+            Vector2 target_pos;
+            Vector2i target_grid;
+            float speed;
+            float radius;
 
-		struct UnitData {
-			int id;                 // 唯一标识符
-			Vector2 position;       // 当前世界坐标
-			Vector2 velocity;       // 当前速度向量
-			Vector2 target_pos;		//目标的世界坐标
-			Vector2i target_grid;   // 目标的网格坐标（与流场坐标一致，不同于unit_grid中的坐标）
-			float speed;            // 移动速度
-			float radius;           // 碰撞半径（用于单位间排斥）
-			UnitState state;        // 状态机
-			UnitType type;			// 单位种类
+            int team_id;
+            float hp;
+            float max_hp;
+            float attack_range;
+            float attack_damage;
+            float attack_interval;
+            double last_attack_time;
+            int target_unit_id;
 
-			UnitData() : id(-1), speed(200.0f), radius(6.0f), state(IDLE) {}
-		};
+            // 配置引用
+            Ref<UnitStats> stats;
 
-	private:
-		FlowFieldManager *flow_field_manager;
-		std::vector<UnitData> units;
-		std::unordered_map<int, size_t> id_to_index;
-		int next_unit_id = 0;
+            float current_rotation;
+            float current_hp;
+            float current_shield;
 
-		// --- 空间网格 (Unit Grid) ---
-		// 每一个格子存储该区域内的单位在 units 数组中的索引(index)
-		// 使用 1D 数组模拟 2D 网格：unit_grid[y * width + x]
-		// 格子的尺寸是流场中格子的两倍
-		std::vector<std::vector<int>> unit_grid;
+            UnitState state;
+            double last_regen_time;
 
-		int unit_grid_width = 0;
-		int unit_grid_height = 0;
-		int unit_grid_size = 0;
-		Vector2i unit_grid_cell_size = Vector2i(0, 0);
+            UnitData() :
+                id(-1),
+                speed(200.0f),
+                radius(6.0f),
+                state(IDLE),
+                team_id(0),
+                hp(100.0f),
+                max_hp(100.0f),
+                attack_range(50.0f),
+                attack_damage(10.0f),
+                attack_interval(1.0f),
+                last_attack_time(-100.0),
+                target_unit_id(-1)
+            {
+            }
+        };
 
-		float flow_factor = 2000;
-		float separation_factor = 10000;
-		float separation_limit = 1000;
-		float friction_factor = 100;
+    private:
+        FlowFieldManager* flow_field_manager;
+        std::vector<UnitData> units;
+        std::unordered_map<int, size_t> id_to_index;
+        int next_unit_id = 0;
+        std::vector<std::vector<int>> unit_grid;
+        int unit_grid_width = 0;
+        int unit_grid_height = 0;
+        int unit_grid_size = 0;
+        Vector2i unit_grid_cell_size = Vector2i(0, 0);
+        float flow_factor = 2000;
+        float separation_factor = 10000;
+        float separation_limit = 1000;
+        float friction_factor = 100;
+        bool is_setup = false;
 
 		bool is_setup = false;
 		MultiMeshInstance2D* multimesh_instance = nullptr;
+    protected:
+        static void _bind_methods();
 
-	protected:
-		static void _bind_methods();
+    public:
+        UnitManager();
+        ~UnitManager();
 
-	public:
-		UnitManager();
-		~UnitManager();
+        void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
 
-		// --- 系统管理 ---
-		void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
+        // [重点修改] 这里改成了 Ref<UnitStats>
+        int spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id);
 
 		// --- 单位生命周期 ---
 		int spawn_unit(Vector2 p_world_pos, UnitType p_type);
@@ -102,8 +126,11 @@ namespace godot {
 		int get_unit_state(int p_unit_id) const;
 		void set_multimesh_instance(Node* p_node);
 		void set_flow_field_manager(Node* p_node);
-	};
+
+        int get_unit_state(int p_unit_id) const;
+        int get_unit_team(int p_unit_id) const;
+    };
 }
 
+// 注意：这里不需要注册 UnitType 了，因为它被 UnitStats 取代了
 VARIANT_ENUM_CAST(UnitManager::UnitState);
-VARIANT_ENUM_CAST(UnitManager::UnitType);

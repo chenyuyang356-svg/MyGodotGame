@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <vector>
 #include <queue>
@@ -114,6 +114,4 @@ namespace godot {
 
         bool is_in_grid(Vector2i p_grid_pos);
     };
-
-
 }
