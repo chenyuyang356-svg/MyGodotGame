@@ -145,62 +145,39 @@ std::vector<int> UnitManager::get_nearby_units(Vector2 p_world_pos, float p_radi
 }
 
 void UnitManager::_physics_process(double p_delta) {
-    if (!is_setup || !flow_field_manager || !selection_manager) { return; }
-
-    selection_manager->selected_unit_id = -1;
-    for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
-        UnitData& unit = units[unit_idx];
-        if (((selection_manager->mouse_position).distance_squared_to(unit.position) <
-            (unit.selection_radius) * (unit.selection_radius)) &&
-            (selection_manager->state != selection_manager->BOX_SELECTING)) {
-            unit.is_mouse_on = true;            
-        }
-        else {
-            unit.is_mouse_on = false;
-        }
-        if ((selection_manager->state == selection_manager->SINGLE_SELECTING) ||
-            (selection_manager->state == selection_manager->TYPE_SELECTING)) {
-            if (unit.is_mouse_on) {
-                selection_manager->selected_unit_id = unit.id;
-                selection_manager->selected_type = (int)(unit.type);
-            }
-        }
+    if (!is_setup) return;
+    
+    if (!flow_field_manager) {
+        flow_field_manager = get_node<FlowFieldManager>("../FlowFieldManager");
+        if (!flow_field_manager) return;
     }
 
     update_spatial_grid();
-    flow_field_manager->update(p_delta);
 
     for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
         UnitData& unit = units[unit_idx];
-        update_selection_state_and_target_position(unit);
         update_velocity(unit, p_delta);
         move(unit, p_delta);
-    }
-    if ((selection_manager->state == selection_manager->SINGLE_SELECTING) ||
-        (selection_manager->state == selection_manager->TYPE_SELECTING) ||
-        (selection_manager->state == selection_manager->BOX_SELECTION_ENDED) ||
-        (selection_manager->state == selection_manager->SELECTING_TARGET_POSITION)) {
-        selection_manager->state = selection_manager->NOT_SELECTING;
     }
 
     update_multimesh_buffer();
 }
 
-Vector2 UnitManager::get_flow(UnitData& p_unit) {
+Vector2 UnitManager::get_flow(const UnitData& p_unit) {
     Vector2 flow = flow_field_manager->get_flow_direction(p_unit.position, p_unit.target_pos);
     return flow;
 }
 
-Vector2 UnitManager::get_separation(UnitData& p_unit) {
+Vector2 UnitManager::get_separation(const UnitData& p_unit) {
     bool is_IDLE = (p_unit.state == IDLE);
-    Vector2 separation = Vector2(0, 0);
+    Vector2 separation;
 
     for (int unit_idx : get_nearby_units(p_unit.position, 1)) {
         const UnitData& nearby_unit = units[unit_idx];
         Vector2 radius_vector = nearby_unit.position - p_unit.position;
         float length_squared = radius_vector.length_squared();
         if (length_squared < 10e-12) {
-            continue;
+            return Vector2(0, 0);
         }
         if (is_IDLE) {
             if (nearby_unit.state == IDLE) {
@@ -224,13 +201,13 @@ Vector2 UnitManager::get_separation(UnitData& p_unit) {
     return separation;
 }
 
-Vector2 UnitManager::get_friction(UnitData& p_unit) {
+Vector2 UnitManager::get_friction(const UnitData& p_unit) {
     return (-p_unit.velocity);
 }
 
-Vector2 UnitManager::get_force(UnitData& p_unit) {
+Vector2 UnitManager::get_force(const UnitData& p_unit) {
     Vector2 force = Vector2(0, 0);
-    switch (p_unit.state) {
+    switch (p_unit.type) {
     case IDLE:
         force = get_friction(p_unit) * friction_factor + get_separation(p_unit) * separation_factor;
         break;
@@ -242,23 +219,18 @@ Vector2 UnitManager::get_force(UnitData& p_unit) {
 }
 
 void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
-    switch (p_unit.state) {
+    switch (p_unit.type) {
     case IDLE:
         p_unit.velocity += get_force(p_unit) * p_delta;
         p_unit.velocity = (p_unit.velocity).limit_length(p_unit.speed);
-        break;
     case MOVING:
         p_unit.velocity += get_force(p_unit) * p_delta;
         p_unit.velocity = (p_unit.velocity).limit_length(p_unit.speed);
-        break;
     }
 }
 
 void UnitManager::move(UnitData& p_unit, double p_delta) {
     p_unit.position += p_unit.velocity * p_delta;
-    if (p_unit.id == 1) {
-        UtilityFunctions::print(p_unit.velocity);
-    }
 }
 
 void UnitManager::update_multimesh_buffer() {
@@ -292,81 +264,8 @@ void UnitManager::update_multimesh_buffer() {
         // 将变换应用到第 i 个实例
         mesh_res->set_instance_transform_2d(i, xform);
 
-        if (unit.is_selected) {
-            if (unit.is_mouse_on) {
-                mesh_res->set_instance_color(i, Color(1.5, 1.5, 1.5));
-            }
-            else {
-                mesh_res->set_instance_color(i, Color(1.2, 1.2, 1.2));
-            }
-        }
-        else {
-            if (unit.is_mouse_on) {
-                mesh_res->set_instance_color(i, Color(1.5, 1.5, 1.5));
-            }
-            else {
-                mesh_res->set_instance_color(i, Color(1.0, 1.0, 1.0));
-            }
-        }
+        // 如果你有不同的单位颜色或动画帧，可以使用 set_instance_color 或 set_instance_custom_data
         //mesh_res->set_instance_color(i, Color(1, 0, 0)); 
-    }
-}
-
-void UnitManager::update_selection_state_and_target_position(UnitData& p_unit) {
-    switch (selection_manager->state) {
-    case (selection_manager->NOT_SELECTING):
-        break;
-    case (selection_manager->SINGLE_SELECTING):
-        if (selection_manager->selected_unit_id == -1) {
-            break;
-        }
-        else {
-            if (selection_manager->selected_unit_id == p_unit.id) {
-                p_unit.is_selected = !p_unit.is_selected;
-            }
-            else {
-                p_unit.is_selected = false;
-            }
-        }
-        break;
-    case (selection_manager->TYPE_SELECTING):
-        if (selection_manager->selected_unit_id == -1) {
-            break;
-        }
-        else {
-            if (selection_manager->selected_type == (int)(p_unit.type)) {
-                p_unit.is_selected = true;
-            }
-            else {
-                p_unit.is_selected = false;
-            }
-        }
-        break;
-    case (selection_manager->BOX_SELECTING):
-        if ((selection_manager->selecting_box).has_point(p_unit.position)) {
-            p_unit.is_mouse_on = true;
-        }
-        else {
-            p_unit.is_mouse_on = false;
-        }
-        break;
-    case (selection_manager->BOX_SELECTION_ENDED):
-        if ((selection_manager->selecting_box).has_point(p_unit.position)) {
-            p_unit.is_selected = true;
-        }
-        else {
-            p_unit.is_selected = false;
-        }
-        break;
-    case (selection_manager->SELECTING_TARGET_POSITION):
-        if (p_unit.is_selected) {
-            Vector2i target_grid_pos = flow_field_manager->world_to_grid(selection_manager->mouse_position);
-            flow_field_manager->create_flow_field(target_grid_pos, false);
-            p_unit.target_pos = selection_manager->mouse_position;
-            p_unit.target_grid = target_grid_pos;
-            p_unit.state = MOVING;
-        }
-        break;
     }
 }
 
@@ -398,10 +297,6 @@ void UnitManager::set_flow_field_manager(Node* p_node) {
     flow_field_manager = Object::cast_to<FlowFieldManager>(p_node);
 }
 
-void UnitManager::set_selection_manager(Node* p_node) {
-    selection_manager = Object::cast_to<SelectionManager>(p_node);
-}
-
 void UnitManager::_bind_methods() {
     BIND_ENUM_CONSTANT(IDLE);
     BIND_ENUM_CONSTANT(MOVING);
@@ -415,5 +310,4 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_unit_state", "unit_id"), &UnitManager::get_unit_state);
     ClassDB::bind_method(D_METHOD("set_multimesh_instance", "node"), &UnitManager::set_multimesh_instance);
     ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &UnitManager::set_flow_field_manager);
-    ClassDB::bind_method(D_METHOD("set_selection_manager", "node"), &UnitManager::set_selection_manager);
 }

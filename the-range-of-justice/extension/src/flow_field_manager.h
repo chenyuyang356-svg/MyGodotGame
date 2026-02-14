@@ -64,7 +64,7 @@ namespace godot {
         FlowFieldManager();
         ~FlowFieldManager();
 
-        void update(double p_delta);
+        virtual void _physics_process(double p_delta) override;
 
         void process_one_task();
 
