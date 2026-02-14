@@ -19,14 +19,20 @@ namespace godot {
 		GDCLASS(UnitManager, Node2D)
 
 	public:
+		enum UnitType {
+			SQUARE,
+			TRIANGLE, 
+			CIRCLE,
+		};
+
+
 		enum UnitState {
 			IDLE,        // 待机
 			MOVING,      // 移动中
+			ATTACKING,   // 攻击
+			CHASING,     // 追击
 		};
 
-		enum UnitType {
-			SQUARE
-		};
 
 		struct UnitData {
 			int id;                 // 唯一标识符
@@ -83,7 +89,7 @@ namespace godot {
 		void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
 
 		// --- 单位生命周期 ---
-		int spawn_unit(Vector2 p_world_pos, UnitType p_type);
+		int spawn_unit(Vector2 p_world_pos, UnitType p_type, int p_team_id);
 		void despawn_unit(int p_unit_id);
 		void command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos);
 
