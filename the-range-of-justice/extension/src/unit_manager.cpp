@@ -1,7 +1,5 @@
-#include "unit_manager.h"
-
+﻿#include "unit_manager.h"
 #include <queue>
-
 #include <godot_cpp/core/class_db.hpp>
 
 using namespace godot;
@@ -17,45 +15,51 @@ void UnitManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
         flow_field_manager = get_node<FlowFieldManager>("../FlowFieldManager");
         if (!flow_field_manager) return;
     }
-    
-    flow_field_manager->setup_grid(p_width, p_height, p_origin, p_cell_size);
 
+    flow_field_manager->setup_grid(p_width, p_height, p_origin, p_cell_size);
     unit_grid_width = p_width / 2;
     unit_grid_height = p_height / 2;
     unit_grid_size = unit_grid_width * unit_grid_height;
     unit_grid_cell_size = p_cell_size / 2;
-
     unit_grid.resize(unit_grid_size);
-
     for (int i = 0; i < unit_grid_size; ++i) {
         unit_grid[i].reserve(10);
     }
-
     is_setup = true;
 }
 
-int UnitManager::spawn_unit(Vector2 p_world_pos, UnitType p_type) {
-    // 1. 创建一个新的单位数据结构
+// [重点修改] 实现匹配头文件
+int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id) {
+    if (p_stats.is_null()) {
+        return -1;
+    }
+
     UnitData new_unit;
-
-    // 2. 分配唯一 ID 并自增计数器
     new_unit.id = next_unit_id++;
-
-    // 3. 初始化物理属性
+    new_unit.team_id = p_team_id;
     new_unit.position = p_world_pos;
-
-    // 4. 初始化状态(待完善，根据单位类型应有不同的初始化)
-    new_unit.velocity = Vector2(0, 0);
     new_unit.state = IDLE;
-    new_unit.type = p_type;
-    new_unit.target_grid = Vector2i(-1, -1); // 初始没有目标
+    new_unit.target_grid = Vector2i(-1, -1);
 
-    // 5. 存入 vector
-    // 注意：如果单位非常多，建议在 UnitManager 构造函数里先调用 units.reserve(1000)
+    // 保存配置
+    new_unit.stats = p_stats;
+
+    // 从配置初始化数值
+    new_unit.current_hp = p_stats->get_health_max();
+    new_unit.current_shield = p_stats->get_shield_max();
+
+    // 初始化其他
+    new_unit.velocity = Vector2(0, 0);
+    new_unit.last_attack_time = -100.0;
+    new_unit.target_unit_id = -1;
+
+    // 存入容器
+    if (id_to_index.size() >= units.capacity()) {
+        units.reserve(units.size() + 100);
+    }
     units.push_back(new_unit);
     id_to_index[new_unit.id] = units.size() - 1;
 
-    // 6. 返回 ID，以便 GDScript 记录并关联对应的 Sprite
     return new_unit.id;
 }
 
@@ -67,34 +71,22 @@ void UnitManager::despawn_unit(int p_unit_id) {
     int last_unit_idx = units.size() - 1;
 
     if (index_to_remove != last_unit_idx) {
-        // 1. 获取最后一个单位的数据
         UnitData& last_unit = units.back();
-
-        // 2. 将最后一个单位移动到要删除的位置
         units[index_to_remove] = last_unit;
-
-        // 3. 更新被移动单位在哈希表中的索引
         id_to_index[last_unit.id] = index_to_remove;
     }
 
-    // 4. 删除 vector 最后一个元素，并从哈希表中移除目标 ID
     units.pop_back();
     id_to_index.erase(p_unit_id);
 }
 
 void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos) {
     if (!flow_field_manager) return;
-
     Vector2i target_grid_pos = flow_field_manager->world_to_grid(p_target_world_pos);
-
     if (!(flow_field_manager->is_in_grid(target_grid_pos))) return;
-
     flow_field_manager->create_flow_field(target_grid_pos, false);
-
     for (int i = 0; i < p_unit_ids.size(); i++) {
         int uid = p_unit_ids[i];
-
-        // 使用哈希表直接定位
         auto it = id_to_index.find(uid);
         if (it != id_to_index.end()) {
             UnitData& unit = units[it->second];
@@ -111,11 +103,8 @@ void UnitManager::update_spatial_grid() {
     }
     for (int i = 0; i < units.size(); ++i) {
         Vector2i rel_pos = flow_field_manager->world_to_relative(units[i].position);
-
-        // 缩放到单位网格（单位网格尺寸是流场的 2 倍）
         int ux = rel_pos.x / 2;
         int uy = rel_pos.y / 2;
-
         if (ux >= 0 && ux < unit_grid_width && uy >= 0 && uy < unit_grid_height) {
             int grid_idx = uy * unit_grid_width + ux;
             unit_grid[grid_idx].push_back(i);
@@ -128,8 +117,6 @@ std::vector<int> UnitManager::get_nearby_units(Vector2 p_world_pos, float p_radi
     Vector2i rel_pos = flow_field_manager->world_to_relative(p_world_pos);
     int ux = rel_pos.x / 2;
     int uy = rel_pos.y / 2;
-
-    // 检查 3x3 范围内的格子
     for (int nx = ux - 1; nx <= ux + 1; ++nx) {
         for (int ny = uy - 1; ny <= uy + 1; ++ny) {
             if (nx >= 0 && nx < unit_grid_width && ny >= 0 && ny < unit_grid_height) {
@@ -146,14 +133,11 @@ std::vector<int> UnitManager::get_nearby_units(Vector2 p_world_pos, float p_radi
 
 void UnitManager::_physics_process(double p_delta) {
     if (!is_setup) return;
-    
     if (!flow_field_manager) {
         flow_field_manager = get_node<FlowFieldManager>("../FlowFieldManager");
         if (!flow_field_manager) return;
     }
-
     update_spatial_grid();
-
     for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
         UnitData& unit = units[unit_idx];
         update_velocity(unit, p_delta);
@@ -162,41 +146,28 @@ void UnitManager::_physics_process(double p_delta) {
 }
 
 Vector2 UnitManager::get_flow(const UnitData& p_unit) {
-    Vector2 flow = flow_field_manager->get_flow_direction(p_unit.position, p_unit.target_pos);
-    return flow;
+    return flow_field_manager->get_flow_direction(p_unit.position, p_unit.target_pos);
 }
 
 Vector2 UnitManager::get_separation(const UnitData& p_unit) {
     bool is_IDLE = (p_unit.state == IDLE);
     Vector2 separation;
-
     for (int unit_idx : get_nearby_units(p_unit.position, 1)) {
         const UnitData& nearby_unit = units[unit_idx];
         Vector2 radius_vector = nearby_unit.position - p_unit.position;
         float length_squared = radius_vector.length_squared();
-        if (length_squared < 10e-12) {
-            return Vector2(0, 0);
-        }
+        if (length_squared < 10e-12) return Vector2(0, 0);
+
         if (is_IDLE) {
-            if (nearby_unit.state == IDLE) {
-                separation -= radius_vector / length_squared / length_squared;
-            }
-            else {
-                separation -= 2 * radius_vector / length_squared;
-            }
+            if (nearby_unit.state == IDLE) separation -= radius_vector / length_squared / length_squared;
+            else separation -= 2 * radius_vector / length_squared;
         }
         else {
-            if (nearby_unit.state == IDLE) {
-                separation -= 0.5 * radius_vector / length_squared;
-            }
-            else {
-                separation -= radius_vector / length_squared;
-            }
+            if (nearby_unit.state == IDLE) separation -= 0.5 * radius_vector / length_squared;
+            else separation -= radius_vector / length_squared;
         }
     }
-
-    separation = separation.limit_length(separation_limit);
-    return separation;
+    return separation.limit_length(separation_limit);
 }
 
 Vector2 UnitManager::get_friction(const UnitData& p_unit) {
@@ -205,7 +176,7 @@ Vector2 UnitManager::get_friction(const UnitData& p_unit) {
 
 Vector2 UnitManager::get_force(const UnitData& p_unit) {
     Vector2 force = Vector2(0, 0);
-    switch (p_unit.type) {
+    switch (p_unit.state) {
     case IDLE:
         force = get_friction(p_unit) * friction_factor + get_separation(p_unit) * separation_factor;
         break;
@@ -217,14 +188,8 @@ Vector2 UnitManager::get_force(const UnitData& p_unit) {
 }
 
 void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
-    switch (p_unit.type) {
-    case IDLE:
-        p_unit.velocity += get_force(p_unit) * p_delta;
-        p_unit.velocity = (p_unit.velocity).limit_length(p_unit.speed);
-    case MOVING:
-        p_unit.velocity += get_force(p_unit) * p_delta;
-        p_unit.velocity = (p_unit.velocity).limit_length(p_unit.speed);
-    }
+    p_unit.velocity += get_force(p_unit) * p_delta;
+    p_unit.velocity = (p_unit.velocity).limit_length(p_unit.speed);
 }
 
 void UnitManager::move(UnitData& p_unit, double p_delta) {
@@ -233,33 +198,35 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
 
 Vector2 UnitManager::get_unit_position(int p_unit_id) const {
     auto it = id_to_index.find(p_unit_id);
-    
-    if (it != id_to_index.end()) {
-        return units[it->second].position;
-    }
-
+    if (it != id_to_index.end()) return units[it->second].position;
     return Vector2(0, 0);
 }
 
 int UnitManager::get_unit_state(int p_unit_id) const {
     auto it = id_to_index.find(p_unit_id);
-
-    if (it != id_to_index.end()) {
-        return (int)(units[it->second].state);
-    }
-
+    if (it != id_to_index.end()) return (int)(units[it->second].state);
     return (int)(IDLE);
+}
+
+int UnitManager::get_unit_team(int p_unit_id) const {
+    auto it = id_to_index.find(p_unit_id);
+    if (it != id_to_index.end()) return units[it->second].team_id;
+    return -1;
 }
 
 void UnitManager::_bind_methods() {
     BIND_ENUM_CONSTANT(IDLE);
     BIND_ENUM_CONSTANT(MOVING);
-
-    BIND_ENUM_CONSTANT(SQUARE);
+    BIND_ENUM_CONSTANT(CHASING);
+    BIND_ENUM_CONSTANT(ATTACKING);
 
     ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &UnitManager::setup_system);
-    ClassDB::bind_method(D_METHOD("spawn_unit", "world_position", "type"), &UnitManager::spawn_unit);
+
+    // [重点修改] 更新绑定参数
+    ClassDB::bind_method(D_METHOD("spawn_unit", "world_position", "stats", "team_id"), &UnitManager::spawn_unit);
+
     ClassDB::bind_method(D_METHOD("command_units_to_move", "unit_ids", "target_world_pos"), &UnitManager::command_units_to_move);
     ClassDB::bind_method(D_METHOD("get_unit_position", "unit_id"), &UnitManager::get_unit_position);
     ClassDB::bind_method(D_METHOD("get_unit_state", "unit_id"), &UnitManager::get_unit_state);
+    ClassDB::bind_method(D_METHOD("get_unit_team", "unit_id"), &UnitManager::get_unit_team);
 }

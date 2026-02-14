@@ -4,6 +4,7 @@
 #include <gdextension_interface.h>
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
+#include "unit_stats.h"
 
 using namespace godot;
 
@@ -13,6 +14,7 @@ void initialize_module(ModuleInitializationLevel p_level) {
 	}
 	GDREGISTER_CLASS(FlowFieldManager);
 	GDREGISTER_CLASS(UnitManager);
+	GDREGISTER_CLASS(UnitStats);
 }
 
 void uninitialize_module(ModuleInitializationLevel p_level) {
