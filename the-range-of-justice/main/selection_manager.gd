@@ -26,29 +26,29 @@ func _unhandled_input(event: InputEvent):
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
-				_on_left_pressed(event)
+				_on_left_pressed()
 			else:
-				_on_left_released(event)
+				_on_left_released()
 		
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			if not event.pressed: # 右键也遵循松开触发
-				_on_right_released(event)
+				_on_right_released()
 
 	elif event is InputEventMouseMotion:
 		if is_left_down:
-			_on_left_drag_motion(event)
+			_on_left_drag_motion()
 		else:
 			set_mouse_position(get_global_mouse_position())
 
 # --- 鼠标逻辑处理 ---
 
-func _on_left_pressed(event: InputEventMouseButton):
+func _on_left_pressed():
 	is_left_down = true
 	press_start_pos = get_global_mouse_position()
 	press_start_time = Time.get_ticks_msec()
 	is_actual_drag = false
 
-func _on_left_drag_motion(event: InputEventMouseMotion):
+func _on_left_drag_motion():
 	# 检查是否满足移动距离门槛，满足则开启框选视觉
 	if not is_actual_drag:
 		if get_global_mouse_position().distance_to(press_start_pos) > drag_threshold_dist:
@@ -59,7 +59,7 @@ func _on_left_drag_motion(event: InputEventMouseMotion):
 		box_selecting()
 		queue_redraw() # 更新框选框绘制
 
-func _on_left_released(event: InputEventMouseButton):
+func _on_left_released():
 	var release_pos = get_global_mouse_position()
 	var current_time = Time.get_ticks_msec()
 	var duration = current_time - press_start_time
@@ -83,7 +83,7 @@ func _on_left_released(event: InputEventMouseButton):
 	is_actual_drag = false
 	queue_redraw()
 
-func _on_right_released(event: InputEventMouseButton):
+func _on_right_released():
 	set_mouse_position(get_global_mouse_position())
 	selecting_target_position()
 

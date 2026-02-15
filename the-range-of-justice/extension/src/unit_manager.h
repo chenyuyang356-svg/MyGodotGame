@@ -48,6 +48,8 @@ namespace godot {
 			bool is_mouse_on = false;
 			float selection_radius;
 
+			float anim_time = 0.0f; // 累计播放时间
+
 			UnitData() : id(-1), speed(200.0f), radius(28.0f), state(IDLE), selection_radius(32.0f) {}
 		};
 
@@ -113,7 +115,7 @@ namespace godot {
 		void update_velocity(UnitData& p_unit, double p_delta);
 		void move(UnitData& p_unit, double p_delta);
 
-		void update_multimesh_buffer();
+		void update_multimesh_buffer(double p_delta);
 
 		void update_selection_state_and_target_position(UnitData& p_unit);
 

@@ -193,7 +193,7 @@ void UnitManager::_physics_process(double p_delta) {
         selection_manager->state = selection_manager->NOT_SELECTING;
     }
 
-    update_multimesh_buffer();
+    update_multimesh_buffer(p_delta);
 }
 
 Vector2 UnitManager::get_flow(UnitData& p_unit) {
@@ -293,7 +293,7 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
     }
 }
 
-void UnitManager::update_multimesh_buffer() {
+void UnitManager::update_multimesh_buffer(double p_delta) {
     if (!multimesh_instance) return;
 
     Ref<MultiMesh> mesh_res = multimesh_instance->get_multimesh();
@@ -306,9 +306,14 @@ void UnitManager::update_multimesh_buffer() {
         mesh_res->set_instance_count(current_unit_count);
     }
 
+    // 动画配置（可以做成成员变量）
+    float fps = 10.0f;           // 每秒 10 帧
+    int total_idle_frames = 2;   // 待机动画帧数
+    int total_move_frames = 2;   // 移动动画帧数
+
     // 2. 遍历单位并更新变换矩阵
     for (int i = 0; i < current_unit_count; ++i) {
-        const UnitData& unit = units[i];
+        UnitData& unit = units[i];
 
         // 创建变换矩阵：设置位置、旋转（可选）和缩放
         // 注意：如果你需要单位朝向移动方向，可以利用 unit.velocity.angle()
@@ -325,23 +330,44 @@ void UnitManager::update_multimesh_buffer() {
         // 将变换应用到第 i 个实例
         mesh_res->set_instance_transform_2d(i, xform);
 
+        //计算动画帧
+        int frame_index = 0;
+        int row_index = 0;
+
+        if (unit.state == MOVING) {
+            frame_index = (int)(unit.anim_time * fps) % total_move_frames;
+            row_index = 1; // 移动动画在第二行
+        }
+        else {
+            frame_index = (int)(unit.anim_time * fps) % total_idle_frames;
+            row_index = 0; // 待机动画在第一行
+        }
+
+        // 我们利用 Color 的四个通道传递：x: 帧索引, y: 行索引, z: 预留, w: 预留
+        // 注意：在 Shader 中这对应 INSTANCE_CUSTOM
+        mesh_res->set_instance_custom_data(i, Color(float(frame_index), float(row_index), 0, 0));
+
+        //处理颜色
+        Color display_color;
         if (unit.is_selected) {
             if (unit.is_mouse_on) {
-                mesh_res->set_instance_color(i, Color(1.5, 1.5, 1.5));
+                display_color = Color(1.2, 1.2, 1.2);
             }
             else {
-                mesh_res->set_instance_color(i, Color(1.2, 1.2, 1.2));
+                display_color = Color(1.5, 1.5, 1.5);
             }
         }
         else {
             if (unit.is_mouse_on) {
-                mesh_res->set_instance_color(i, Color(1.5, 1.5, 1.5));
+                display_color = Color(1.2, 1.2, 1.2);
             }
             else {
-                mesh_res->set_instance_color(i, Color(1.0, 1.0, 1.0));
+                display_color = Color(1.0, 1.0, 1.0);
             }
         }
-        //mesh_res->set_instance_color(i, Color(1, 0, 0)); 
+        mesh_res->set_instance_color(i, display_color);
+        
+        unit.anim_time += p_delta; // 更新动画计时器
     }
 }
 

@@ -3,9 +3,10 @@
 [ext_resource type="Script" uid="uid://dn1a7tvm4pw6o" path="res://main/main.gd" id="1_3wy1v"]
 [ext_resource type="Texture2D" uid="uid://b5homoc2mg5u0" path="res://asset/Tileset.png" id="1_53q0u"]
 [ext_resource type="Script" uid="uid://deoc3xvywlo0v" path="res://main/camera_2d.gd" id="2_pjrb6"]
-[ext_resource type="Texture2D" uid="uid://bbjih1rxsm8k1" path="res://asset/战斗机01.png" id="3_3wy1v"]
 [ext_resource type="Script" uid="uid://dctuafq0a0mpn" path="res://main/building_manager.gd" id="3_kfbq2"]
 [ext_resource type="Script" uid="uid://cxdwnig240dls" path="res://main/selection_manager.gd" id="4_3wy1v"]
+[ext_resource type="Shader" uid="uid://bl7iu8acjbtje" path="res://main/main.gdshader" id="4_4dugh"]
+[ext_resource type="Texture2D" uid="uid://bgtdeojs6tf3g" path="res://asset/飞行单位03.png" id="5_67ri8"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_3wy1v"]
 texture = ExtResource("1_53q0u")
@@ -20,11 +21,17 @@ custom_data_layer_0/name = "IsWall"
 custom_data_layer_0/type = 1
 sources/1 = SubResource("TileSetAtlasSource_3wy1v")
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4dugh"]
+shader = ExtResource("4_4dugh")
+shader_parameter/h_frames = 2
+shader_parameter/v_frames = 2
+
 [sub_resource type="QuadMesh" id="QuadMesh_3wy1v"]
-size = Vector2(64, 64)
+size = Vector2(256, 256)
 
 [sub_resource type="MultiMesh" id="MultiMesh_3wy1v"]
 use_colors = true
+use_custom_data = true
 mesh = SubResource("QuadMesh_3wy1v")
 
 [node name="main" type="Node" unique_id=224165495]
@@ -49,8 +56,9 @@ flow_field_manager = NodePath("../FlowFieldManager")
 unit_manager = NodePath("../UnitManager")
 
 [node name="MultiMeshInstance2D" type="MultiMeshInstance2D" parent="." unique_id=99750900]
+material = SubResource("ShaderMaterial_4dugh")
 multimesh = SubResource("MultiMesh_3wy1v")
-texture = ExtResource("3_3wy1v")
+texture = ExtResource("5_67ri8")
 
 [node name="SelectionManager" type="SelectionManager" parent="." unique_id=803111584 node_paths=PackedStringArray("building_manager")]
 script = ExtResource("4_3wy1v")
