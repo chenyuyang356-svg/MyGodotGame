@@ -1,8 +1,8 @@
 extends Camera2D
 
-var ZoomRate: float = 2.0
-var MaxZoomRate: float = 4.0
-var MinZoomRate: float = 0.5
+var ZoomRate: float = 4.0
+var MaxZoomRate: float = 8.0
+var MinZoomRate: float = 0.1
 var Speed: float = 300
 
 func _input(event):

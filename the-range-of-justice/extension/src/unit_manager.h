@@ -19,20 +19,19 @@ namespace godot {
 		GDCLASS(UnitManager, Node2D)
 
 	public:
-		enum UnitType {
-			SQUARE,
-			TRIANGLE, 
-			CIRCLE,
-		};
-
-
 		enum UnitState {
 			IDLE,        // 待机
 			MOVING,      // 移动中
-			ATTACKING,   // 攻击
-			CHASING,     // 追击
 		};
 
+		enum UnitType {
+			SQUARE
+		};
+
+		//这三个参数是为了调试而设的
+		float unit_speed = 200.0f;
+		float unit_radius = 28.0f;
+		float unit_selection_radius = 32.0f;
 
 		struct UnitData {
 			int id;                 // 唯一标识符
@@ -49,13 +48,14 @@ namespace godot {
 			bool is_mouse_on = false;
 			float selection_radius;
 
-			UnitData() : id(-1), speed(200.0f), radius(6.0f), state(IDLE), selection_radius(8.0f) {}
+			float anim_time = 0.0f; // 累计播放时间
+
+			UnitData() : id(-1), speed(200.0f), radius(28.0f), state(IDLE), selection_radius(32.0f) {}
 		};
 
 	private:
 		FlowFieldManager *flow_field_manager;
 		SelectionManager *selection_manager;
-		std::vector<UnitData> units;
 		std::unordered_map<int, size_t> id_to_index;
 		int next_unit_id = 0;
 
@@ -72,8 +72,12 @@ namespace godot {
 
 		float flow_factor = 2000.0f;
 		float separation_factor = 10000.0f;
+		float separation_radius_factor = 3.0f;		//排斥力半径与单位半径的比值
 		float separation_limit = 1000.0f;
 		float friction_factor = 100.0f;
+		float force_threshold_squared = 1.0f;
+		float velocity_threshold_squared = 1.0f;
+		float desired_integration = 0.1f;
 
 		bool is_setup = false;
 		MultiMeshInstance2D* multimesh_instance = nullptr;
@@ -85,11 +89,13 @@ namespace godot {
 		UnitManager();
 		~UnitManager();
 
+		std::vector<UnitData> units;
+
 		// --- 系统管理 ---
 		void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
 
 		// --- 单位生命周期 ---
-		int spawn_unit(Vector2 p_world_pos, UnitType p_type, int p_team_id);
+		int spawn_unit(Vector2 p_world_pos, UnitType p_type);
 		void despawn_unit(int p_unit_id);
 		void command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos);
 
@@ -105,10 +111,11 @@ namespace godot {
 		Vector2 get_separation(UnitData& p_unit);
 		Vector2 get_friction(UnitData& p_unit);
 		Vector2 get_force(UnitData& p_unit);
+		void update_state(UnitData& p_unit);
 		void update_velocity(UnitData& p_unit, double p_delta);
 		void move(UnitData& p_unit, double p_delta);
 
-		void update_multimesh_buffer();
+		void update_multimesh_buffer(double p_delta);
 
 		void update_selection_state_and_target_position(UnitData& p_unit);
 
@@ -118,6 +125,40 @@ namespace godot {
 		void set_multimesh_instance(Node* p_node);
 		void set_flow_field_manager(Node* p_node);
 		void set_selection_manager(Node* p_node);
+
+		//调试
+		void set_unit_speed(float p_val) { unit_speed = p_val; }
+		float get_unit_speed() const { return unit_speed; }
+
+		void set_unit_radius(float p_val) { unit_radius = p_val; }
+		float get_unit_radius() const { return unit_radius; }
+
+		void set_unit_selection_radius(float p_val) { unit_selection_radius = p_val; }
+		float get_unit_selection_radius() const { return unit_selection_radius; }
+
+		void set_flow_factor(float p_val) { flow_factor = p_val; }
+		float get_flow_factor() const { return flow_factor; }
+
+		void set_separation_factor(float p_val) { separation_factor = p_val; }
+		float get_separation_factor() const { return separation_factor; }
+
+		void set_separation_limit(float p_val) { separation_limit = p_val; }
+		float get_separation_limit() const { return separation_limit; }
+
+		void set_separation_radius_factor(float p_val) { separation_radius_factor = p_val; }
+		float get_separation_radius_factor() const { return separation_radius_factor; }
+
+		void set_friction_factor(float p_val) { friction_factor = p_val; }
+		float get_friction_factor() const { return friction_factor; }
+
+		void set_force_threshold_squared(float p_val) { force_threshold_squared = p_val; }
+		float get_force_threshold_squared() const { return force_threshold_squared; }
+
+		void set_velocity_threshold_squared(float p_val) { velocity_threshold_squared = p_val; }
+		float get_velocity_threshold_squared() const { return velocity_threshold_squared; }
+
+		void set_desired_integration(float p_val) { desired_integration = p_val; }
+		float get_desired_integration() const { return desired_integration; }
 	};
 }
 

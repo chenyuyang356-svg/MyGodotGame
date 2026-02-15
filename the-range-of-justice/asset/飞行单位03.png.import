@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b5homoc2mg5u0"
-path="res://.godot/imported/Tileset.png-e40cf962c59a076c7c5a5ddaffbbd3be.ctex"
+uid="uid://bgtdeojs6tf3g"
+path="res://.godot/imported/飞行单位03.png-a80659a612ca2b642094d17870fe623a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://asset/Tileset.png"
-dest_files=["res://.godot/imported/Tileset.png-e40cf962c59a076c7c5a5ddaffbbd3be.ctex"]
+source_file="res://asset/飞行单位03.png"
+dest_files=["res://.godot/imported/飞行单位03.png-a80659a612ca2b642094d17870fe623a.ctex"]
 
 [params]
 
