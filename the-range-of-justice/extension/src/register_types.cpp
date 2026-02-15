@@ -3,6 +3,7 @@
 #include "selection_manager.h"
 #include "unit_manager.h"
 #include "unit_stats.h"
+#include "unit_loader.h"
 
 #include <gdextension_interface.h>
 #include <godot_cpp/core/defs.hpp>
@@ -37,4 +38,9 @@ extern "C" {
 
 		return init_obj.init();
 	}
+}
+
+void initialize_example_module(ModuleInitializationLevel p_level) {
+	// ...
+	ClassDB::register_class<UnitLoader>(); 
 }

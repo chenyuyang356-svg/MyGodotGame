@@ -8,7 +8,7 @@ namespace godot {
     class UnitStats : public Resource {
         GDCLASS(UnitStats, Resource)
 
-    private:
+    public:
         // --- 生存 ---
         float health_max = 100.0f;
         float health_regen = 1.0f;
