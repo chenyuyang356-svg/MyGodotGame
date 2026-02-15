@@ -13,7 +13,7 @@ namespace {
 }
 
 SelectionManager::SelectionManager() {
-	mouse_position = Vector2(0, 0);
+	mouse_position = Vector2(-1000000, -1000000);
 	selecting_start_point = Vector2(0, 0);
 	selecting_end_point = Vector2(0, 0);
 }
