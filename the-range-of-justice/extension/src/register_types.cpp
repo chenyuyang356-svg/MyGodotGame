@@ -2,6 +2,7 @@
 #include "flow_field_manager.h"
 #include "selection_manager.h"
 #include "unit_manager.h"
+#include "building_manager.h"
 #include "unit_stats.h"
 
 #include <gdextension_interface.h>
@@ -17,6 +18,7 @@ void initialize_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(FlowFieldManager);
 	GDREGISTER_CLASS(SelectionManager);
 	GDREGISTER_CLASS(UnitManager);
+	GDREGISTER_CLASS(BuildingManager);
 	GDREGISTER_CLASS(UnitStats);
 }
 

@@ -86,6 +86,8 @@ namespace godot {
         // 清空所有流场数据
         void clear_all_fields();
 
+        void make_all_dirty();
+
         // --- 数据操作与算法 ---
 
         // 修改特定流场的代价地图（例如动态添加障碍物）
@@ -99,6 +101,8 @@ namespace godot {
 
         // --- 查询接口 (供单位调用) ---
 
+        float get_cost(Vector2i p_grid_pos);
+
         // 根据世界坐标和目标坐标，获取该位置与目标的距离
         float get_integration(Vector2 p_world_pos, Vector2 p_target_world_pos);
 
@@ -111,6 +115,8 @@ namespace godot {
         Vector2i world_to_relative(Vector2 p_world_pos);
 
         Vector2i get_grid_origin();
+
+        Vector2i get_cell_size();
 
         bool is_in_grid(Vector2i p_grid_pos);
     };

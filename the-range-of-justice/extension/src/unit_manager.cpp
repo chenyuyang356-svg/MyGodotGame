@@ -34,7 +34,7 @@ void UnitManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
     is_setup = true;
 }
 
-int UnitManager::spawn_unit(Vector2 p_world_pos, UnitType p_type, int team_id) {
+int UnitManager::spawn_unit(Vector2 p_world_pos, UnitType p_type) {
     // 1. 创建一个新的单位数据结构
     UnitData new_unit;
 

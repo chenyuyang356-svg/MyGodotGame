@@ -143,6 +143,27 @@ void FlowFieldManager::clear_all_fields() {
     flow_fields.clear();
 }
 
+void FlowFieldManager::make_all_dirty() {
+    // 1. 遍历哈希表中的所有流场
+    for (auto& pair : flow_fields) {
+        FlowField& field = pair.second;
+
+        // 标记为脏数据
+        field.is_dirty = true;
+
+        // 重置计算状态
+        // 这样当单位下次调用 get_flow_direction 时，
+        // 逻辑会发现 (is_dirty && !is_computing)，从而将其重新放入计算队列
+        field.is_computing = false;
+    }
+
+    // 2. 清空当前的计算队列
+    // 因为队列里的任务是基于旧地图触发的，已经没有意义了
+    // 清空后，系统会根据单位当前的查询需求重新按优先级入队
+    std::queue<Vector2i> empty_queue;
+    std::swap(calculation_queue, empty_queue);
+}
+
 void FlowFieldManager::set_cost(Vector2i p_cell_pos, uint8_t p_cost) {
     // 1. 边界检查：防止索引越界导致程序崩溃
     Vector2i relative_cell_pos = p_cell_pos - grid_origin;
@@ -304,6 +325,17 @@ void FlowFieldManager::compute_flow_directions(Vector2i p_target_grid_pos) {
     }
 }
 
+float FlowFieldManager::get_cost(Vector2i p_grid_pos) {
+    Vector2i relative_grid_pos = p_grid_pos - grid_origin;
+
+    if (relative_grid_pos.x < 0 || relative_grid_pos.x >= width || relative_grid_pos.y < 0 || relative_grid_pos.y >= height) {
+        return -1.0;
+    }
+
+    int index = relative_grid_pos.y * width + relative_grid_pos.x;
+    return global_cost_map[index];
+}
+
 float FlowFieldManager::get_integration(Vector2 p_world_pos, Vector2 p_target_world_pos) {
     Vector2i relative_grid_pos = world_to_grid(p_world_pos) - grid_origin;
     Vector2i target_grid_pos = world_to_grid(p_target_world_pos);
@@ -372,6 +404,10 @@ Vector2i FlowFieldManager::get_grid_origin() {
     return grid_origin;
 }
 
+Vector2i FlowFieldManager::get_cell_size() {
+    return cell_size;
+}
+
 bool FlowFieldManager::is_in_grid(Vector2i p_grid_pos) {
     int rx = p_grid_pos.x - grid_origin.x;
     int ry = p_grid_pos.y - grid_origin.y;
@@ -394,4 +430,6 @@ void FlowFieldManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_integration", "world_position", "target_world_position"), &FlowFieldManager::get_integration);
     ClassDB::bind_method(D_METHOD("get_flow_direction", "world_position", "target_world_position"), &FlowFieldManager::get_flow_direction);
     ClassDB::bind_method(D_METHOD("world_to_grid", "world_pos"), &FlowFieldManager::world_to_grid);
+    ClassDB::bind_method(D_METHOD("get_grid_origin"), &FlowFieldManager::get_grid_origin);
+    ClassDB::bind_method(D_METHOD("get_cell_size"), &FlowFieldManager::get_cell_size);
 }
