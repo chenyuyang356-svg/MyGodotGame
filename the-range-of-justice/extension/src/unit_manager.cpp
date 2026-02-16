@@ -287,10 +287,102 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
 }
 
 void UnitManager::move(UnitData& p_unit, double p_delta) {
-    p_unit.position += p_unit.velocity * p_delta;
-    if (p_unit.id == 1) {
-        UtilityFunctions::print(p_unit.velocity);
+    if (!flow_field_manager) return;
+
+    // 计算预测位置
+    Vector2 next_pos = p_unit.position + p_unit.velocity * p_delta;
+    float radius = p_unit.radius;
+    Vector2i cell_size = flow_field_manager->get_cell_size();
+
+    // 处理单位间的“硬修正”（防止重叠）
+    std::vector<int> nearby = get_nearby_units(next_pos, radius * 2.0f);
+    for (int other_idx : nearby) {
+        UnitData& other = units[other_idx];
+        if (other.id == p_unit.id) continue;
+
+        Vector2 to_other = other.position - next_pos;
+        float dist_sq = to_other.length_squared();
+        float min_dist = radius + other.radius;
+
+        if (dist_sq < min_dist * min_dist && dist_sq > 0.001f) {
+            float dist = Math::sqrt(dist_sq);
+            float overlap = min_dist - dist;
+            Vector2 resolve_dir = to_other / dist;
+
+            // 关键点：只推开重叠部分的一小部分（例如 40%），防止产生剧烈抖动
+            // 如果两个单位都在移动，各推一半
+            float push_strength = 0.4f;
+            Vector2 push_vector = resolve_dir * (overlap * push_strength);
+
+            next_pos -= push_vector;
+            // 也可以顺便给对方一个反向的推力，但为了逻辑简单，
+            // 每一个单位在自己的 move 循环里处理被推开即可
+        }
     }
+
+    // 处理墙体碰撞
+    // 确定需要检查的网格范围 (单位周围的 2x2 或 3x3 区域)
+    Vector2i min_grid = flow_field_manager->world_to_grid(next_pos - Vector2(radius, radius));
+    Vector2i max_grid = flow_field_manager->world_to_grid(next_pos + Vector2(radius, radius));
+
+    // 遍历范围内的格子进行碰撞处理
+    for (int gx = min_grid.x; gx <= max_grid.x; ++gx) {
+        for (int gy = min_grid.y; gy <= max_grid.y; ++gy) {
+            Vector2i check_grid(gx, gy);
+
+            // 如果该格子是墙 (Cost == 255)
+            if (flow_field_manager->get_cost(check_grid) == 255) {
+
+                // 计算格子的世界坐标边界 (AABB)
+                // 注意：这里假设网格左上角对齐逻辑与 world_to_grid 一致
+                float rect_left = (float)gx * cell_size.x;
+                float rect_top = (float)gy * cell_size.y;
+                float rect_right = rect_left + cell_size.x;
+                float rect_bottom = rect_top + cell_size.y;
+
+                // 找到矩形内离圆心最近的点
+                float closest_x = Math::clamp(next_pos.x, rect_left, rect_right);
+                float closest_y = Math::clamp(next_pos.y, rect_top, rect_bottom);
+                Vector2 closest_point(closest_x, closest_y);
+
+                // 计算圆心到最近点的向量
+                Vector2 diff = next_pos - closest_point;
+                float distance_squared = diff.length_squared();
+
+                // 如果距离小于半径，发生碰撞
+
+                if (distance_squared < radius * radius && distance_squared > 0.00001f) {
+                    float factor = 0.5;
+                    if (p_unit.state == IDLE) {
+                        factor = 1.0;
+                    }
+
+                    float distance = Math::sqrt(distance_squared);
+                    float overlap = radius - distance;
+
+                    // 将单位沿碰撞法线推开
+                    next_pos += (diff / distance) * overlap * factor;
+
+                    // 碰撞后通常需要削减该方向的速度，实现“沿墙滑动”
+                    Vector2 normal = diff / distance;
+                    if (p_unit.velocity.dot(normal) < 0) {
+                        // 减去法线方向的速度分量
+                        p_unit.velocity -= normal * p_unit.velocity.dot(normal);
+                    }
+                }
+                // 处理圆心正好在墙内的情况
+                else if (distance_squared <= 0.00001f) {
+                    // 粗略处理：向格子中心的反方向推
+                    Vector2 cell_center(rect_left + cell_size.x * 0.5f, rect_top + cell_size.y * 0.5f);
+                    Vector2 push_dir = (next_pos - cell_center).normalized();
+                    next_pos += push_dir * radius;
+                }
+            }
+        }
+    }
+
+    // 4. 应用最终位置
+    p_unit.position = next_pos;
 }
 
 void UnitManager::update_multimesh_buffer(double p_delta) {

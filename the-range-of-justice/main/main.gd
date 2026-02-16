@@ -25,10 +25,19 @@ func _ready() -> void:
 			var coords: Vector2i = Vector2i(x, y)
 			var data = tile_map_layer.get_cell_tile_data(coords)
 			if data == null or data.get_custom_data("IsWall"):
-				flow_field_manager.set_cost(coords, 10)
+				flow_field_manager.set_cost(coords, 255)
+			else:
+				for dx in range(-1, 2):
+					for dy in range(-1, 2):
+						if Vector2i(dx, dy) != Vector2i.ZERO:
+							var neighbor_data = tile_map_layer.get_cell_tile_data(coords + Vector2i(dx, dy))
+							if neighbor_data == null or neighbor_data.get_custom_data("IsWall"):
+								flow_field_manager.set_cost(coords, 30)
+								continue
+				flow_field_manager.set_cost(coords, 1)
 	
-	for x in range(40):
-		for y in range(40):
-			unit_manager.spawn_unit(Vector2(-16 * x, -16 * y), unit_manager.SQUARE)
+	for x in range(20):
+		for y in range(20):
+			unit_manager.spawn_unit(Vector2(-32 * x, -32 * y), unit_manager.SQUARE)
 	
 	
