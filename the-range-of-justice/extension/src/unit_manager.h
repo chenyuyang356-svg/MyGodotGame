@@ -15,14 +15,18 @@
 #include "unit_loader.h"
 
 namespace godot {
+	class AttackManager; // 1. 前向声明
 
 	class UnitManager : public Node2D {
 		GDCLASS(UnitManager, Node2D)
 
+		friend class AttackManager;
 	public:
 		enum UnitState {
 			IDLE,        // 待机
 			MOVING,      // 移动中
+			CHASING,     // 追击中
+			ATTACKING,   // 攻击中
 		};
 
 
@@ -48,10 +52,15 @@ namespace godot {
 
 			float anim_time = 0.0f; // 累计播放时间
 
-			UnitData() : id(-1), state(IDLE), current_health(0) {}
+			int team_id;            // 0=玩家, 1=敌人
+			int target_id = -1;     // 当前攻击目标的 ID
+			float attack_cooldown = 0.0f;
+			UnitData() : id(-1), team_id(0), state(IDLE), current_health(0), target_id(-1), attack_cooldown(0.0f) {}
 		};
 
+	
 	private:
+		AttackManager* attack_manager = nullptr; 
 		FlowFieldManager *flow_field_manager;
 		SelectionManager *selection_manager;
 		std::unordered_map<int, size_t> id_to_index;
@@ -96,7 +105,7 @@ namespace godot {
 		void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
 
 		// --- 单位生命周期 ---
-		int spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats);
+		int spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id = 0);
 		void despawn_unit(int p_unit_id);
 		void command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos);
 
@@ -129,6 +138,10 @@ namespace godot {
 
 		void register_unit_type(String p_name, String p_path);
 		int spawn_unit_by_type(String p_type_name, Vector2 p_pos);
+
+		// 攻击模块
+		int get_unit_index_by_id(int p_id); 
+		void set_attack_manager(Node* p_node);
 
 		//调试
 		void set_unit_speed(float p_val) { unit_speed = p_val; }
