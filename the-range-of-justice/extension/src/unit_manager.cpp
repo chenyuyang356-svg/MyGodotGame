@@ -34,33 +34,20 @@ void UnitManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
     is_setup = true;
 }
 
-int UnitManager::spawn_unit(Vector2 p_world_pos, UnitType p_type) {
-    // 1. 创建一个新的单位数据结构
+int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats) {
+    if (p_stats.is_null()) return -1;
+
     UnitData new_unit;
-
-    //调试
-    new_unit.radius = unit_radius;
-    new_unit.selection_radius = unit_selection_radius;
-    new_unit.speed = unit_speed;
-
-    // 2. 分配唯一 ID 并自增计数器
     new_unit.id = next_unit_id++;
-
-    // 3. 初始化物理属性
     new_unit.position = p_world_pos;
+    new_unit.stats = p_stats; // 存入引用
 
-    // 4. 初始化状态(待完善，根据单位类型应有不同的初始化)
-    new_unit.velocity = Vector2(0, 0);
+    // 从资源中初始化实时数值
+    new_unit.current_health = p_stats->get_health_max();
     new_unit.state = IDLE;
-    new_unit.type = p_type;
-    new_unit.target_grid = Vector2i(-1, -1); // 初始没有目标
 
-    // 5. 存入 vector
-    // 注意：如果单位非常多，建议在 UnitManager 构造函数里先调用 units.reserve(1000)
     units.push_back(new_unit);
     id_to_index[new_unit.id] = units.size() - 1;
-
-    // 6. 返回 ID，以便 GDScript 记录并关联对应的 Sprite
     return new_unit.id;
 }
 
@@ -153,14 +140,15 @@ std::vector<int> UnitManager::get_nearby_units(Vector2 p_world_pos, float p_radi
     return nearby_indices;
 }
 
-void UnitManager::_physics_process(double p_delta) {
+void UnitManager::update(double p_delta) {
     if (!is_setup || !flow_field_manager || !selection_manager) { return; }
 
     selection_manager->selected_unit_id = -1;
     for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
         UnitData& unit = units[unit_idx];
+        float selection_radius = (unit.stats)->get_collision_radius();
         if (((selection_manager->mouse_position).distance_squared_to(unit.position) <
-            (unit.selection_radius) * (unit.selection_radius)) &&
+            (selection_radius) * (selection_radius)) &&
             (selection_manager->state != selection_manager->BOX_SELECTING)) {
             unit.is_mouse_on = true;            
         }
@@ -171,7 +159,7 @@ void UnitManager::_physics_process(double p_delta) {
             (selection_manager->state == selection_manager->TYPE_SELECTING)) {
             if (unit.is_mouse_on) {
                 selection_manager->selected_unit_id = unit.id;
-                selection_manager->selected_type = (int)(unit.type);
+                selection_manager->selected_unit_stats = unit.stats;
             }
         }
     }
@@ -205,7 +193,7 @@ Vector2 UnitManager::get_separation(UnitData& p_unit) {
     bool is_IDLE = (p_unit.state == IDLE);
     Vector2 separation = Vector2(0, 0);
 
-    for (int unit_idx : get_nearby_units(p_unit.position, p_unit.radius * separation_radius_factor)) {
+    for (int unit_idx : get_nearby_units(p_unit.position, ((p_unit.stats)->get_collision_radius()) * separation_radius_factor)) {
         const UnitData& nearby_unit = units[unit_idx];
         Vector2 radius_vector = nearby_unit.position - p_unit.position;
         float length_squared = radius_vector.length_squared();
@@ -232,6 +220,7 @@ Vector2 UnitManager::get_separation(UnitData& p_unit) {
 
     separation = separation.limit_length(separation_limit);
     return separation;
+
 }
 
 Vector2 UnitManager::get_friction(UnitData& p_unit) {
@@ -270,14 +259,15 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
         force = Vector2(0, 0);
     }
     
+    float max_speed = (p_unit.stats)->get_move_speed();
     switch (p_unit.state) {
     case IDLE:
         p_unit.velocity += force * p_delta;
-        p_unit.velocity = (p_unit.velocity).limit_length(p_unit.speed);
+        p_unit.velocity = (p_unit.velocity).limit_length(max_speed);
         break;
     case MOVING:
         p_unit.velocity += force * p_delta;
-        p_unit.velocity = (p_unit.velocity).limit_length(p_unit.speed);
+        p_unit.velocity = (p_unit.velocity).limit_length(max_speed);
         break;
     }
 
@@ -291,7 +281,7 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
 
     // 计算预测位置
     Vector2 next_pos = p_unit.position + p_unit.velocity * p_delta;
-    float radius = p_unit.radius;
+    float radius = (p_unit.stats)->get_collision_radius();
     Vector2i cell_size = flow_field_manager->get_cell_size();
 
     // 处理单位间的“硬修正”（防止重叠）
@@ -302,7 +292,7 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
 
         Vector2 to_other = other.position - next_pos;
         float dist_sq = to_other.length_squared();
-        float min_dist = radius + other.radius;
+        float min_dist = radius + (other.stats)->get_collision_radius();
 
         if (dist_sq < min_dist * min_dist && dist_sq > 0.001f) {
             float dist = Math::sqrt(dist_sq);
@@ -485,7 +475,7 @@ void UnitManager::update_selection_state_and_target_position(UnitData& p_unit) {
             break;
         }
         else {
-            if (selection_manager->selected_type == (int)(p_unit.type)) {
+            if (p_unit.stats == selection_manager->selected_unit_stats) {
                 p_unit.is_selected = true;
             }
             else {
@@ -553,11 +543,25 @@ void UnitManager::set_selection_manager(Node* p_node) {
     selection_manager = Object::cast_to<SelectionManager>(p_node);
 }
 
+void UnitManager::register_unit_type(String p_name, String p_path) {
+    // 调用 UnitLoader 加载 txt
+    Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(p_path);
+    if (stats.is_valid()) {
+        unit_types_cache[p_name] = stats;
+    }
+}
+
+int UnitManager::spawn_unit_by_type(String p_type_name, Vector2 p_pos) {
+    if (unit_types_cache.has(p_type_name)) {
+        return spawn_unit(p_pos, unit_types_cache[p_type_name]);
+    }
+    return -1;
+}
+
+
 void UnitManager::_bind_methods() {
     BIND_ENUM_CONSTANT(IDLE);
     BIND_ENUM_CONSTANT(MOVING);
-
-    BIND_ENUM_CONSTANT(SQUARE);
 
     ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &UnitManager::setup_system);
     ClassDB::bind_method(D_METHOD("spawn_unit", "world_position", "type"), &UnitManager::spawn_unit);
@@ -567,6 +571,8 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_multimesh_instance", "node"), &UnitManager::set_multimesh_instance);
     ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &UnitManager::set_flow_field_manager);
     ClassDB::bind_method(D_METHOD("set_selection_manager", "node"), &UnitManager::set_selection_manager);
+    ClassDB::bind_method(D_METHOD("register_unit_type", "name", "path"), &UnitManager::register_unit_type);
+    ClassDB::bind_method(D_METHOD("spawn_unit_by_type", "type_name", "pos"), &UnitManager::spawn_unit_by_type);
 
     //调试
     // 1. 先绑定所有方法 (Getter/Setter)
@@ -590,6 +596,9 @@ void UnitManager::_bind_methods() {
 
     ClassDB::bind_method(D_METHOD("get_separation_radius_factor"), &UnitManager::get_separation_radius_factor);
     ClassDB::bind_method(D_METHOD("set_separation_radius_factor", "p_val"), &UnitManager::set_separation_radius_factor);
+
+    ClassDB::bind_method(D_METHOD("get_lateral_separation_factor"), &UnitManager::get_lateral_separation_factor);
+    ClassDB::bind_method(D_METHOD("set_lateral_separation_factor", "p_val"), &UnitManager::set_lateral_separation_factor);
 
     ClassDB::bind_method(D_METHOD("get_friction_factor"), &UnitManager::get_friction_factor);
     ClassDB::bind_method(D_METHOD("set_friction_factor", "p_val"), &UnitManager::set_friction_factor);
@@ -615,6 +624,7 @@ void UnitManager::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "separation_factor"), "set_separation_factor", "get_separation_factor");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "separation_limit"), "set_separation_limit", "get_separation_limit");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "separation_radius_factor"), "set_separation_radius_factor", "get_separation_radius_factor");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "lateral_separation_factor"), "set_lateral_separation_factor", "get_lateral_separation_factor");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "friction_factor"), "set_friction_factor", "get_friction_factor");
 
     ADD_GROUP("Threshold Settings", "");

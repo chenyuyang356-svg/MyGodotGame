@@ -11,8 +11,9 @@ namespace godot {
 
     protected:
         static void _bind_methods();
-        //从字符到枚举的转换
+
         static int _parse_enum(String p_key, String p_value);
+        static int _parse_bitfield(String p_value);
 
     public:
         // 输入 txt 文件路径，返回一个填充好数据的 UnitStats 资源

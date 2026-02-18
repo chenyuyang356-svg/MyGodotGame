@@ -5,6 +5,7 @@
 #include "building_manager.h"
 #include "unit_stats.h"
 #include "unit_loader.h"
+#include "game_manager.h"
 
 #include <gdextension_interface.h>
 #include <godot_cpp/core/defs.hpp>
@@ -21,6 +22,7 @@ void initialize_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(UnitManager);
 	GDREGISTER_CLASS(BuildingManager);
 	GDREGISTER_CLASS(UnitStats);
+	GDREGISTER_CLASS(GameManager);
 }
 
 void uninitialize_module(ModuleInitializationLevel p_level) {

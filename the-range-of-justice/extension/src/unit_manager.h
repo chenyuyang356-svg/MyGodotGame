@@ -12,6 +12,7 @@
 
 #include "flow_field_manager.h"
 #include "selection_manager.h"
+#include "unit_loader.h"
 
 namespace godot {
 
@@ -24,9 +25,6 @@ namespace godot {
 			MOVING,      // 移动中
 		};
 
-		enum UnitType {
-			SQUARE
-		};
 
 		//这三个参数是为了调试而设的
 		float unit_speed = 200.0f;
@@ -39,18 +37,18 @@ namespace godot {
 			Vector2 velocity;       // 当前速度向量
 			Vector2 target_pos;		//目标的世界坐标
 			Vector2i target_grid;   // 目标的网格坐标（与流场坐标一致，不同于unit_grid中的坐标）
-			float speed;            // 移动速度
-			float radius;           // 碰撞半径（用于单位间排斥）
-			UnitState state;        // 状态机
-			UnitType type;			// 单位种类
 			
+			Ref<UnitStats> stats;
+
+			UnitState state;        // 状态机		
 			bool is_selected = false;
 			bool is_mouse_on = false;
 			float selection_radius;
+			float current_health;
 
 			float anim_time = 0.0f; // 累计播放时间
 
-			UnitData() : id(-1), speed(200.0f), radius(28.0f), state(IDLE), selection_radius(32.0f) {}
+			UnitData() : id(-1), state(IDLE), current_health(0) {}
 		};
 
 	private:
@@ -74,6 +72,7 @@ namespace godot {
 		float separation_factor = 10000.0f;
 		float separation_radius_factor = 3.0f;		//排斥力半径与单位半径的比值
 		float separation_limit = 1000.0f;
+		float lateral_separation_factor = 1.0f;
 		float friction_factor = 100.0f;
 		float force_threshold_squared = 1.0f;
 		float velocity_threshold_squared = 1.0f;
@@ -81,6 +80,8 @@ namespace godot {
 
 		bool is_setup = false;
 		MultiMeshInstance2D* multimesh_instance = nullptr;
+
+		HashMap<String, Ref<UnitStats>> unit_types_cache;
 
 	protected:
 		static void _bind_methods();
@@ -95,7 +96,7 @@ namespace godot {
 		void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
 
 		// --- 单位生命周期 ---
-		int spawn_unit(Vector2 p_world_pos, UnitType p_type);
+		int spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats);
 		void despawn_unit(int p_unit_id);
 		void command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos);
 
@@ -104,7 +105,7 @@ namespace godot {
 		std::vector<int> get_nearby_units(Vector2 p_world_pos, float p_radius);
 
 		// --- 核心循环 ---
-		virtual void _physics_process(double p_delta) override;
+		void update(double p_delta);
 
 		// --- 逻辑计算 ---
 		Vector2 get_flow(UnitData& p_unit);
@@ -126,6 +127,9 @@ namespace godot {
 		void set_flow_field_manager(Node* p_node);
 		void set_selection_manager(Node* p_node);
 
+		void register_unit_type(String p_name, String p_path);
+		int spawn_unit_by_type(String p_type_name, Vector2 p_pos);
+
 		//调试
 		void set_unit_speed(float p_val) { unit_speed = p_val; }
 		float get_unit_speed() const { return unit_speed; }
@@ -145,6 +149,9 @@ namespace godot {
 		void set_separation_limit(float p_val) { separation_limit = p_val; }
 		float get_separation_limit() const { return separation_limit; }
 
+		void set_lateral_separation_factor(float p_val) { lateral_separation_factor = p_val; }
+		float get_lateral_separation_factor() const { return lateral_separation_factor; }
+
 		void set_separation_radius_factor(float p_val) { separation_radius_factor = p_val; }
 		float get_separation_radius_factor() const { return separation_radius_factor; }
 
@@ -163,4 +170,3 @@ namespace godot {
 }
 
 VARIANT_ENUM_CAST(UnitManager::UnitState);
-VARIANT_ENUM_CAST(UnitManager::UnitType);

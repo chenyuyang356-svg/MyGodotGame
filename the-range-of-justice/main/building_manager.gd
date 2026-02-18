@@ -13,10 +13,6 @@ var is_building_mode: bool = false
 var ghost_grid_pos: Vector2i = Vector2i.ZERO
 var can_place: bool = false
 
-func _ready():
-	# 初始化 C++ 内部引用
-	set_flow_field_manager(flow_field_manager)
-	set_unit_manager(unit_manager)
 
 func _process(_delta):
 	if is_building_mode:

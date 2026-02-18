@@ -22,6 +22,7 @@ namespace godot {
     enum MoveType {
         MOVE_GROUND,
         MOVE_AIR,
+        MOVE_SEA,
         MOVE_HOVER
     };
 

@@ -10,13 +10,13 @@
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_3wy1v"]
 texture = ExtResource("1_53q0u")
-texture_region_size = Vector2i(128, 128)
+texture_region_size = Vector2i(256, 256)
 0:0/0 = 0
 0:1/0 = 0
 0:1/0/custom_data_0 = true
 
 [sub_resource type="TileSet" id="TileSet_kfbq2"]
-tile_size = Vector2i(128, 128)
+tile_size = Vector2i(256, 256)
 custom_data_layer_0/name = "IsWall"
 custom_data_layer_0/type = 1
 sources/1 = SubResource("TileSetAtlasSource_3wy1v")
@@ -36,6 +36,8 @@ mesh = SubResource("QuadMesh_3wy1v")
 
 [node name="main" type="Node" unique_id=224165495]
 script = ExtResource("1_3wy1v")
+
+[node name="GameManager" type="GameManager" parent="." unique_id=1740388468]
 
 [node name="FlowFieldManager" type="FlowFieldManager" parent="." unique_id=1905490724]
 

@@ -4,8 +4,10 @@ func _ready() -> void:
 	var tile_map_layer: TileMapLayer = $TileMapLayer
 	var multi_mesh_instance_2d: MultiMeshInstance2D = $MultiMeshInstance2D
 	var unit_manager: UnitManager = $UnitManager
+	var building_manager: BuildingManager = $BuildingManager
 	var flow_field_manager: FlowFieldManager = $FlowFieldManager
 	var selection_manager: SelectionManager = $SelectionManager
+	var game_manager: GameManager = $GameManager
 	
 	var cell_size: Vector2i = tile_map_layer.tile_set.tile_size
 	var used_rect: Rect2i = tile_map_layer.get_used_rect()
@@ -13,12 +15,15 @@ func _ready() -> void:
 	var height: int = used_rect.size.y
 	var grid_origin: Vector2i = used_rect.position
 	
-	unit_manager.set_multimesh_instance(multi_mesh_instance_2d)
+	game_manager.set_building_manager(building_manager)
+	game_manager.set_unit_manager(unit_manager)
+	game_manager.set_flow_field_manager(flow_field_manager)
+	game_manager.set_selection_manager(selection_manager)
+	game_manager.set_multimesh_instance(multi_mesh_instance_2d)
 	
-	unit_manager.set_flow_field_manager(flow_field_manager)	
-	unit_manager.set_selection_manager(selection_manager)
+	game_manager.setup_system(width, height, cell_size, grid_origin)
 	
-	unit_manager.setup_system(width, height, cell_size, grid_origin)
+	unit_manager.register_unit_type("Fighter", "res://config/unit/fighter.txt")
 	
 	for x in range(used_rect.position.x, used_rect.end.x):
 		for y in range(used_rect.position.y, used_rect.end.y):
@@ -36,8 +41,8 @@ func _ready() -> void:
 								continue
 				flow_field_manager.set_cost(coords, 1)
 	
-	for x in range(20):
-		for y in range(20):
-			unit_manager.spawn_unit(Vector2(-32 * x, -32 * y), unit_manager.SQUARE)
+	for x in range(30):
+		for y in range(30):
+			unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y))
 	
 	

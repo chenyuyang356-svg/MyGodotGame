@@ -6,6 +6,8 @@
 #include <godot_cpp/variant/vector2.hpp>
 #include <godot_cpp/variant/rect2.hpp>
 
+#include <unit_stats.h>
+
 namespace godot {
 
 	class SelectionManager : public Node2D {
@@ -34,7 +36,7 @@ namespace godot {
 		Vector2 selecting_end_point;
 		Rect2 selecting_box;
 		int selected_unit_id = -1;
-		int selected_type;
+		Ref<UnitStats> selected_unit_stats;
 
 		void set_mouse_position(Vector2 p_mouse_position);
 

@@ -1,0 +1,42 @@
+#########################################
+# 战斗机单位配置文件 (Marine)
+#########################################
+
+# --- Survival (生存) ---
+health_max       = 45.0
+health_regen     = 0.5
+shield_max       = 0.0
+shield_regen     = 0.0
+# 枚举可选: Light, Heavy, Building, Hero
+armor_type       = Light
+
+# --- Attack (攻击) ---
+attack_damage    = 6.0
+attack_range     = 150.0
+attack_interval  = 0.86
+# 枚举可选: Physical, Magic, Siege
+attack_type      = Physical
+projectile_speed = 800.0
+splash_radius    = 0.0
+# 枚举可选: Closest, Lowest_hp, Highest_value
+target_priority  = Closest
+
+# --- Movement (移动与碰撞) ---
+move_speed       = 150.0
+turn_speed       = 10.0
+# [关键] 碰撞半径
+collision_radius = 56.0
+# 枚举可选: Ground, Air, Sea, Hover
+move_type        = Ground
+
+# --- Vision (视野) ---
+sight_range      = 350.0
+aggro_range      = 300.0
+
+# --- Economy (经济) ---
+cost             = 50
+build_time       = 12.5
+
+# --- Misc (其他/标签) ---
+# 支持逗号分隔的多个标签
+unit_tags        = Biological

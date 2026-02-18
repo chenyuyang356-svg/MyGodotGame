@@ -30,6 +30,7 @@ int UnitLoader::_parse_enum(String p_key, String p_value) {
     else if (p_key == "move_type") {
         if (p_value == "Ground") return MOVE_GROUND;
         if (p_value == "Air") return MOVE_AIR;
+        if (p_value == "Sea") return MOVE_SEA;
         if (p_value == "Hover") return MOVE_HOVER;
         if (p_value.is_valid_int()) return p_value.to_int();
     }
@@ -46,6 +47,25 @@ int UnitLoader::_parse_enum(String p_key, String p_value) {
     return 0; // 默认 fallback
 }
 
+int UnitLoader::_parse_bitfield(String p_value) {
+    int result = 0;
+    // 按逗号或竖线拆分
+    PackedStringArray tags = p_value.split(",");
+    if (tags.size() <= 1 && p_value.contains("|")) {
+        tags = p_value.split("|");
+    }
+
+    for (int i = 0; i < tags.size(); i++) {
+        String tag = tags[i].strip_edges();
+        if (tag == "Biological") result |= TAG_BIOLOGICAL;
+        else if (tag == "Mechanical") result |= TAG_MECHANICAL;
+        else if (tag == "Summoned") result |= TAG_SUMMONED;
+        else if (tag == "Hero") result |= TAG_HERO;
+        else if (tag.is_valid_int()) result |= tag.to_int();
+    }
+    return result;
+}
+
 Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, Ref<UnitStats> p_target) {
     // [关键点]：热重载的核心
     // 如果传入了 p_target，我们直接操作它（内存地址不变，引用它的单位会自动更新）
@@ -56,7 +76,7 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, Ref<UnitStats> p_t
     }
 
     if (!FileAccess::file_exists(p_path)) {
-        UtilityFunctions::print("Error: Config not found: ", p_path);
+        UtilityFunctions::print("[UnitLoader] Error: File not found: ", p_path);
         return stats;
     }
 
@@ -73,20 +93,30 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, Ref<UnitStats> p_t
         String key = line.substr(0, split_index).strip_edges();
         String value_str = line.substr(split_index + 1).strip_edges();
 
-        // [修改] 智能设值
-        // 如果是已知的枚举 key，走 _parse_enum
-        if (key == "armor_type" || key == "attack_type") {
-            int enum_val = _parse_enum(key, value_str);
-            stats->set(key, enum_val);
+        // 1. 处理位掩码
+        if (key == "unit_tags") {
+            stats->set(key, _parse_bitfield(value_str));
         }
+        // 2. 处理所有枚举类型
+        else if (key == "armor_type" || key == "attack_type" ||
+            key == "move_type" || key == "target_priority") {
+            stats->set(key, _parse_enum(key, value_str));
+        }
+        // 3. 处理数值类型 (float/int)
         else {
-            // 普通属性 (float/int)，直接转换
-            float val_float = value_str.to_float();
-            stats->set(key, val_float);
+            // 这里使用了 Godot 的动态绑定
+            // 只要 TXT 里的 key 跟 UnitStats 里定义的属性名完全一样（如 health_max, collision_radius）
+            // stats->set() 就会自动调用对应的 setter。
+            if (value_str.contains(".")) {
+                stats->set(key, value_str.to_float());
+            }
+            else {
+                stats->set(key, value_str.to_int());
+            }
         }
     }
 
-    UtilityFunctions::print("Loaded/Reloaded stats: ", p_path);
+    UtilityFunctions::print("[UnitLoader] Successfully loaded: ", p_path);
     return stats;
 }
 
