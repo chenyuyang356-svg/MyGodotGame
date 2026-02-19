@@ -1,5 +1,5 @@
 #########################################
-# 战斗机单位配置文件 (Marine)
+# 坦克单位配置文件 (Marine)
 #########################################
 
 # --- Survival (生存) ---
@@ -22,12 +22,12 @@ splash_radius    = 0.0
 target_priority  = Closest
 
 # --- Movement (移动与碰撞) ---
-move_speed       = 300.0
+move_speed       = 150.0
 turn_speed       = 10.0
 # [关键] 碰撞半径
-collision_radius = 40.0
+collision_radius = 48.0
 # 枚举可选: Ground, Air, Sea, Hover
-move_type        = Air
+move_type        = Ground
 
 # --- Vision (视野) ---
 sight_range      = 350.0
@@ -42,13 +42,13 @@ build_time       = 12.5
 unit_tags        = Biological
 
 # 渲染基础
-texture_path = res://asset/飞行单位03.png
-h_frames = 2
+texture_path = res://asset/地面单位02 (2).png
+h_frames = 1
 v_frames = 2
 
 # 状态机动画定义
 idle_row = 0
-idle_frames = 2
+idle_frames = 1
 move_row = 1
-move_frames = 2
+move_frames = 1
 anim_fps = 10

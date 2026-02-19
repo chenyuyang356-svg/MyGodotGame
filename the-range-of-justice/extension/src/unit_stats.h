@@ -38,6 +38,19 @@ namespace godot {
         float build_time = 5.0f;
         BitField<UnitTag> unit_tags = TAG_NONE; // 使用 BitField 包装
 
+        // 纹理与图集基础信息
+        String texture_path;
+        int h_frames = 1;      // 整个图集的水平分栏
+        int v_frames = 1;      // 整个图集的垂直分栏
+
+        // 动画配置信息
+        int move_frames = 1;   // 移动动画占多少帧
+        int idle_frames = 1;   // 待机动画占多少帧
+        int move_row = 1;      // 移动动画在图集的第几行
+        int idle_row = 0;      // 待机动画在图集的第几行
+        int anim_fps = 10;     // 动画播放速度
+
+
     protected:
         static void _bind_methods();
 
@@ -109,5 +122,34 @@ namespace godot {
 
         void set_unit_tags(BitField<UnitTag> p_value) { unit_tags = p_value; }
         BitField<UnitTag> get_unit_tags() const { return unit_tags; }
+
+        // 纹理路径
+        void set_texture_path(const String p_path) { texture_path = p_path; }
+        String get_texture_path() const { return texture_path; }
+
+        // 图集分栏
+        void set_h_frames(int p_val) { h_frames = p_val; }
+        int get_h_frames() const { return h_frames; }
+
+        void set_v_frames(int p_val) { v_frames = p_val; }
+        int get_v_frames() const { return v_frames; }
+
+        // 动画帧数
+        void set_move_frames(int p_val) { move_frames = p_val; }
+        int get_move_frames() const { return move_frames; }
+
+        void set_idle_frames(int p_val) { idle_frames = p_val; }
+        int get_idle_frames() const { return idle_frames; }
+
+        // 动画行号
+        void set_move_row(int p_val) { move_row = p_val; }
+        int get_move_row() const { return move_row; }
+
+        void set_idle_row(int p_val) { idle_row = p_val; }
+        int get_idle_row() const { return idle_row; }
+
+        // 播放速度
+        void set_anim_fps(int p_val) { anim_fps = p_val; }
+        int get_anim_fps() const { return anim_fps; }
     };
 }

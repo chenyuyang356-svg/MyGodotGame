@@ -20,8 +20,6 @@ namespace godot {
 		SelectionManager* selection_manager = nullptr;
 		GroupManager* group_manager = nullptr;
 
-		MultiMeshInstance2D* multimesh_instance = nullptr;
-
 		bool is_setup = false;
 
 	protected:
@@ -33,12 +31,13 @@ namespace godot {
 
 		virtual void _physics_process(double p_delta) override;
 
+		void update_group(double p_delta);
+
 		void set_unit_manager(Node* p_node);
 		void set_building_manager(Node* p_node);
 		void set_flow_field_manager(Node* p_node);
 		void set_selection_manager(Node* p_node);
 		void set_group_manager(Node* p_node);
-		void set_multimesh_instance(Node* p_node);
 		void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
 	};
 

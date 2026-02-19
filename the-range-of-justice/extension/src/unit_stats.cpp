@@ -121,4 +121,40 @@ void UnitStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_unit_tags", "value"), &UnitStats::set_unit_tags);
     ClassDB::bind_method(D_METHOD("get_unit_tags"), &UnitStats::get_unit_tags);
     ADD_PROPERTY(PropertyInfo(Variant::INT, "unit_tags", PROPERTY_HINT_FLAGS, "Biological,Mechanical,Summoned,Hero"), "set_unit_tags", "get_unit_tags");
+
+    // 1. 绑定纹理路径和图集规格 (h_frames/v_frames)
+    ClassDB::bind_method(D_METHOD("get_texture_path"), &UnitStats::get_texture_path);
+    ClassDB::bind_method(D_METHOD("set_texture_path", "p_path"), &UnitStats::set_texture_path);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "texture_path"), "set_texture_path", "get_texture_path");
+
+    ClassDB::bind_method(D_METHOD("get_h_frames"), &UnitStats::get_h_frames);
+    ClassDB::bind_method(D_METHOD("set_h_frames", "p_val"), &UnitStats::set_h_frames);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "h_frames"), "set_h_frames", "get_h_frames");
+
+    ClassDB::bind_method(D_METHOD("get_v_frames"), &UnitStats::get_v_frames);
+    ClassDB::bind_method(D_METHOD("set_v_frames", "p_val"), &UnitStats::set_v_frames);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "v_frames"), "set_v_frames", "get_v_frames");
+
+    // 2. 绑定动画帧数 (move_frames/idle_frames)
+    ClassDB::bind_method(D_METHOD("get_move_frames"), &UnitStats::get_move_frames);
+    ClassDB::bind_method(D_METHOD("set_move_frames", "p_val"), &UnitStats::set_move_frames);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "move_frames"), "set_move_frames", "get_move_frames");
+
+    ClassDB::bind_method(D_METHOD("get_idle_frames"), &UnitStats::get_idle_frames);
+    ClassDB::bind_method(D_METHOD("set_idle_frames", "p_val"), &UnitStats::set_idle_frames);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "idle_frames"), "set_idle_frames", "get_idle_frames");
+
+    // 3. 绑定动画行号 (move_row/idle_row)
+    ClassDB::bind_method(D_METHOD("get_move_row"), &UnitStats::get_move_row);
+    ClassDB::bind_method(D_METHOD("set_move_row", "p_val"), &UnitStats::set_move_row);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "move_row"), "set_move_row", "get_move_row");
+
+    ClassDB::bind_method(D_METHOD("get_idle_row"), &UnitStats::get_idle_row);
+    ClassDB::bind_method(D_METHOD("set_idle_row", "p_val"), &UnitStats::set_idle_row);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "idle_row"), "set_idle_row", "get_idle_row");
+
+    // 4. 绑定播放速度 (anim_fps)
+    ClassDB::bind_method(D_METHOD("get_anim_fps"), &UnitStats::get_anim_fps);
+    ClassDB::bind_method(D_METHOD("set_anim_fps", "p_val"), &UnitStats::set_anim_fps);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "anim_fps"), "set_anim_fps", "get_anim_fps");
 }

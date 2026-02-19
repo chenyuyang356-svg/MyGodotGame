@@ -170,12 +170,15 @@ void UnitManager::update(double p_delta) {
             if (unit.is_mouse_on) {
                 selection_manager->selected_unit_id = unit.id;
                 selection_manager->selected_unit_stats = unit.stats;
+                selection_manager->selected_team_id = unit.team_id;
             }
         }
     }
 
+    
+
     int new_gid = -1;
-    if (selection_manager->state == selection_manager->TYPE_SELECTING) {
+    if (selection_manager->state == selection_manager->SELECTING_TARGET_POSITION) {
         new_gid = group_manager->create_temporary_group(selection_manager->mouse_position);
     }
 
@@ -327,8 +330,8 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
     Vector2i cell_size = flow_field_manager->get_cell_size();
 
     // 处理单位间的“硬修正”（防止重叠）
-    // IDLE单位不参与
-    if (p_unit.state != IDLE) {
+    // IDLE且处于temp_group中的单位不参与
+    if (p_unit.state != IDLE || p_unit.temp_group_id == -1) {
         std::vector<int> nearby = get_nearby_units(next_pos, radius * 2.0f);
         for (int other_idx : nearby) {
             UnitData& other = units[other_idx];
@@ -429,80 +432,75 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
 }
 
 void UnitManager::update_multimesh_buffer(double p_delta) {
-    if (!multimesh_instance) return;
+    if (type_renderers.empty()) return;
 
-    Ref<MultiMesh> mesh_res = multimesh_instance->get_multimesh();
-    if (mesh_res.is_null()) return;
-
-    int current_unit_count = units.size();
-
-    // 1. 如果单位数量变化，调整 MultiMesh 的实例数量
-    if (mesh_res->get_instance_count() != current_unit_count) {
-        mesh_res->set_instance_count(current_unit_count);
+    // 1. 清空上一帧的分组
+    for (auto& pair : type_grouping_cache) {
+        pair.second.clear();
     }
 
-    // 动画配置（可以做成成员变量）
-    float fps = 10.0f;           // 每秒 10 帧
-    int total_idle_frames = 2;   // 待机动画帧数
-    int total_move_frames = 2;   // 移动动画帧数
+    // 2. 按 UnitStats 指针分组
+    for (int i = 0; i < units.size(); ++i) {
+        // 直接取 UnitStats 的原始指针
+        UnitStats* s_ptr = units[i].stats.ptr();
+        type_grouping_cache[s_ptr].push_back(i);
+    }
 
-    // 2. 遍历单位并更新变换矩阵
-    for (int i = 0; i < current_unit_count; ++i) {
-        UnitData& unit = units[i];
+    // 3. 遍历渲染器并填充数据
+    for (auto const& [s_ptr, mmi] : type_renderers) {
+        const std::vector<int>& indices = type_grouping_cache[s_ptr];
+        int count = indices.size();
 
-        // 创建变换矩阵：设置位置、旋转（可选）和缩放
-        // 注意：如果你需要单位朝向移动方向，可以利用 unit.velocity.angle()
-        Transform2D xform;
-
-        // 如果单位正在移动，旋转它以指向移动方向
-        if (unit.velocity.length_squared() > 0.1f) {
-            float rotation_angle = unit.velocity.angle() + (Math_PI / 2.0f);
-            xform.set_rotation(rotation_angle);
+        Ref<MultiMesh> mm = mmi->get_multimesh();
+        if (mm->get_instance_count() != count) {
+            mm->set_instance_count(count);
         }
 
-        xform.set_origin(unit.position);
+        if (count == 0) continue;
 
-        // 将变换应用到第 i 个实例
-        mesh_res->set_instance_transform_2d(i, xform);
+        // 这里 s_ptr 就是 UnitStats 指针，可以直接访问配置数据
+        for (int i = 0; i < count; ++i) {
+            int u_idx = indices[i];
+            UnitData& unit = units[u_idx];
 
-        //计算动画帧
-        int frame_index = 0;
-        int row_index = 0;
+            // 更新变换
+            Transform2D xform;
+            if (unit.velocity.length_squared() > 1.0f) {
+                xform.set_rotation(unit.velocity.angle() + Math_PI / 2.0f);
+            }
+            xform.set_origin(unit.position);
+            mm->set_instance_transform_2d(i, xform);
 
-        if (unit.state == MOVING) {
-            frame_index = (int)(unit.anim_time * fps) % total_move_frames;
-            row_index = 1; // 移动动画在第二行
-        }
-        else {
-            frame_index = (int)(unit.anim_time * fps) % total_idle_frames;
-            row_index = 0; // 待机动画在第一行
-        }
+            // 动画逻辑（直接使用 s_ptr）
+            int frames = (unit.state == MOVING) ? s_ptr->get_move_frames() : s_ptr->get_idle_frames();
+            int row = (unit.state == MOVING) ? s_ptr->get_move_row() : s_ptr->get_idle_row();
+            float duration = (float)frames / s_ptr->get_anim_fps();
+            int frame_idx = (int)(Math::fmod(unit.anim_time, duration) * s_ptr->get_anim_fps());
 
-        // 我们利用 Color 的四个通道传递：x: 帧索引, y: 行索引, z: 预留, w: 预留
-        // 注意：在 Shader 中这对应 INSTANCE_CUSTOM
-        mesh_res->set_instance_custom_data(i, Color(float(frame_index), float(row_index), 0, 0));
+            mm->set_instance_custom_data(i, Color(frame_idx, row, 0, 0));
 
-        //处理颜色
-        Color display_color;
-        if (unit.is_selected) {
-            if (unit.is_mouse_on) {
-                display_color = Color(1.2, 1.2, 1.2);
+            //处理颜色
+            Color display_color;
+            if (unit.is_selected) {
+                if (unit.is_mouse_on) {
+                    display_color = Color(1.2, 1.2, 1.2);
+                }
+                else {
+                    display_color = Color(1.5, 1.5, 1.5);
+                }
             }
             else {
-                display_color = Color(1.5, 1.5, 1.5);
+                if (unit.is_mouse_on) {
+                    display_color = Color(1.2, 1.2, 1.2);
+                }
+                else {
+                    display_color = Color(1.0, 1.0, 1.0);
+                }
             }
+            mm->set_instance_color(i, display_color);
+
+            unit.anim_time += p_delta;
         }
-        else {
-            if (unit.is_mouse_on) {
-                display_color = Color(1.2, 1.2, 1.2);
-            }
-            else {
-                display_color = Color(1.0, 1.0, 1.0);
-            }
-        }
-        mesh_res->set_instance_color(i, display_color);
-        
-        unit.anim_time += p_delta; // 更新动画计时器
     }
 }
 
@@ -528,7 +526,9 @@ void UnitManager::update_selection_state_and_target_position(UnitData& p_unit, i
             break;
         }
         else {
-            if (p_unit.stats == selection_manager->selected_unit_stats) {
+            if ((p_unit.stats == selection_manager->selected_unit_stats) &&
+                (p_unit.team_id == selection_manager->selected_team_id) && 
+                (p_unit.team_id == selection_manager->team_id)) {
                 p_unit.is_selected = true;
             }
             else {
@@ -545,7 +545,8 @@ void UnitManager::update_selection_state_and_target_position(UnitData& p_unit, i
         }
         break;
     case (selection_manager->BOX_SELECTION_ENDED):
-        if ((selection_manager->selecting_box).has_point(p_unit.position)) {
+        if ((selection_manager->selecting_box).has_point(p_unit.position) && 
+            (selection_manager->team_id == p_unit.team_id)) {
             p_unit.is_selected = true;
         }
         else {
@@ -553,7 +554,7 @@ void UnitManager::update_selection_state_and_target_position(UnitData& p_unit, i
         }
         break;
     case (selection_manager->SELECTING_TARGET_POSITION):
-        if (p_unit.is_selected) {
+        if ((p_unit.is_selected) && (selection_manager->team_id == p_unit.team_id)) {
             Vector2i target_grid_pos = flow_field_manager->world_to_grid(selection_manager->mouse_position);
             if ((p_unit.stats)->get_move_type() != MOVE_AIR) {
                 flow_field_manager->create_flow_field(target_grid_pos, false);
@@ -593,10 +594,6 @@ int UnitManager::get_unit_state(int p_unit_id) const {
     return (int)(IDLE);
 }
 
-void UnitManager::set_multimesh_instance(Node* p_node) {
-    multimesh_instance = Object::cast_to<MultiMeshInstance2D>(p_node);
-}
-
 void UnitManager::set_flow_field_manager(Node* p_node) {
     flow_field_manager = Object::cast_to<FlowFieldManager>(p_node);
 }
@@ -610,16 +607,60 @@ void UnitManager::set_group_manager(Node* p_node) {
 }
 
 void UnitManager::register_unit_type(String p_name, String p_path) {
-    // 调用 UnitLoader 加载 txt
     Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(p_path);
-    if (stats.is_valid()) {
-        unit_types_cache[p_name] = stats;
+    if (stats.is_null()) return;
+
+    // 存入缓存供 spawn_unit_by_type 使用
+    unit_types_cache[p_name] = stats;
+
+    // 获取原始指针作为 Key
+    UnitStats* stats_ptr = stats.ptr();
+
+    // 如果该类型已经注册过渲染器，直接返回
+    if (type_renderers.find(stats_ptr) != type_renderers.end()) return;
+
+    // --- 创建渲染器 ---
+    MultiMeshInstance2D* mmi = memnew(MultiMeshInstance2D);
+    mmi->set_name(p_name + "_Renderer");
+    add_child(mmi);
+
+    // 配置 MultiMesh
+    Ref<MultiMesh> mm;
+    mm.instantiate();
+    mm->set_use_colors(true);
+    mm->set_use_custom_data(true);
+
+    Ref<QuadMesh> qmesh;
+    qmesh.instantiate();
+
+    // 加载纹理并设置网格大小
+    Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(stats->get_texture_path());
+    if (tex.is_valid()) {
+        Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
+        qmesh->set_size(frame_size);
     }
+    mm->set_mesh(qmesh);
+    mmi->set_multimesh(mm);
+    mmi->set_texture(tex);
+
+    // 设置材质
+    Ref<ShaderMaterial> mat;
+    mat.instantiate();
+    if (unit_shader.is_null()) {
+        unit_shader = ResourceLoader::get_singleton()->load("res://shader/unit_shader.gdshader");
+    }
+    mat->set_shader(unit_shader);
+    mat->set_shader_parameter("h_frames", stats->get_h_frames());
+    mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    mmi->set_material(mat);
+
+    // 建立映射
+    type_renderers[stats_ptr] = mmi;
 }
 
-int UnitManager::spawn_unit_by_type(String p_type_name, Vector2 p_pos) {
+int UnitManager::spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_team_id) {
     if (unit_types_cache.has(p_type_name)) {
-        return spawn_unit(p_pos, unit_types_cache[p_type_name]);
+        return spawn_unit(p_pos, unit_types_cache[p_type_name], p_team_id);
     }
     return -1;
 }
@@ -672,12 +713,11 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("command_units_to_move", "unit_ids", "target_world_pos"), &UnitManager::command_units_to_move);
     ClassDB::bind_method(D_METHOD("get_unit_position", "unit_id"), &UnitManager::get_unit_position);
     ClassDB::bind_method(D_METHOD("get_unit_state", "unit_id"), &UnitManager::get_unit_state);
-    ClassDB::bind_method(D_METHOD("set_multimesh_instance", "node"), &UnitManager::set_multimesh_instance);
     ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &UnitManager::set_flow_field_manager);
     ClassDB::bind_method(D_METHOD("set_selection_manager", "node"), &UnitManager::set_selection_manager);
     ClassDB::bind_method(D_METHOD("set_group_manager", "node"), &UnitManager::set_group_manager);
     ClassDB::bind_method(D_METHOD("register_unit_type", "name", "path"), &UnitManager::register_unit_type);
-    ClassDB::bind_method(D_METHOD("spawn_unit_by_type", "type_name", "pos"), &UnitManager::spawn_unit_by_type);
+    ClassDB::bind_method(D_METHOD("spawn_unit_by_type", "type_name", "pos", "team_id"), &UnitManager::spawn_unit_by_type);
 
     //调试
     // 1. 先绑定所有方法 (Getter/Setter)

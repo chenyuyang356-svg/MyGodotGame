@@ -15,7 +15,7 @@ namespace godot {
         int id;                 // 唯一标识符
         Vector2 position;       // 当前世界坐标
         Vector2 velocity;       // 当前速度向量
-        Vector2 target_pos;		//目标的世界坐标
+        Vector2 target_pos;		// 目标的世界坐标
         Vector2i target_grid;   // 目标的网格坐标（与流场坐标一致，不同于unit_grid中的坐标）
 
         Ref<UnitStats> stats;

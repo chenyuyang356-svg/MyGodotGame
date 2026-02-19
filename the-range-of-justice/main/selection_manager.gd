@@ -40,6 +40,18 @@ func _unhandled_input(event: InputEvent):
 		else:
 			set_mouse_position(get_global_mouse_position())
 
+	elif event is InputEventKey and event.pressed and not event.echo:
+		match event.keycode:
+			KEY_1: set_team_id(1)
+			KEY_2: set_team_id(2)
+			KEY_3: set_team_id(3)
+			KEY_4: set_team_id(4)
+			KEY_5: set_team_id(5)
+			KEY_6: set_team_id(6)
+			KEY_7: set_team_id(7)
+			KEY_8: set_team_id(8)
+			KEY_9: set_team_id(9)
+
 # --- 鼠标逻辑处理 ---
 
 func _on_left_pressed():

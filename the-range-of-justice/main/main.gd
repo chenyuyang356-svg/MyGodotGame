@@ -21,11 +21,11 @@ func _ready() -> void:
 	game_manager.set_flow_field_manager(flow_field_manager)
 	game_manager.set_selection_manager(selection_manager)
 	game_manager.set_group_manager(group_manager)
-	game_manager.set_multimesh_instance(multi_mesh_instance_2d)
 	
 	game_manager.setup_system(width, height, cell_size, grid_origin)
 	
 	unit_manager.register_unit_type("Fighter", "res://config/unit/fighter.txt")
+	unit_manager.register_unit_type("Tank", "res://config/unit/tank.txt")
 	
 	for x in range(used_rect.position.x, used_rect.end.x):
 		for y in range(used_rect.position.y, used_rect.end.y):
@@ -43,8 +43,10 @@ func _ready() -> void:
 								continue
 				flow_field_manager.set_cost(coords, 1)
 	
-	for x in range(50):
-		for y in range(50):
-			unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y))
+	for x in range(10):
+		for y in range(10):
+			unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
+			unit_manager.spawn_unit_by_type("Tank", -32 * Vector2(x, y) + Vector2(1000, 1000), 1)
+			unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(3000, 3000), 2)
 	
 	

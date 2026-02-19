@@ -52,6 +52,10 @@ void SelectionManager::end_box_selecting() {
 	selecting_box = get_rect(selecting_start_point, selecting_end_point);
 }
 
+void SelectionManager::set_team_id(int p_value) {
+	team_id = p_value;
+}
+
 void SelectionManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_mouse_position", "mouse_position"), &SelectionManager::set_mouse_position);
 	ClassDB::bind_method(D_METHOD("single_selecting"), &SelectionManager::single_selecting);
@@ -59,4 +63,5 @@ void SelectionManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("selecting_target_position"), &SelectionManager::selecting_target_position);
 	ClassDB::bind_method(D_METHOD("box_selecting"), &SelectionManager::box_selecting);
 	ClassDB::bind_method(D_METHOD("end_box_selecting"), &SelectionManager::end_box_selecting);
+	ClassDB::bind_method(D_METHOD("set_team_id", "value"), &SelectionManager::set_team_id);
 }

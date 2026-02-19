@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <string>
 
 #include <godot_cpp/classes/node2d.hpp>
 #include <godot_cpp/variant/vector2.hpp>
@@ -9,6 +10,16 @@
 #include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/classes/multi_mesh_instance2d.hpp>
 #include <godot_cpp/classes/multi_mesh.hpp>
+#include <godot_cpp/classes/quad_mesh.hpp>
+#include <godot_cpp/classes/shader_material.hpp>
+#include <godot_cpp/classes/shader.hpp>
+#include <godot_cpp/classes/texture2d.hpp>
+#include <godot_cpp/classes/resource_loader.hpp>
+
+#include <godot_cpp/variant/string.hpp>
+#include <godot_cpp/variant/color.hpp>
+#include <godot_cpp/variant/transform2d.hpp>
+#include <godot_cpp/core/memory.hpp>   
 
 #include "flow_field_manager.h"
 #include "selection_manager.h"
@@ -22,6 +33,7 @@ namespace godot {
 	class UnitManager : public Node2D {
 		GDCLASS(UnitManager, Node2D)
 
+		friend class GameManager;
 		friend class AttackManager;
 	
 	private:
@@ -54,7 +66,15 @@ namespace godot {
 		float desired_integration = 0.1f;
 
 		bool is_setup = false;
-		MultiMeshInstance2D* multimesh_instance = nullptr;
+
+		// 渲染器映射：每个 UnitStats 资源对应一个 MultiMeshInstance2D
+		std::unordered_map<UnitStats*, MultiMeshInstance2D*> type_renderers;
+
+		// 分组缓存：每一帧将单位按 UnitStats 指针分组
+		std::unordered_map<UnitStats*, std::vector<int>> type_grouping_cache;
+
+		// 共享的 Shader 资源，避免每个类型都创建一个新的 Shader
+		Ref<Shader> unit_shader;
 
 		HashMap<String, Ref<UnitStats>> unit_types_cache;
 
@@ -98,15 +118,15 @@ namespace godot {
 		// 获取数据供 Godot 渲染
 		Vector2 get_unit_position(int p_unit_id) const;
 		int get_unit_state(int p_unit_id) const;
-		void set_multimesh_instance(Node* p_node);
 		void set_flow_field_manager(Node* p_node);
 		void set_selection_manager(Node* p_node);
 		void set_group_manager(Node* p_node);
 
 		void register_unit_type(String p_name, String p_path);
-		int spawn_unit_by_type(String p_type_name, Vector2 p_pos);
+		int spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_team_id);
 
 		void set_control_group(int p_index, const std::vector<int>& p_unit_ids);
+
 		// 攻击模块
 		int get_unit_index_by_id(int p_id); 
 		void set_attack_manager(Node* p_node);

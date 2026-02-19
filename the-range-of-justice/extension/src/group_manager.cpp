@@ -76,24 +76,6 @@ void GroupManager::handle_unit_death(int p_unit_id, int p_temp_gid, const int* p
     }
 }
 
-void GroupManager::update_logic(double p_delta) {
-    cleanup_timer += p_delta;
-    if (cleanup_timer < CLEANUP_INTERVAL) return;
-    cleanup_timer = 0.0;
-
-    auto it = temp_groups.begin();
-    while (it != temp_groups.end()) {
-        // 如果没有单位在移动了，且 ID 列表也空了（或单位都到达了）
-        // 这里可以根据需求决定：是计数器归零就删，还是单位完全清空才删
-        if (it->second.moving_units_count <= 0) {
-            it = temp_groups.erase(it);
-        }
-        else {
-            ++it;
-        }
-    }
-}
-
 UnitGroup* GroupManager::get_temp_group(int p_gid) {
     auto it = temp_groups.find(p_gid);
     if (it != temp_groups.end()) return &it->second;

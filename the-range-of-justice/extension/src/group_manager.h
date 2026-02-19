@@ -31,6 +31,8 @@ namespace godot {
     class GroupManager : public Node2D {
         GDCLASS(GroupManager, Node2D)
 
+    friend class GameManager;
+
     public:
         static const int MAX_CONTROL_GROUPS = 10;
         int next_temp_id = 1;
@@ -65,8 +67,6 @@ namespace godot {
         // --- 生命周期管理 ---
         // 利用单位记录的索引进行 O(1) 到 O(GroupCount) 的快速清理
         void handle_unit_death(int p_unit_id, int p_temp_gid, const int* p_control_indices, int p_control_count);
-
-        void update_logic(double p_delta);
 
         UnitGroup* get_temp_group(int p_gid);
     };

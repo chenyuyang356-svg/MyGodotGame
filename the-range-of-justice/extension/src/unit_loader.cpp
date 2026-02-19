@@ -93,25 +93,32 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, Ref<UnitStats> p_t
         String key = line.substr(0, split_index).strip_edges();
         String value_str = line.substr(split_index + 1).strip_edges();
 
-        // 1. 处理位掩码
+        // 1. 处理特定的位掩码和枚举 (保持不变)
         if (key == "unit_tags") {
             stats->set(key, _parse_bitfield(value_str));
         }
-        // 2. 处理所有枚举类型
         else if (key == "armor_type" || key == "attack_type" ||
             key == "move_type" || key == "target_priority") {
             stats->set(key, _parse_enum(key, value_str));
         }
-        // 3. 处理数值类型 (float/int)
+        // 2. [新增/修改]：显式处理字符串类型的 key
+        else if (key == "texture_path") {
+            stats->set(key, value_str);
+        }
+        // 3. [修改]：更严谨地处理数值转换
         else {
-            // 这里使用了 Godot 的动态绑定
-            // 只要 TXT 里的 key 跟 UnitStats 里定义的属性名完全一样（如 health_max, collision_radius）
-            // stats->set() 就会自动调用对应的 setter。
-            if (value_str.contains(".")) {
-                stats->set(key, value_str.to_float());
+            // 只有当字符串确实是数字时才转换，否则按 String 处理
+            if (value_str.is_valid_float()) {
+                if (value_str.contains(".")) {
+                    stats->set(key, value_str.to_float());
+                }
+                else {
+                    stats->set(key, value_str.to_int());
+                }
             }
             else {
-                stats->set(key, value_str.to_int());
+                // 如果不是数字（比如路径、名称等），直接存为原始字符串
+                stats->set(key, value_str);
             }
         }
     }

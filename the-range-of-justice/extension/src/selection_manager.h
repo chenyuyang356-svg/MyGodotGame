@@ -38,6 +38,9 @@ namespace godot {
 		int selected_unit_id = -1;
 		Ref<UnitStats> selected_unit_stats;
 
+		int team_id = 1;
+		int selected_team_id = -1;
+
 		void set_mouse_position(Vector2 p_mouse_position);
 
 		void single_selecting();
@@ -49,5 +52,7 @@ namespace godot {
 		void box_selecting();
 
 		void end_box_selecting();
+
+		void set_team_id(int p_value);
 	};
 }
