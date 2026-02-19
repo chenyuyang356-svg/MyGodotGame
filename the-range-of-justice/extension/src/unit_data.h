@@ -7,6 +7,8 @@ namespace godot {
     enum UnitState {
         IDLE,        // 待机
         MOVING,      // 移动中
+        CHASING,
+        ATTACKING
     };
 
     struct UnitData {
@@ -31,6 +33,9 @@ namespace godot {
         int control_group_indices[3] = { -1, -1, -1 };
         int control_group_count = 0;
 
+        int team_id = 0;
+        int target_id = -1;
+        float attack_cooldown = 0.1f;
 
         UnitData() : id(-1), state(IDLE), current_health(0) {}
     };
