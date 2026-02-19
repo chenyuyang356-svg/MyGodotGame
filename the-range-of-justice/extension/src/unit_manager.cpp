@@ -1,4 +1,5 @@
 #include "unit_manager.h"
+#include "attack_manager.h"
 
 #include <queue>
 
@@ -34,13 +35,15 @@ void UnitManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
     is_setup = true;
 }
 
-int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats) {
+int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id) {
     if (p_stats.is_null()) return -1;
 
     UnitData new_unit;
     new_unit.id = next_unit_id++;
     new_unit.position = p_world_pos;
     new_unit.stats = p_stats; // 存入引用
+
+    new_unit.team_id = p_team_id; // 赋值阵营
 
     // 从资源中初始化实时数值
     new_unit.current_health = p_stats->get_health_max();
@@ -145,6 +148,10 @@ std::vector<int> UnitManager::get_nearby_units(Vector2 p_world_pos, float p_radi
 
 void UnitManager::update(double p_delta) {
     if (!is_setup || !flow_field_manager || !selection_manager) { return; }
+
+    if (attack_manager) {
+        attack_manager->update_units(p_delta);
+    }
 
     selection_manager->selected_unit_id = -1;
     for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
@@ -279,6 +286,17 @@ void UnitManager::update_state(UnitData& p_unit) {
 
 void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     Vector2 force = get_force(p_unit);
+    bool is_combat_controlled = false;
+
+    // 询问 AttackManager 是否接管此单位的物理
+    if (attack_manager) {
+        is_combat_controlled = attack_manager->try_get_combat_force(p_unit, force);
+    }
+
+    // 如果没有被战斗系统接管，则使用默认的流场移动逻辑
+    if (!is_combat_controlled) {
+        force = get_force(p_unit);
+    }
     if (force.length_squared() < force_threshold_squared) {
         force = Vector2(0, 0);
     }
@@ -650,7 +668,7 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
 
 void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &UnitManager::setup_system);
-    ClassDB::bind_method(D_METHOD("spawn_unit", "world_position", "type"), &UnitManager::spawn_unit);
+    ClassDB::bind_method(D_METHOD("spawn_unit", "world_position", "type", "team_id"), &UnitManager::spawn_unit);
     ClassDB::bind_method(D_METHOD("command_units_to_move", "unit_ids", "target_world_pos"), &UnitManager::command_units_to_move);
     ClassDB::bind_method(D_METHOD("get_unit_position", "unit_id"), &UnitManager::get_unit_position);
     ClassDB::bind_method(D_METHOD("get_unit_state", "unit_id"), &UnitManager::get_unit_state);
@@ -705,3 +723,20 @@ void UnitManager::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "velocity_threshold_squared"), "set_velocity_threshold_squared", "get_velocity_threshold_squared");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "desired_integration"), "set_desired_integration", "get_desired_integration");
 }
+
+int UnitManager::get_unit_index_by_id(int p_id) {
+    auto it = id_to_index.find(p_id);
+    if (it != id_to_index.end()) {
+        return it->second;
+    }
+    return -1;
+}
+
+void UnitManager::set_attack_manager(Node* p_node) {
+    attack_manager = Object::cast_to<AttackManager>(p_node);
+    if (attack_manager) {
+        attack_manager->setup(this); // 初始化 AttackManager
+    }
+}
+
+

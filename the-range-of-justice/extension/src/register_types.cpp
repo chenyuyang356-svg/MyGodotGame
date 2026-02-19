@@ -6,6 +6,7 @@
 #include "unit_stats.h"
 #include "unit_loader.h"
 #include "game_manager.h"
+#include "attack_manager.h"
 
 #include <gdextension_interface.h>
 #include <godot_cpp/core/defs.hpp>
@@ -24,6 +25,7 @@ void initialize_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(GroupManager);
 	GDREGISTER_CLASS(UnitStats);
 	GDREGISTER_CLASS(GameManager);
+	GDREGISTER_CLASS(godot::AttackManager); 
 }
 
 void uninitialize_module(ModuleInitializationLevel p_level) {
@@ -49,3 +51,5 @@ void initialize_example_module(ModuleInitializationLevel p_level) {
 	// ...
 	ClassDB::register_class<UnitLoader>(); 
 }
+
+

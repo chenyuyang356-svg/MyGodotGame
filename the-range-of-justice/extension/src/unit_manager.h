@@ -17,11 +17,15 @@
 #include "unit_data.h"
 
 namespace godot {
+	class AttackManager; // 1. 前向声明
 
 	class UnitManager : public Node2D {
 		GDCLASS(UnitManager, Node2D)
 
+		friend class AttackManager;
+	
 	private:
+		AttackManager* attack_manager = nullptr; 
 		FlowFieldManager *flow_field_manager;
 		SelectionManager *selection_manager;
 		GroupManager* group_manager;
@@ -67,7 +71,7 @@ namespace godot {
 		void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
 
 		// --- 单位生命周期 ---
-		int spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats);
+		int spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id = 0);
 		void despawn_unit(int p_unit_id);
 		void command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos);
 
@@ -103,6 +107,9 @@ namespace godot {
 		int spawn_unit_by_type(String p_type_name, Vector2 p_pos);
 
 		void set_control_group(int p_index, const std::vector<int>& p_unit_ids);
+		// 攻击模块
+		int get_unit_index_by_id(int p_id); 
+		void set_attack_manager(Node* p_node);
 
 		//调试
 		void set_flow_factor(float p_val) { flow_factor = p_val; }

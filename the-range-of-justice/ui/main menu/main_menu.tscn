@@ -1,5 +1,89 @@
 [gd_scene format=3 uid="uid://mtrpe2gqo68j"]
 
+[ext_resource type="Script" uid="uid://kb26hr730nud" path="res://ui/main menu/main_menu.gd" id="1_chnft"]
+[ext_resource type="Theme" uid="uid://cpyg1yehfm7ug" path="res://ui/theme/main_menu.theme" id="1_cngla"]
+[ext_resource type="Texture2D" uid="uid://c1eqh0dj8lj01" path="res://icon.svg" id="1_w6cik"]
+[ext_resource type="PackedScene" uid="uid://dywbpnqknsp0r" path="res://ui/option menu/option_menu.tscn" id="4_sln25"]
+
 [node name="MainMenu" type="Control" unique_id=1229322745]
 layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_cngla")
+script = ExtResource("1_chnft")
+
+[node name="Background" type="TextureRect" parent="." unique_id=475044651]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("1_w6cik")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="MainLayout" type="MarginContainer" parent="." unique_id=1791803155]
+layout_mode = 0
+offset_left = 810.0
+offset_top = 551.0
+offset_right = 1110.0
+offset_bottom = 944.0
+theme_override_constants/margin_left = 50
+theme_override_constants/margin_top = 50
+theme_override_constants/margin_right = 50
+theme_override_constants/margin_bottom = 50
+
+[node name="ContentVBox" type="VBoxContainer" parent="MainLayout" unique_id=414355949]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="MainLayout/ContentVBox" unique_id=959528904]
+layout_mode = 2
+
+[node name="MenuButtons" type="VBoxContainer" parent="MainLayout/ContentVBox" unique_id=41079230]
+custom_minimum_size = Vector2(200, 50)
+layout_mode = 2
+size_flags_vertical = 6
+alignment = 1
+
+[node name="StartButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=967664777]
+custom_minimum_size = Vector2(200, 50)
+layout_mode = 2
+localize_numeral_system = false
+text = "START"
+
+[node name="OptionsButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=53033225]
+custom_minimum_size = Vector2(100, 50)
+layout_mode = 2
+text = "OPTIONS"
+
+[node name="ExitButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=781588597]
+custom_minimum_size = Vector2(100, 50)
+layout_mode = 2
+size_flags_vertical = 4
+text = "EXIT"
+
+[node name="Help" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=1230442850]
+custom_minimum_size = Vector2(100, 50)
+layout_mode = 2
+text = "Help"
+
+[node name="Button" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=1441497434]
+custom_minimum_size = Vector2(100, 50)
+layout_mode = 2
+text = "mods"
+
+[node name="OptionsMenu" parent="." unique_id=1075139515 instance=ExtResource("4_sln25")]
+layout_mode = 0
 anchors_preset = 0
+anchor_right = 0.0
+anchor_bottom = 0.0
+grow_horizontal = 1
+grow_vertical = 1
+
+[connection signal="pressed" from="MainLayout/ContentVBox/MenuButtons/StartButton" to="." method="_on_start_button_pressed"]
+[connection signal="pressed" from="MainLayout/ContentVBox/MenuButtons/OptionsButton" to="." method="_on_options_button_pressed"]
+[connection signal="pressed" from="MainLayout/ContentVBox/MenuButtons/ExitButton" to="." method="_on_exit_button_pressed"]

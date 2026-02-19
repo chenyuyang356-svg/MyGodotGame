@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://dywbpnqknsp0r"]
+
+[ext_resource type="Script" uid="uid://cfu3ko8mlh5b1" path="res://ui/option menu/option_menu.gd" id="1_0hfiv"]
+[ext_resource type="Texture2D" uid="uid://c1eqh0dj8lj01" path="res://icon.svg" id="1_0vc6n"]
+
+[node name="OperationMenu" type="Control" unique_id=1075139515]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 4
+script = ExtResource("1_0hfiv")
+
+[node name="TextureRect" type="TextureRect" parent="." unique_id=1880929471]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("1_0vc6n")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=77745868]
+layout_mode = 0
+offset_left = 858.0
+offset_top = 632.0
+offset_right = 1066.0
+offset_bottom = 816.0
+
+[node name="setting" type="Label" parent="VBoxContainer" unique_id=1063407506]
+layout_mode = 2
+text = "setting"
+
+[node name="CheckButton" type="CheckButton" parent="VBoxContainer" unique_id=1166585129]
+layout_mode = 2
+text = "Fullscreen"
+
+[node name="BackButton" type="Button" parent="VBoxContainer" unique_id=1635782678]
+layout_mode = 2
+text = "Back"
+
+[connection signal="toggled" from="VBoxContainer/CheckButton" to="." method="_on_check_button_toggled"]
+[connection signal="pressed" from="VBoxContainer/BackButton" to="." method="_on_back_button_pressed"]
