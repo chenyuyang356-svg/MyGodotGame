@@ -7,6 +7,7 @@ func _ready() -> void:
 	var building_manager: BuildingManager = $BuildingManager
 	var flow_field_manager: FlowFieldManager = $FlowFieldManager
 	var selection_manager: SelectionManager = $SelectionManager
+	var group_manager: GroupManager = $GroupManager
 	var game_manager: GameManager = $GameManager
 	
 	var cell_size: Vector2i = tile_map_layer.tile_set.tile_size
@@ -19,6 +20,7 @@ func _ready() -> void:
 	game_manager.set_unit_manager(unit_manager)
 	game_manager.set_flow_field_manager(flow_field_manager)
 	game_manager.set_selection_manager(selection_manager)
+	game_manager.set_group_manager(group_manager)
 	game_manager.set_multimesh_instance(multi_mesh_instance_2d)
 	
 	game_manager.setup_system(width, height, cell_size, grid_origin)
@@ -41,8 +43,8 @@ func _ready() -> void:
 								continue
 				flow_field_manager.set_cost(coords, 1)
 	
-	for x in range(30):
-		for y in range(30):
+	for x in range(50):
+		for y in range(50):
 			unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y))
 	
 	

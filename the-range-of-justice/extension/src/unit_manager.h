@@ -12,48 +12,19 @@
 
 #include "flow_field_manager.h"
 #include "selection_manager.h"
+#include "group_manager.h"
 #include "unit_loader.h"
+#include "unit_data.h"
 
 namespace godot {
 
 	class UnitManager : public Node2D {
 		GDCLASS(UnitManager, Node2D)
 
-	public:
-		enum UnitState {
-			IDLE,        // 待机
-			MOVING,      // 移动中
-		};
-
-
-		//这三个参数是为了调试而设的
-		float unit_speed = 200.0f;
-		float unit_radius = 28.0f;
-		float unit_selection_radius = 32.0f;
-
-		struct UnitData {
-			int id;                 // 唯一标识符
-			Vector2 position;       // 当前世界坐标
-			Vector2 velocity;       // 当前速度向量
-			Vector2 target_pos;		//目标的世界坐标
-			Vector2i target_grid;   // 目标的网格坐标（与流场坐标一致，不同于unit_grid中的坐标）
-			
-			Ref<UnitStats> stats;
-
-			UnitState state;        // 状态机		
-			bool is_selected = false;
-			bool is_mouse_on = false;
-			float selection_radius;
-			float current_health;
-
-			float anim_time = 0.0f; // 累计播放时间
-
-			UnitData() : id(-1), state(IDLE), current_health(0) {}
-		};
-
 	private:
 		FlowFieldManager *flow_field_manager;
 		SelectionManager *selection_manager;
+		GroupManager* group_manager;
 		std::unordered_map<int, size_t> id_to_index;
 		int next_unit_id = 0;
 
@@ -118,7 +89,7 @@ namespace godot {
 
 		void update_multimesh_buffer(double p_delta);
 
-		void update_selection_state_and_target_position(UnitData& p_unit);
+		void update_selection_state_and_target_position(UnitData& p_unit, int p_group_id);
 
 		// 获取数据供 Godot 渲染
 		Vector2 get_unit_position(int p_unit_id) const;
@@ -126,20 +97,14 @@ namespace godot {
 		void set_multimesh_instance(Node* p_node);
 		void set_flow_field_manager(Node* p_node);
 		void set_selection_manager(Node* p_node);
+		void set_group_manager(Node* p_node);
 
 		void register_unit_type(String p_name, String p_path);
 		int spawn_unit_by_type(String p_type_name, Vector2 p_pos);
 
+		void set_control_group(int p_index, const std::vector<int>& p_unit_ids);
+
 		//调试
-		void set_unit_speed(float p_val) { unit_speed = p_val; }
-		float get_unit_speed() const { return unit_speed; }
-
-		void set_unit_radius(float p_val) { unit_radius = p_val; }
-		float get_unit_radius() const { return unit_radius; }
-
-		void set_unit_selection_radius(float p_val) { unit_selection_radius = p_val; }
-		float get_unit_selection_radius() const { return unit_selection_radius; }
-
 		void set_flow_factor(float p_val) { flow_factor = p_val; }
 		float get_flow_factor() const { return flow_factor; }
 
@@ -168,5 +133,3 @@ namespace godot {
 		float get_desired_integration() const { return desired_integration; }
 	};
 }
-
-VARIANT_ENUM_CAST(UnitManager::UnitState);

@@ -39,11 +39,11 @@ script = ExtResource("1_3wy1v")
 
 [node name="GameManager" type="GameManager" parent="." unique_id=1740388468]
 
+[node name="GroupManager" type="GroupManager" parent="." unique_id=2096338072]
+
 [node name="FlowFieldManager" type="FlowFieldManager" parent="." unique_id=1905490724]
 
 [node name="UnitManager" type="UnitManager" parent="." unique_id=355650158]
-unit_radius = 56.0
-unit_selection_radius = 56.0
 separation_factor = 100000.0
 separation_radius_factor = 2.0
 friction_factor = 10.0

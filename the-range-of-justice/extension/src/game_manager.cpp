@@ -10,8 +10,9 @@ GameManager::GameManager() {}
 GameManager::~GameManager() {}
 
 void GameManager::_physics_process(double p_delta) {
-	if (!unit_manager || !building_manager || !flow_field_manager || !selection_manager || !multimesh_instance || !is_setup) { return; }
+	if (!unit_manager || !building_manager || !flow_field_manager || !selection_manager || !multimesh_instance || !group_manager || !is_setup) { return; }
 	unit_manager->update(p_delta);
+	group_manager->update_logic(p_delta);
 }
 
 void GameManager::set_unit_manager(Node* p_node) {
@@ -30,6 +31,10 @@ void GameManager::set_selection_manager(Node* p_node) {
 	selection_manager = Object::cast_to<SelectionManager>(p_node);
 }
 
+void GameManager::set_group_manager(Node* p_node) {
+	group_manager = Object::cast_to<GroupManager>(p_node);
+}
+
 void GameManager::set_multimesh_instance(Node* p_node) {
 	multimesh_instance = Object::cast_to<MultiMeshInstance2D>(p_node);
 }
@@ -38,6 +43,7 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 	unit_manager->set_flow_field_manager(flow_field_manager);
 	unit_manager->set_selection_manager(selection_manager);
 	unit_manager->set_multimesh_instance(multimesh_instance);
+	unit_manager->set_group_manager(group_manager);
 	building_manager->set_flow_field_manager(flow_field_manager);
 	building_manager->set_unit_manager(unit_manager);
 	unit_manager->setup_system(p_width, p_height, p_cell_size, p_origin);
@@ -49,6 +55,7 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_building_manager", "node"), &GameManager::set_building_manager);
 	ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &GameManager::set_flow_field_manager);
 	ClassDB::bind_method(D_METHOD("set_selection_manager", "node"), &GameManager::set_selection_manager);
+	ClassDB::bind_method(D_METHOD("set_group_manager", "node"), &GameManager::set_group_manager);
 	ClassDB::bind_method(D_METHOD("set_multimesh_instance", "node"), &GameManager::set_multimesh_instance);
 	ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &GameManager::setup_system);
 }
