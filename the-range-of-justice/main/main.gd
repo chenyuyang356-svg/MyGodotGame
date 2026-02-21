@@ -2,7 +2,7 @@ extends Node
 
 func _ready() -> void:
 	var tile_map_layer: TileMapLayer = $TileMapLayer
-	var multi_mesh_instance_2d: MultiMeshInstance2D = $MultiMeshInstance2D
+	var map_manager: MapManager = $MapManager
 	var unit_manager: UnitManager = $UnitManager
 	var building_manager: BuildingManager = $BuildingManager
 	var flow_field_manager: FlowFieldManager = $FlowFieldManager
@@ -16,6 +16,9 @@ func _ready() -> void:
 	var height: int = used_rect.size.y
 	var grid_origin: Vector2i = used_rect.position
 	
+	map_manager.load_from_tilemap(tile_map_layer)
+	tile_map_layer.hide()
+	
 	game_manager.set_building_manager(building_manager)
 	game_manager.set_unit_manager(unit_manager)
 	game_manager.set_flow_field_manager(flow_field_manager)
@@ -24,8 +27,8 @@ func _ready() -> void:
 	
 	game_manager.setup_system(width, height, cell_size, grid_origin)
 	
-	unit_manager.register_unit_type("Fighter", "res://config/unit/fighter.txt")
 	unit_manager.register_unit_type("Tank", "res://config/unit/tank.txt")
+	unit_manager.register_unit_type("Fighter", "res://config/unit/fighter.txt")
 	
 	for x in range(used_rect.position.x, used_rect.end.x):
 		for y in range(used_rect.position.y, used_rect.end.y):
@@ -45,8 +48,8 @@ func _ready() -> void:
 	
 	for x in range(10):
 		for y in range(10):
+			unit_manager.spawn_unit_by_type("Tank", -32 * Vector2(x, y), 1)
 			unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
-			unit_manager.spawn_unit_by_type("Tank", -32 * Vector2(x, y) + Vector2(1000, 1000), 1)
 			unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(3000, 3000), 2)
 	
 	
