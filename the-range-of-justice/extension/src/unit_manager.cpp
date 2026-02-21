@@ -41,11 +41,12 @@ int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_t
     UnitData new_unit;
     new_unit.id = next_unit_id++;
     new_unit.position = p_world_pos;
-    new_unit.stats = p_stats; // 存入引用
+    new_unit.height = p_stats->base_height;
+    new_unit.stats = p_stats; // 瀛樺叆寮曠敤
 
-    new_unit.team_id = p_team_id; // 赋值阵营
+    new_unit.team_id = p_team_id; // 璧嬪€奸樀钀�
 
-    // 从资源中初始化实时数值
+    // 浠庤祫婧愪腑鍒濆鍖栧疄鏃舵暟鍊�
     new_unit.current_health = p_stats->get_health_max();
     new_unit.state = IDLE;
 
@@ -62,17 +63,17 @@ void UnitManager::despawn_unit(int p_unit_id) {
     int last_unit_idx = units.size() - 1;
 
     if (index_to_remove != last_unit_idx) {
-        // 1. 获取最后一个单位的数据
+        // 1. 鑾峰彇鏈€鍚庝竴涓崟浣嶇殑鏁版嵁
         UnitData& last_unit = units.back();
 
-        // 2. 将最后一个单位移动到要删除的位置
+        // 2. 灏嗘渶鍚庝竴涓崟浣嶇Щ鍔ㄥ埌瑕佸垹闄ょ殑浣嶇疆
         units[index_to_remove] = last_unit;
 
-        // 3. 更新被移动单位在哈希表中的索引
+        // 3. 鏇存柊琚Щ鍔ㄥ崟浣嶅湪鍝堝笇琛ㄤ腑鐨勭储寮�
         id_to_index[last_unit.id] = index_to_remove;
     }
 
-    // 4. 删除 vector 最后一个元素，并从哈希表中移除目标 ID
+    // 4. 鍒犻櫎 vector 鏈€鍚庝竴涓厓绱狅紝骞朵粠鍝堝笇琛ㄤ腑绉婚櫎鐩爣 ID
     units.pop_back();
     id_to_index.erase(p_unit_id);
 }
@@ -91,11 +92,11 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
         auto it = id_to_index.find(uid);
         if (it != id_to_index.end()) {
             UnitData& unit = units[it->second];
-            unit.is_patrolling = false; // 被强制移动时打断巡逻
+            unit.is_patrolling = false; // 琚己鍒剁Щ鍔ㄦ椂鎵撴柇宸￠€�
             unit.target_pos = p_target_world_pos;
             unit.target_grid = target_grid_pos;
             unit.state = MOVING;
-            unit.target_id = -1; // 放弃当前目标
+            unit.target_id = -1; // 鏀惧純褰撳墠鐩爣
         }
     }
 }
@@ -128,7 +129,7 @@ void UnitManager::update_spatial_grid() {
     for (int i = 0; i < units.size(); ++i) {
         Vector2i rel_pos = flow_field_manager->world_to_relative(units[i].position);
 
-        // 缩放到单位网格（单位网格尺寸是流场的 2 倍）
+        // 缂╂斁鍒板崟浣嶇綉鏍硷紙鍗曚綅缃戞牸灏哄鏄祦鍦虹殑 2 鍊嶏級
         int ux = rel_pos.x / 2;
         int uy = rel_pos.y / 2;
 
@@ -147,7 +148,7 @@ std::vector<int> UnitManager::get_nearby_units(Vector2 p_world_pos, float p_radi
     int dx = int(p_radius / unit_grid_cell_size.x) + 1;
     int dy = int(p_radius / unit_grid_cell_size.y) + 1;
 
-    // 检查 3x3 范围内的格子
+    // 妫€鏌� 3x3 鑼冨洿鍐呯殑鏍煎瓙
     for (int nx = ux - dx; nx <= ux + dx; ++nx) {
         for (int ny = uy - dy; ny <= uy + dy; ++ny) {
             if (nx >= 0 && nx < unit_grid_width && ny >= 0 && ny < unit_grid_height) {
@@ -172,28 +173,21 @@ void UnitManager::update(double p_delta) {
     }
 
     selection_manager->selected_unit_id = -1;
+    float selected_unit_height = -100.0f;
     for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
         UnitData& unit = units[unit_idx];
         float selection_radius = (unit.stats)->get_collision_radius();
         if (((selection_manager->mouse_position).distance_squared_to(unit.position) <
             (selection_radius) * (selection_radius)) &&
-            (selection_manager->state != selection_manager->BOX_SELECTING)) {
-            unit.is_mouse_on = true;            
-        }
-        else {
-            unit.is_mouse_on = false;
-        }
-        if ((selection_manager->state == selection_manager->SINGLE_SELECTING) ||
-            (selection_manager->state == selection_manager->TYPE_SELECTING)) {
-            if (unit.is_mouse_on) {
-                selection_manager->selected_unit_id = unit.id;
-                selection_manager->selected_unit_stats = unit.stats;
-                selection_manager->selected_team_id = unit.team_id;
-            }
+            (selection_manager->state != selection_manager->BOX_SELECTING) &&
+            (unit.height > selected_unit_height)) {
+            selection_manager->selected_unit_id = unit.id;
+            selection_manager->selected_unit_stats = unit.stats;
+            selection_manager->selected_team_id = unit.team_id;
+            selected_unit_height = unit.height;
         }
     }
 
-<<<<<<< Updated upstream
     
 
     int new_gid = -1;
@@ -201,8 +195,6 @@ void UnitManager::update(double p_delta) {
         new_gid = group_manager->create_temporary_group(selection_manager->mouse_position);
     }
 
-=======
->>>>>>> Stashed changes
     update_spatial_grid();
     flow_field_manager->update(p_delta);
 
@@ -241,6 +233,12 @@ Vector2 UnitManager::get_separation(UnitData& p_unit) {
 
     for (int unit_idx : get_nearby_units(p_unit.position, ((p_unit.stats)->get_collision_radius()) * separation_radius_factor)) {
         const UnitData& nearby_unit = units[unit_idx];
+
+        if ((p_unit.stats->move_type == MOVE_AIR) && (nearby_unit.stats->move_type != MOVE_AIR) ||
+            (p_unit.stats->move_type != MOVE_AIR) && (nearby_unit.stats->move_type == MOVE_AIR)) {
+            continue;
+        }
+
         Vector2 radius_vector = nearby_unit.position - p_unit.position;
         float length_squared = radius_vector.length_squared();
         if (length_squared < 10e-12) {
@@ -291,9 +289,20 @@ void UnitManager::update_state(UnitData& p_unit) {
     case IDLE:
         break;
     case MOVING:
-        if (flow_field_manager->get_integration(p_unit.position, p_unit.target_pos) <= desired_integration) {
-            p_unit.state = IDLE;
-            p_unit.velocity = Vector2(0, 0);
+        if ((p_unit.stats)->get_move_type() == MOVE_AIR) {
+            float desired_distance = (float)((desired_integration + 1) * (flow_field_manager->get_cell_size()).x );
+            if ((p_unit.position).distance_squared_to(p_unit.target_pos) <= desired_distance * desired_distance) {
+                p_unit.state = IDLE;
+                p_unit.velocity = Vector2(0, 0);
+                group_manager->decrement_moving_count(p_unit.temp_group_id);
+            }
+        }
+        else {
+            if (flow_field_manager->get_integration(p_unit.position, p_unit.target_pos) <= desired_integration) {
+                p_unit.state = IDLE;
+                p_unit.velocity = Vector2(0, 0);
+                group_manager->decrement_moving_count(p_unit.temp_group_id);
+            }
         }
         break;
     }
@@ -303,12 +312,12 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     Vector2 force = get_force(p_unit);
     bool is_combat_controlled = false;
 
-    // 询问 AttackManager 是否接管此单位的物理
+    // 璇㈤棶 AttackManager 鏄惁鎺ョ姝ゅ崟浣嶇殑鐗╃悊
     if (attack_manager) {
         is_combat_controlled = attack_manager->try_get_combat_force(p_unit, force);
     }
 
-    // 如果没有被战斗系统接管，则使用默认的流场移动逻辑
+    // 濡傛灉娌℃湁琚垬鏂楃郴缁熸帴绠★紝鍒欎娇鐢ㄩ粯璁ょ殑娴佸満绉诲姩閫昏緫
     if (!is_combat_controlled) {
         force = get_force(p_unit);
     }
@@ -317,8 +326,16 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     }
     
     float max_speed = (p_unit.stats)->get_move_speed();
-    p_unit.velocity += force * p_delta;
-    p_unit.velocity = p_unit.velocity.limit_length(max_speed);
+    switch (p_unit.state) {
+    case IDLE:
+        p_unit.velocity += force * p_delta;
+        p_unit.velocity = (p_unit.velocity).limit_length(max_speed);
+        break;
+    case MOVING:
+        p_unit.velocity += force * p_delta;
+        p_unit.velocity = (p_unit.velocity).limit_length(max_speed);
+        break;
+    }
 
     if ((p_unit.velocity).length_squared() < velocity_threshold_squared) {
         p_unit.velocity= Vector2(0, 0);
@@ -328,26 +345,20 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
 void UnitManager::move(UnitData& p_unit, double p_delta) {
     if (!flow_field_manager) return;
 
-    // 计算预测位置
+    // 璁＄畻棰勬祴浣嶇疆
     Vector2 next_pos = p_unit.position + p_unit.velocity * p_delta;
     float radius = (p_unit.stats)->get_collision_radius();
     Vector2i cell_size = flow_field_manager->get_cell_size();
 
-    // 处理单位间的“硬修正”（防止重叠）
+    // 澶勭悊鍗曚綅闂寸殑鈥滅‖淇鈥濓紙闃叉閲嶅彔锛�
 <<<<<<< Updated upstream
-    // IDLE且处于temp_group中的单位不参与
+    // IDLE涓斿浜巘emp_group涓殑鍗曚綅涓嶅弬涓�
     if (p_unit.state != IDLE || p_unit.temp_group_id == -1) {
         std::vector<int> nearby = get_nearby_units(next_pos, radius * 2.0f);
         for (int other_idx : nearby) {
             UnitData& other = units[other_idx];
             if (other.id == p_unit.id) continue;
             if (other.state == IDLE) continue;
-=======
-    std::vector<int> nearby = get_nearby_units(next_pos, radius * 2.0f);
-    for (int other_idx : nearby) {
-        UnitData& other = units[other_idx];
-        if (other.id == p_unit.id) continue;
->>>>>>> Stashed changes
 
         Vector2 to_other = other.position - next_pos;
         float dist_sq = to_other.length_squared();
@@ -358,47 +369,47 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
             float overlap = min_dist - dist;
             Vector2 resolve_dir = to_other / dist;
 
-            // 关键点：只推开重叠部分的一小部分（例如 40%），防止产生剧烈抖动
-            // 如果两个单位都在移动，各推一半
+            // 鍏抽敭鐐癸細鍙帹寮€閲嶅彔閮ㄥ垎鐨勪竴灏忛儴鍒嗭紙渚嬪 40%锛夛紝闃叉浜х敓鍓х儓鎶栧姩
+            // 濡傛灉涓や釜鍗曚綅閮藉湪绉诲姩锛屽悇鎺ㄤ竴鍗�
             float push_strength = 0.4f;
             Vector2 push_vector = resolve_dir * (overlap * push_strength);
 
             next_pos -= push_vector;
-            // 也可以顺便给对方一个反向的推力，但为了逻辑简单，
-            // 每一个单位在自己的 move 循环里处理被推开即可
+            // 涔熷彲浠ラ『渚跨粰瀵规柟涓€涓弽鍚戠殑鎺ㄥ姏锛屼絾涓轰簡閫昏緫绠€鍗曪紝
+            // 姣忎竴涓崟浣嶅湪鑷繁鐨� move 寰幆閲屽鐞嗚鎺ㄥ紑鍗冲彲
         }
     }
 
-    // 处理墙体碰撞
-    // 确定需要检查的网格范围 (单位周围的 2x2 或 3x3 区域)
+    // 澶勭悊澧欎綋纰版挒
+    // 纭畾闇€瑕佹鏌ョ殑缃戞牸鑼冨洿 (鍗曚綅鍛ㄥ洿鐨� 2x2 鎴� 3x3 鍖哄煙)
     Vector2i min_grid = flow_field_manager->world_to_grid(next_pos - Vector2(radius, radius));
     Vector2i max_grid = flow_field_manager->world_to_grid(next_pos + Vector2(radius, radius));
 
-    // 遍历范围内的格子进行碰撞处理
+    // 閬嶅巻鑼冨洿鍐呯殑鏍煎瓙杩涜纰版挒澶勭悊
     for (int gx = min_grid.x; gx <= max_grid.x; ++gx) {
         for (int gy = min_grid.y; gy <= max_grid.y; ++gy) {
             Vector2i check_grid(gx, gy);
 
-            // 如果该格子是墙 (Cost == 255)
+            // 濡傛灉璇ユ牸瀛愭槸澧� (Cost == 255)
             if (flow_field_manager->get_cost(check_grid) == 255) {
 
-                // 计算格子的世界坐标边界 (AABB)
-                // 注意：这里假设网格左上角对齐逻辑与 world_to_grid 一致
+                // 璁＄畻鏍煎瓙鐨勪笘鐣屽潗鏍囪竟鐣� (AABB)
+                // 娉ㄦ剰锛氳繖閲屽亣璁剧綉鏍煎乏涓婅瀵归綈閫昏緫涓� world_to_grid 涓€鑷�
                 float rect_left = (float)gx * cell_size.x;
                 float rect_top = (float)gy * cell_size.y;
                 float rect_right = rect_left + cell_size.x;
                 float rect_bottom = rect_top + cell_size.y;
 
-                // 找到矩形内离圆心最近的点
+                // 鎵惧埌鐭╁舰鍐呯鍦嗗績鏈€杩戠殑鐐�
                 float closest_x = Math::clamp(next_pos.x, rect_left, rect_right);
                 float closest_y = Math::clamp(next_pos.y, rect_top, rect_bottom);
                 Vector2 closest_point(closest_x, closest_y);
 
-                // 计算圆心到最近点的向量
+                // 璁＄畻鍦嗗績鍒版渶杩戠偣鐨勫悜閲�
                 Vector2 diff = next_pos - closest_point;
                 float distance_squared = diff.length_squared();
 
-                // 如果距离小于半径，发生碰撞
+                // 濡傛灉璺濈灏忎簬鍗婂緞锛屽彂鐢熺鎾�
 
                 if (distance_squared < radius * radius && distance_squared > 0.00001f) {
                     float factor = 0.5;
@@ -409,19 +420,19 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
                     float distance = Math::sqrt(distance_squared);
                     float overlap = radius - distance;
 
-                    // 将单位沿碰撞法线推开
+                    // 灏嗗崟浣嶆部纰版挒娉曠嚎鎺ㄥ紑
                     next_pos += (diff / distance) * overlap * factor;
 
-                    // 碰撞后通常需要削减该方向的速度，实现“沿墙滑动”
+                    // 纰版挒鍚庨€氬父闇€瑕佸墛鍑忚鏂瑰悜鐨勯€熷害锛屽疄鐜扳€滄部澧欐粦鍔ㄢ€�
                     Vector2 normal = diff / distance;
                     if (p_unit.velocity.dot(normal) < 0) {
-                        // 减去法线方向的速度分量
+                        // 鍑忓幓娉曠嚎鏂瑰悜鐨勯€熷害鍒嗛噺
                         p_unit.velocity -= normal * p_unit.velocity.dot(normal);
                     }
                 }
-                // 处理圆心正好在墙内的情况
+                // 澶勭悊鍦嗗績姝ｅソ鍦ㄥ鍐呯殑鎯呭喌
                 else if (distance_squared <= 0.00001f) {
-                    // 粗略处理：向格子中心的反方向推
+                    // 绮楃暐澶勭悊锛氬悜鏍煎瓙涓績鐨勫弽鏂瑰悜鎺�
                     Vector2 cell_center(rect_left + cell_size.x * 0.5f, rect_top + cell_size.y * 0.5f);
                     Vector2 push_dir = (next_pos - cell_center).normalized();
                     next_pos += push_dir * radius;
@@ -430,51 +441,67 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
         }
     }
 
-    // 4. 应用最终位置
+    // 4. 搴旂敤鏈€缁堜綅缃�
     p_unit.position = next_pos;
 }
 
 void UnitManager::update_multimesh_buffer(double p_delta) {
     if (type_renderers.empty()) return;
 
-    // 1. 清空上一帧的分组
+    // 1. 娓呯┖涓婁竴甯х殑鍒嗙粍
     for (auto& pair : type_grouping_cache) {
         pair.second.clear();
     }
 
-    // 2. 按 UnitStats 指针分组
+    // 2. 鎸� UnitStats 鎸囬拡鍒嗙粍
     for (int i = 0; i < units.size(); ++i) {
-        // 直接取 UnitStats 的原始指针
+        // 鐩存帴鍙� UnitStats 鐨勫師濮嬫寚閽�
         UnitStats* s_ptr = units[i].stats.ptr();
         type_grouping_cache[s_ptr].push_back(i);
     }
 
-    // 3. 遍历渲染器并填充数据
+    // 3. 閬嶅巻娓叉煋鍣ㄥ苟濉厖鏁版嵁
     for (auto const& [s_ptr, mmi] : type_renderers) {
         const std::vector<int>& indices = type_grouping_cache[s_ptr];
         int count = indices.size();
+
+        if (count == 0) continue;
 
         Ref<MultiMesh> mm = mmi->get_multimesh();
         if (mm->get_instance_count() != count) {
             mm->set_instance_count(count);
         }
 
-        if (count == 0) continue;
+        // 鑾峰彇褰卞瓙娓叉煋鍣�
+        MultiMeshInstance3D* s_mmi = shadow_renderers[s_ptr];
+        Ref<MultiMesh> s_mm = s_mmi->get_multimesh();
+        s_mm->set_instance_count(count);
 
-        // 这里 s_ptr 就是 UnitStats 指针，可以直接访问配置数据
+        // 杩欓噷 s_ptr 灏辨槸 UnitStats 鎸囬拡锛屽彲浠ョ洿鎺ヨ闂厤缃暟鎹�
         for (int i = 0; i < count; ++i) {
             int u_idx = indices[i];
             UnitData& unit = units[u_idx];
 
-            // 更新变换
-            Transform2D xform;
-            if (unit.velocity.length_squared() > 1.0f) {
-                xform.set_rotation(unit.velocity.angle() + Math_PI / 2.0f);
-            }
-            xform.set_origin(unit.position);
-            mm->set_instance_transform_2d(i, xform);
+            // 鏇存柊鍙樻崲
+            Transform3D xform;
 
-            // 动画逻辑（直接使用 s_ptr）
+            // 鍧愭爣鏄犲皠锛�
+            // 2D X -> 3D X
+            // 2D Y -> 3D Z (娣卞害锛岀敤浜� GPU 鑷姩 Y-Sort)
+            // 2D Height -> 3D Y (瑙嗚楂樺害)
+            float fake_depth_offset = unit.position.y * 0.0001f;
+            Vector3 pos_3d = Vector3(unit.position.x, unit.height + fake_depth_offset, unit.position.y - unit.height);
+            xform.origin = pos_3d;
+
+            // 鏃嬭浆锛氳 QuadMesh 绔嬭捣鏉ワ紙QuadMesh 榛樿鍦� XY 骞抽潰锛屾垜浠渶瑕佸畠绔嬪湪 XZ 骞抽潰涓婏級
+            // 濡傛灉鎽勫儚鏈烘槸淇鐨勶紝鎴戜滑闇€瑕佺粫 X 杞存棆杞� -90 搴�
+            xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
+
+            xform.basis = (xform.basis).rotated(Vector3(0, -1, 0), (unit.rotation + Math_PI / 2.0f));
+
+            mm->set_instance_transform(i, xform);
+
+            // 鍔ㄧ敾閫昏緫锛堢洿鎺ヤ娇鐢� s_ptr锛�
             int frames = (unit.state == MOVING) ? s_ptr->get_move_frames() : s_ptr->get_idle_frames();
             int row = (unit.state == MOVING) ? s_ptr->get_move_row() : s_ptr->get_idle_row();
             float duration = (float)frames / s_ptr->get_anim_fps();
@@ -482,7 +509,7 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
 
             mm->set_instance_custom_data(i, Color(frame_idx, row, 0, 0));
 
-            //处理颜色
+            //澶勭悊棰滆壊
             Color display_color;
             if (unit.is_selected) {
                 if (unit.is_mouse_on) {
@@ -502,12 +529,40 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
             }
             mm->set_instance_color(i, display_color);
 
+
+            // 鏇存柊褰卞瓙鍙樻崲 (XZ骞抽潰韬哄钩)
+            Transform3D shadow_xform;
+
+            // 璁剧疆褰卞瓙浣嶇疆锛氱◢寰亸绉讳竴鐐圭偣锛岃瀹冧粠鍧﹀厠灞ュ甫涓績寰€澶栭潬涓€鐐�
+            // 鍋囪鍏夋潵鑷乏涓婃柟锛屾垜浠皢褰卞瓙鍚戝彸涓嬭鍋忕Щ
+            float shadow_offset_x = 4.0f; // 鏍规嵁浣犵殑鍧﹀厠灏哄璋冩暣
+            float shadow_offset_z = 4.0f;
+
+            // 褰卞瓙鏀惧湪鍦伴潰楂樺害锛岀粰涓€涓瀬灏忕殑鍋忕Щ (0.001) 闃叉涓庡湴闈� Z-Fighting
+            // 娉ㄦ剰锛氬奖瀛愮殑 origin.y 涓嶉殢 unit.height 鍙樺寲锛屽畠姘歌繙鍦ㄥ湴涓�
+            shadow_xform.origin = Vector3(unit.position.x + shadow_offset_x,
+                unit.height + fake_depth_offset - 0.1f,
+                unit.position.y + shadow_offset_z);
+
+            // 褰卞瓙鏄汉鐫€鐨�
+            shadow_xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
+
+            shadow_xform.basis = (shadow_xform.basis).rotated(Vector3(0, -1, 0), (unit.rotation + Math_PI / 2.0f));
+
+            // 濡傛灉浣犲笇鏈涘奖瀛愭湁鏂滃悜鎷変几鎰燂紝鍙互鍦ㄨ繖閲屽彔鍔犵缉鏀�
+            // shadow_xform.basis = shadow_xform.basis.scaled(Vector3(1.0, 1.5, 1.0));
+
+            s_mm->set_instance_transform(i, shadow_xform);
+
+            // 鍚屾鍔ㄧ敾鏁版嵁锛堝奖瀛愪篃瑕佸姩锛�
+            s_mm->set_instance_custom_data(i, Color(frame_idx, row, 0, 0));
+
             unit.anim_time += p_delta;
         }
     }
 }
 
-void UnitManager::update_selection_state_and_target_position(UnitData& p_unit) {
+void UnitManager::update_selection_state_and_target_position(UnitData& p_unit, int p_group_id) {
     switch (selection_manager->state) {
     case (selection_manager->NOT_SELECTING):
         break;
@@ -600,30 +655,31 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(p_path);
     if (stats.is_null()) return;
 
-    // 存入缓存供 spawn_unit_by_type 使用
+    // 瀛樺叆缂撳瓨渚� spawn_unit_by_type 浣跨敤
     unit_types_cache[p_name] = stats;
 
-    // 获取原始指针作为 Key
+    // 鑾峰彇鍘熷鎸囬拡浣滀负 Key
     UnitStats* stats_ptr = stats.ptr();
 
-    // 如果该类型已经注册过渲染器，直接返回
+    // 濡傛灉璇ョ被鍨嬪凡缁忔敞鍐岃繃娓叉煋鍣紝鐩存帴杩斿洖
     if (type_renderers.find(stats_ptr) != type_renderers.end()) return;
 
-    // --- 创建渲染器 ---
-    MultiMeshInstance2D* mmi = memnew(MultiMeshInstance2D);
+    // --- 鍒涘缓娓叉煋鍣� ---
+    MultiMeshInstance3D* mmi = memnew(MultiMeshInstance3D);
     mmi->set_name(p_name + "_Renderer");
     add_child(mmi);
 
-    // 配置 MultiMesh
+    // 閰嶇疆 MultiMesh
     Ref<MultiMesh> mm;
     mm.instantiate();
+    mm->set_transform_format(MultiMesh::TRANSFORM_3D);
     mm->set_use_colors(true);
     mm->set_use_custom_data(true);
 
     Ref<QuadMesh> qmesh;
     qmesh.instantiate();
 
-    // 加载纹理并设置网格大小
+    // 鍔犺浇绾圭悊骞惰缃綉鏍煎ぇ灏�
     Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(stats->get_texture_path());
     if (tex.is_valid()) {
         Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
@@ -631,9 +687,8 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     }
     mm->set_mesh(qmesh);
     mmi->set_multimesh(mm);
-    mmi->set_texture(tex);
 
-    // 设置材质
+    // 璁剧疆鏉愯川
     Ref<ShaderMaterial> mat;
     mat.instantiate();
     if (unit_shader.is_null()) {
@@ -642,10 +697,48 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     mat->set_shader(unit_shader);
     mat->set_shader_parameter("h_frames", stats->get_h_frames());
     mat->set_shader_parameter("v_frames", stats->get_v_frames());
-    mmi->set_material(mat);
+    mat->set_shader_parameter("albedo_texture", tex);
 
-    // 建立映射
+    mmi->set_material_override(mat);
+
+    // 寤虹珛鏄犲皠
     type_renderers[stats_ptr] = mmi;
+
+    // --- 鍒涘缓褰卞瓙娓叉煋鍣� ---
+    MultiMeshInstance3D* s_mmi = memnew(MultiMeshInstance3D);
+    s_mmi->set_name(p_name + "_Shadows");
+    add_child(s_mmi);
+
+    Ref<MultiMesh> s_mm;
+    s_mm.instantiate();
+    s_mm->set_transform_format(MultiMesh::TRANSFORM_3D);
+    s_mm->set_use_custom_data(true);
+
+    // 褰卞瓙鍙互浣跨敤鏇寸畝鍗曠殑 QuadMesh
+    Ref<QuadMesh> s_qmesh;
+    s_qmesh.instantiate();
+    if (tex.is_valid()) {
+        Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
+        s_qmesh->set_size(frame_size);
+    }
+    // ... 璁剧疆缃戞牸澶у皬 ...
+    s_mm->set_mesh(s_qmesh);
+    s_mmi->set_multimesh(s_mm);
+
+    // 璁剧疆褰卞瓙鏉愯川
+    Ref<ShaderMaterial> s_mat;
+    s_mat.instantiate();
+    if (shadow_shader.is_null()) {
+        shadow_shader = ResourceLoader::get_singleton()->load("res://shader/unit_shadow.gdshader");
+    }
+    s_mat->set_shader(shadow_shader);
+    s_mat->set_shader_parameter("albedo_texture", tex);
+    s_mat->set_shader_parameter("h_frames", stats->get_h_frames());
+    s_mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    s_mmi->set_material_override(s_mat);
+
+    // 瀛樺叆 Map
+    shadow_renderers[stats_ptr] = s_mmi;
 }
 
 <<<<<<< Updated upstream
@@ -673,7 +766,7 @@ int UnitManager::get_unit_index_by_id(int p_id) {
 void UnitManager::set_attack_manager(Node* p_node) {
     attack_manager = Object::cast_to<AttackManager>(p_node);
     if (attack_manager) {
-        attack_manager->setup(this); // 初始化 AttackManager
+        attack_manager->setup(this); // 鍒濆鍖� AttackManager
     }
 }
 
@@ -701,8 +794,8 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("spawn_unit_by_type", "type_name", "pos", "team_id"), &UnitManager::spawn_unit_by_type);
 >>>>>>> Stashed changes
 
-    //调试
-    // 1. 先绑定所有方法 (Getter/Setter)
+    //璋冭瘯
+    // 1. 鍏堢粦瀹氭墍鏈夋柟娉� (Getter/Setter)
     ClassDB::bind_method(D_METHOD("get_unit_speed"), &UnitManager::get_unit_speed);
     ClassDB::bind_method(D_METHOD("set_unit_speed", "p_val"), &UnitManager::set_unit_speed);
 
@@ -739,7 +832,7 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_desired_integration"), &UnitManager::get_desired_integration);
     ClassDB::bind_method(D_METHOD("set_desired_integration", "p_val"), &UnitManager::set_desired_integration);
 
-    // 2. 注册属性到 Godot 属性面板
+    // 2. 娉ㄥ唽灞炴€у埌 Godot 灞炴€ч潰鏉�
 
     ADD_GROUP("Unit Defaults", "unit_");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "unit_speed"), "set_unit_speed", "get_unit_speed");

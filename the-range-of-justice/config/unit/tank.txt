@@ -23,10 +23,13 @@ target_priority  = Closest
 
 # --- Movement (移动与碰撞) ---
 move_speed       = 150.0
-turn_speed       = 10.0
+acceleration     = 80.0
+turn_speed       = 0.7
+turn_acceleration= 1.0
 # [关键] 碰撞半径
 collision_radius = 48.0
 # 枚举可选: Ground, Air, Sea, Hover
+base_height = 0.0
 move_type        = Ground
 
 # --- Vision (视野) ---

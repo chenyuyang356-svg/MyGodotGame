@@ -2,7 +2,7 @@ extends Node
 
 func _ready() -> void:
 	var tile_map_layer: TileMapLayer = $TileMapLayer
-	var multi_mesh_instance_2d: MultiMeshInstance2D = $MultiMeshInstance2D
+	var map_manager: MapManager = $MapManager
 	var unit_manager: UnitManager = $UnitManager
 	var building_manager: BuildingManager = $BuildingManager
 	var flow_field_manager: FlowFieldManager = $FlowFieldManager
@@ -17,23 +17,23 @@ func _ready() -> void:
 	var height: int = used_rect.size.y
 	var grid_origin: Vector2i = used_rect.position
 	
+	map_manager.load_from_tilemap(tile_map_layer)
+	tile_map_layer.hide()
+	
 	game_manager.set_building_manager(building_manager)
 	game_manager.set_unit_manager(unit_manager)
 	game_manager.set_flow_field_manager(flow_field_manager)
 	game_manager.set_selection_manager(selection_manager)
-<<<<<<< Updated upstream
 	game_manager.set_group_manager(group_manager)
 	
 	unit_manager.set_attack_manager(attack_manager)
-=======
 #	game_manager.set_group_manager(group_manager)
 	game_manager.set_multimesh_instance(multi_mesh_instance_2d)
->>>>>>> Stashed changes
 	
 	game_manager.setup_system(width, height, cell_size, grid_origin)
 	
-	unit_manager.register_unit_type("Fighter", "res://config/unit/fighter.txt")
 	unit_manager.register_unit_type("Tank", "res://config/unit/tank.txt")
+	unit_manager.register_unit_type("Fighter", "res://config/unit/fighter.txt")
 	
 	for x in range(used_rect.position.x, used_rect.end.x):
 		for y in range(used_rect.position.y, used_rect.end.y):
@@ -50,8 +50,7 @@ func _ready() -> void:
 								flow_field_manager.set_cost(coords, 30)
 								continue
 				flow_field_manager.set_cost(coords, 1)
-	
-<<<<<<< Updated upstream
+
 	# 1. 获取你的 DebugDraw 节点
 	var debug_draw: Node2D = $DebugDraw 
 
@@ -59,12 +58,12 @@ func _ready() -> void:
 	unit_manager.register_unit_type("Tank", "res://config/unit/tank.txt")
 
 
-	# 2. 准备一个数组来存放生成的单位 ID
+	# 2. 准备丢�个数组来存放生成的单佄1�7 ID
 	var active_unit_ids: Array = []
 
 	for x in range(10):
 		for y in range(10):
-			# 3. 接收生成的 ID
+			# 3. 接收生成的1�7 ID
 			var id1 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
 			var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(3000, 3000), 2)
 
@@ -76,11 +75,5 @@ func _ready() -> void:
 	if debug_draw != null:
 		debug_draw.unit_manager = unit_manager
 		debug_draw.unit_ids_to_draw = active_unit_ids
-	
-=======
-	for x in range(10):
-		for y in range(10):
-			unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 0)
-			unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
->>>>>>> Stashed changes
-	
+
+
