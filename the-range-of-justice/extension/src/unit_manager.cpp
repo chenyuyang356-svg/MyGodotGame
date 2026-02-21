@@ -41,11 +41,12 @@ int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_t
     UnitData new_unit;
     new_unit.id = next_unit_id++;
     new_unit.position = p_world_pos;
-    new_unit.stats = p_stats; // å­˜å…¥å¼•ç”¨
+    new_unit.height = p_stats->base_height;
+    new_unit.stats = p_stats; // ´æÈëÒıÓÃ
 
-    new_unit.team_id = p_team_id; // èµ‹å€¼é˜µè¥
+    new_unit.team_id = p_team_id; // ¸³ÖµÕóÓª
 
-    // ä»èµ„æºä¸­åˆå§‹åŒ–å®æ—¶æ•°å€¼
+    // ´Ó×ÊÔ´ÖĞ³õÊ¼»¯ÊµÊ±ÊıÖµ
     new_unit.current_health = p_stats->get_health_max();
     new_unit.state = IDLE;
 
@@ -65,17 +66,17 @@ void UnitManager::despawn_unit(int p_unit_id) {
     group_manager->handle_unit_death(p_unit_id, unit_to_remove.temp_group_id, unit_to_remove.control_group_indices, unit_to_remove.control_group_count);
 
     if (index_to_remove != last_unit_idx) {
-        // 1. è·å–æœ€åä¸€ä¸ªå•ä½çš„æ•°æ®
+        // 1. »ñÈ¡×îºóÒ»¸öµ¥Î»µÄÊı¾İ
         UnitData& last_unit = units.back();
 
-        // 2. å°†æœ€åä¸€ä¸ªå•ä½ç§»åŠ¨åˆ°è¦åˆ é™¤çš„ä½ç½®
+        // 2. ½«×îºóÒ»¸öµ¥Î»ÒÆ¶¯µ½ÒªÉ¾³ıµÄÎ»ÖÃ
         units[index_to_remove] = last_unit;
 
-        // 3. æ›´æ–°è¢«ç§»åŠ¨å•ä½åœ¨å“ˆå¸Œè¡¨ä¸­çš„ç´¢å¼•
+        // 3. ¸üĞÂ±»ÒÆ¶¯µ¥Î»ÔÚ¹şÏ£±íÖĞµÄË÷Òı
         id_to_index[last_unit.id] = index_to_remove;
     }
 
-    // 4. åˆ é™¤ vector æœ€åä¸€ä¸ªå…ƒç´ ï¼Œå¹¶ä»å“ˆå¸Œè¡¨ä¸­ç§»é™¤ç›®æ ‡ ID
+    // 4. É¾³ı vector ×îºóÒ»¸öÔªËØ£¬²¢´Ó¹şÏ£±íÖĞÒÆ³ıÄ¿±ê ID
     units.pop_back();
     id_to_index.erase(p_unit_id);
 }
@@ -131,7 +132,7 @@ void UnitManager::update_spatial_grid() {
     for (int i = 0; i < units.size(); ++i) {
         Vector2i rel_pos = flow_field_manager->world_to_relative(units[i].position);
 
-        // ç¼©æ”¾åˆ°å•ä½ç½‘æ ¼ï¼ˆå•ä½ç½‘æ ¼å°ºå¯¸æ˜¯æµåœºçš„ 2 å€ï¼‰
+        // Ëõ·Åµ½µ¥Î»Íø¸ñ£¨µ¥Î»Íø¸ñ³ß´çÊÇÁ÷³¡µÄ 2 ±¶£©
         int ux = rel_pos.x / 2;
         int uy = rel_pos.y / 2;
 
@@ -150,7 +151,7 @@ std::vector<int> UnitManager::get_nearby_units(Vector2 p_world_pos, float p_radi
     int dx = int(p_radius / unit_grid_cell_size.x) + 1;
     int dy = int(p_radius / unit_grid_cell_size.y) + 1;
 
-    // æ£€æŸ¥ 3x3 èŒƒå›´å†…çš„æ ¼å­
+    // ¼ì²é 3x3 ·¶Î§ÄÚµÄ¸ñ×Ó
     for (int nx = ux - dx; nx <= ux + dx; ++nx) {
         for (int ny = uy - dy; ny <= uy + dy; ++ny) {
             if (nx >= 0 && nx < unit_grid_width && ny >= 0 && ny < unit_grid_height) {
@@ -175,24 +176,18 @@ void UnitManager::update(double p_delta) {
     }
 
     selection_manager->selected_unit_id = -1;
+    float selected_unit_height = -100.0f;
     for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
         UnitData& unit = units[unit_idx];
         float selection_radius = (unit.stats)->get_collision_radius();
         if (((selection_manager->mouse_position).distance_squared_to(unit.position) <
             (selection_radius) * (selection_radius)) &&
-            (selection_manager->state != selection_manager->BOX_SELECTING)) {
-            unit.is_mouse_on = true;            
-        }
-        else {
-            unit.is_mouse_on = false;
-        }
-        if ((selection_manager->state == selection_manager->SINGLE_SELECTING) ||
-            (selection_manager->state == selection_manager->TYPE_SELECTING)) {
-            if (unit.is_mouse_on) {
-                selection_manager->selected_unit_id = unit.id;
-                selection_manager->selected_unit_stats = unit.stats;
-                selection_manager->selected_team_id = unit.team_id;
-            }
+            (selection_manager->state != selection_manager->BOX_SELECTING) &&
+            (unit.height > selected_unit_height)) {
+            selection_manager->selected_unit_id = unit.id;
+            selection_manager->selected_unit_stats = unit.stats;
+            selection_manager->selected_team_id = unit.team_id;
+            selected_unit_height = unit.height;
         }
     }
 
@@ -239,6 +234,12 @@ Vector2 UnitManager::get_separation(UnitData& p_unit) {
 
     for (int unit_idx : get_nearby_units(p_unit.position, ((p_unit.stats)->get_collision_radius()) * separation_radius_factor)) {
         const UnitData& nearby_unit = units[unit_idx];
+
+        if ((p_unit.stats->move_type == MOVE_AIR) && (nearby_unit.stats->move_type != MOVE_AIR) ||
+            (p_unit.stats->move_type != MOVE_AIR) && (nearby_unit.stats->move_type == MOVE_AIR)) {
+            continue;
+        }
+
         Vector2 radius_vector = nearby_unit.position - p_unit.position;
         float length_squared = radius_vector.length_squared();
         if (length_squared < 10e-12) {
@@ -290,7 +291,7 @@ void UnitManager::update_state(UnitData& p_unit) {
         break;
     case MOVING:
         if ((p_unit.stats)->get_move_type() == MOVE_AIR) {
-            float desired_distance = (float)((desired_integration + 1) * (flow_field_manager->get_cell_size()).x );
+            float desired_distance = 2 * p_unit.stats->collision_radius;
             if ((p_unit.position).distance_squared_to(p_unit.target_pos) <= desired_distance * desired_distance) {
                 p_unit.state = IDLE;
                 p_unit.velocity = Vector2(0, 0);
@@ -312,12 +313,12 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     Vector2 force = get_force(p_unit);
     bool is_combat_controlled = false;
 
-    // è¯¢é—® AttackManager æ˜¯å¦æ¥ç®¡æ­¤å•ä½çš„ç‰©ç†
+    // Ñ¯ÎÊ AttackManager ÊÇ·ñ½Ó¹Ü´Ëµ¥Î»µÄÎïÀí
     if (attack_manager) {
         is_combat_controlled = attack_manager->try_get_combat_force(p_unit, force);
     }
 
-    // å¦‚æœæ²¡æœ‰è¢«æˆ˜æ–—ç³»ç»Ÿæ¥ç®¡ï¼Œåˆ™ä½¿ç”¨é»˜è®¤çš„æµåœºç§»åŠ¨é€»è¾‘
+    // Èç¹ûÃ»ÓĞ±»Õ½¶·ÏµÍ³½Ó¹Ü£¬ÔòÊ¹ÓÃÄ¬ÈÏµÄÁ÷³¡ÒÆ¶¯Âß¼­
     if (!is_combat_controlled) {
         force = get_force(p_unit);
     }
@@ -326,8 +327,50 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     }
     
     float max_speed = (p_unit.stats)->get_move_speed();
-    p_unit.velocity += force * p_delta;
-    p_unit.velocity = p_unit.velocity.limit_length(max_speed);
+    float accel = p_unit.stats->get_acceleration();
+
+    Vector2 desired_velocity = (p_unit.velocity + force * p_delta).limit_length(max_speed);
+
+    if (desired_velocity.length_squared() > velocity_threshold_squared) {
+        float target_angle = desired_velocity.angle();
+        float angle_diff = UtilityFunctions::angle_difference(p_unit.rotation, target_angle);
+
+        // ×ªÏò¼ÓËÙ¶ÈÂß¼­
+        float turn_accel = p_unit.stats->get_turn_acceleration();
+        float max_turn_v = p_unit.stats->get_turn_speed();
+
+        // ¼òµ¥µÄ×ªÏò PD ¿ØÖÆ»ò¼ÓËÙ¶ÈÄ£Äâ
+        float target_angular_v = Math::sign(angle_diff) * max_turn_v;
+        // Èç¹û½Ó½üÄ¿±ê½Ç¶È£¬¼õËÙÒÔ·ÀÖ¹Õğµ´
+        if (Math::abs(angle_diff) < 0.5f) {
+            target_angular_v = (angle_diff / 0.5f) * max_turn_v;
+        }
+
+        p_unit.angular_velocity = UtilityFunctions::move_toward(
+            p_unit.angular_velocity,
+            target_angular_v,
+            turn_accel * p_delta
+        );
+    }
+    else {
+        // Í£Ö¹Ê±½ÇËÙ¶È¹éÁã
+        p_unit.angular_velocity = UtilityFunctions::move_toward(p_unit.angular_velocity, 0.0f, p_unit.stats->get_turn_acceleration() * p_delta);
+    }
+
+    p_unit.rotation += p_unit.angular_velocity * p_delta;
+
+    float forward_dot = 0.0f;
+    Vector2 forward_vec = Vector2(Math::cos(p_unit.rotation), Math::sin(p_unit.rotation));
+
+    if (desired_velocity.length_squared() > velocity_threshold_squared) {
+        forward_dot = Math::max(0.0f, forward_vec.dot(desired_velocity.normalized()));
+    }
+
+    // ÏŞÖÆ£º×ªÏòÊ±ËÙ¶È»á½µµÍ (¸ù¾İ dot ³Ë»ı£¬0.5 ±íÊ¾Æ«Àë 60 ¶ÈÊ±¼ÓËÙ¶È¼õ°ë)
+    float current_accel = accel * (0.5f + 0.5f * forward_dot);
+
+    // Ó¦ÓÃ¼ÓËÙ¶È
+    p_unit.velocity = p_unit.velocity.move_toward(desired_velocity, current_accel * p_delta);
 
     if ((p_unit.velocity).length_squared() < velocity_threshold_squared) {
         p_unit.velocity= Vector2(0, 0);
@@ -337,19 +380,23 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
 void UnitManager::move(UnitData& p_unit, double p_delta) {
     if (!flow_field_manager) return;
 
-    // è®¡ç®—é¢„æµ‹ä½ç½®
+    // ¼ÆËãÔ¤²âÎ»ÖÃ
     Vector2 next_pos = p_unit.position + p_unit.velocity * p_delta;
     float radius = (p_unit.stats)->get_collision_radius();
     Vector2i cell_size = flow_field_manager->get_cell_size();
 
-    // å¤„ç†å•ä½é—´çš„â€œç¡¬ä¿®æ­£â€ï¼ˆé˜²æ­¢é‡å ï¼‰
-    // IDLEä¸”å¤„äºtemp_groupä¸­çš„å•ä½ä¸å‚ä¸
-    if (p_unit.state != IDLE || p_unit.temp_group_id == -1) {
+    // ´¦Àíµ¥Î»¼äµÄ¡°Ó²ĞŞÕı¡±£¨·ÀÖ¹ÖØµş£©
+    // IDLEÇÒ´¦ÓÚtemp_groupÖĞµÄµ¥Î»²»²ÎÓë
+    if (1 || p_unit.state != IDLE || p_unit.temp_group_id == -1) {
         std::vector<int> nearby = get_nearby_units(next_pos, radius * 2.0f);
         for (int other_idx : nearby) {
             UnitData& other = units[other_idx];
             if (other.id == p_unit.id) continue;
-            if (other.state == IDLE) continue;
+            if (other.state == IDLE && p_unit.temp_group_id != -1) continue;
+            if ((p_unit.stats->move_type == MOVE_AIR) && (other.stats->move_type != MOVE_AIR) ||
+                (p_unit.stats->move_type != MOVE_AIR) && (other.stats->move_type == MOVE_AIR)) {
+                continue;
+            }
 
             Vector2 to_other = other.position - next_pos;
             float dist_sq = to_other.length_squared();
@@ -360,21 +407,21 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
                 float overlap = min_dist - dist;
                 Vector2 resolve_dir = to_other / dist;
 
-                // å…³é”®ç‚¹ï¼šåªæ¨å¼€é‡å éƒ¨åˆ†çš„ä¸€å°éƒ¨åˆ†ï¼ˆä¾‹å¦‚ 40%ï¼‰ï¼Œé˜²æ­¢äº§ç”Ÿå‰§çƒˆæŠ–åŠ¨
-                // å¦‚æœä¸¤ä¸ªå•ä½éƒ½åœ¨ç§»åŠ¨ï¼Œå„æ¨ä¸€åŠ
+                // ¹Ø¼üµã£ºÖ»ÍÆ¿ªÖØµş²¿·ÖµÄÒ»Ğ¡²¿·Ö£¨ÀıÈç 40%£©£¬·ÀÖ¹²úÉú¾çÁÒ¶¶¶¯
+                // Èç¹ûÁ½¸öµ¥Î»¶¼ÔÚÒÆ¶¯£¬¸÷ÍÆÒ»°ë
                 float push_strength = 0.4f;
                 Vector2 push_vector = resolve_dir * (overlap * push_strength);
 
                 next_pos -= push_vector;
-                // ä¹Ÿå¯ä»¥é¡ºä¾¿ç»™å¯¹æ–¹ä¸€ä¸ªåå‘çš„æ¨åŠ›ï¼Œä½†ä¸ºäº†é€»è¾‘ç®€å•ï¼Œ
-                // æ¯ä¸€ä¸ªå•ä½åœ¨è‡ªå·±çš„ move å¾ªç¯é‡Œå¤„ç†è¢«æ¨å¼€å³å¯
+                // Ò²¿ÉÒÔË³±ã¸ø¶Ô·½Ò»¸ö·´ÏòµÄÍÆÁ¦£¬µ«ÎªÁËÂß¼­¼òµ¥£¬
+                // Ã¿Ò»¸öµ¥Î»ÔÚ×Ô¼ºµÄ move Ñ­»·Àï´¦Àí±»ÍÆ¿ª¼´¿É
             }
         }
     }
 
-    // å¤„ç†å¢™ä½“ç¢°æ’
-    // ç¡®å®šéœ€è¦æ£€æŸ¥çš„ç½‘æ ¼èŒƒå›´ (å•ä½å‘¨å›´çš„ 2x2 æˆ– 3x3 åŒºåŸŸ)
-    // MOVE_AIRçš„å•ä½ä¸å‚ä¸
+    // ´¦ÀíÇ½ÌåÅö×²
+    // È·¶¨ĞèÒª¼ì²éµÄÍø¸ñ·¶Î§ (µ¥Î»ÖÜÎ§µÄ 2x2 »ò 3x3 ÇøÓò)
+    // MOVE_AIRµÄµ¥Î»²»²ÎÓë
 
     if ((p_unit.stats)->get_move_type() == MOVE_AIR) {
         p_unit.position = next_pos;
@@ -384,31 +431,31 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
     Vector2i min_grid = flow_field_manager->world_to_grid(next_pos - Vector2(radius, radius));
     Vector2i max_grid = flow_field_manager->world_to_grid(next_pos + Vector2(radius, radius));
 
-    // éå†èŒƒå›´å†…çš„æ ¼å­è¿›è¡Œç¢°æ’å¤„ç†
+    // ±éÀú·¶Î§ÄÚµÄ¸ñ×Ó½øĞĞÅö×²´¦Àí
     for (int gx = min_grid.x; gx <= max_grid.x; ++gx) {
         for (int gy = min_grid.y; gy <= max_grid.y; ++gy) {
             Vector2i check_grid(gx, gy);
 
-            // å¦‚æœè¯¥æ ¼å­æ˜¯å¢™ (Cost == 255)
+            // Èç¹û¸Ã¸ñ×ÓÊÇÇ½ (Cost == 255)
             if (flow_field_manager->get_cost(check_grid) == 255) {
 
-                // è®¡ç®—æ ¼å­çš„ä¸–ç•Œåæ ‡è¾¹ç•Œ (AABB)
-                // æ³¨æ„ï¼šè¿™é‡Œå‡è®¾ç½‘æ ¼å·¦ä¸Šè§’å¯¹é½é€»è¾‘ä¸ world_to_grid ä¸€è‡´
+                // ¼ÆËã¸ñ×ÓµÄÊÀ½ç×ø±ê±ß½ç (AABB)
+                // ×¢Òâ£ºÕâÀï¼ÙÉèÍø¸ñ×óÉÏ½Ç¶ÔÆëÂß¼­Óë world_to_grid Ò»ÖÂ
                 float rect_left = (float)gx * cell_size.x;
                 float rect_top = (float)gy * cell_size.y;
                 float rect_right = rect_left + cell_size.x;
                 float rect_bottom = rect_top + cell_size.y;
 
-                // æ‰¾åˆ°çŸ©å½¢å†…ç¦»åœ†å¿ƒæœ€è¿‘çš„ç‚¹
+                // ÕÒµ½¾ØĞÎÄÚÀëÔ²ĞÄ×î½üµÄµã
                 float closest_x = Math::clamp(next_pos.x, rect_left, rect_right);
                 float closest_y = Math::clamp(next_pos.y, rect_top, rect_bottom);
                 Vector2 closest_point(closest_x, closest_y);
 
-                // è®¡ç®—åœ†å¿ƒåˆ°æœ€è¿‘ç‚¹çš„å‘é‡
+                // ¼ÆËãÔ²ĞÄµ½×î½üµãµÄÏòÁ¿
                 Vector2 diff = next_pos - closest_point;
                 float distance_squared = diff.length_squared();
 
-                // å¦‚æœè·ç¦»å°äºåŠå¾„ï¼Œå‘ç”Ÿç¢°æ’
+                // Èç¹û¾àÀëĞ¡ÓÚ°ë¾¶£¬·¢ÉúÅö×²
 
                 if (distance_squared < radius * radius && distance_squared > 0.00001f) {
                     float factor = 0.5;
@@ -419,19 +466,19 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
                     float distance = Math::sqrt(distance_squared);
                     float overlap = radius - distance;
 
-                    // å°†å•ä½æ²¿ç¢°æ’æ³•çº¿æ¨å¼€
+                    // ½«µ¥Î»ÑØÅö×²·¨ÏßÍÆ¿ª
                     next_pos += (diff / distance) * overlap * factor;
 
-                    // ç¢°æ’åé€šå¸¸éœ€è¦å‰Šå‡è¯¥æ–¹å‘çš„é€Ÿåº¦ï¼Œå®ç°â€œæ²¿å¢™æ»‘åŠ¨â€
+                    // Åö×²ºóÍ¨³£ĞèÒªÏ÷¼õ¸Ã·½ÏòµÄËÙ¶È£¬ÊµÏÖ¡°ÑØÇ½»¬¶¯¡±
                     Vector2 normal = diff / distance;
                     if (p_unit.velocity.dot(normal) < 0) {
-                        // å‡å»æ³•çº¿æ–¹å‘çš„é€Ÿåº¦åˆ†é‡
+                        // ¼õÈ¥·¨Ïß·½ÏòµÄËÙ¶È·ÖÁ¿
                         p_unit.velocity -= normal * p_unit.velocity.dot(normal);
                     }
                 }
-                // å¤„ç†åœ†å¿ƒæ­£å¥½åœ¨å¢™å†…çš„æƒ…å†µ
+                // ´¦ÀíÔ²ĞÄÕıºÃÔÚÇ½ÄÚµÄÇé¿ö
                 else if (distance_squared <= 0.00001f) {
-                    // ç²—ç•¥å¤„ç†ï¼šå‘æ ¼å­ä¸­å¿ƒçš„åæ–¹å‘æ¨
+                    // ´ÖÂÔ´¦Àí£ºÏò¸ñ×ÓÖĞĞÄµÄ·´·½ÏòÍÆ
                     Vector2 cell_center(rect_left + cell_size.x * 0.5f, rect_top + cell_size.y * 0.5f);
                     Vector2 push_dir = (next_pos - cell_center).normalized();
                     next_pos += push_dir * radius;
@@ -440,51 +487,67 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
         }
     }
 
-    // 4. åº”ç”¨æœ€ç»ˆä½ç½®
+    // 4. Ó¦ÓÃ×îÖÕÎ»ÖÃ
     p_unit.position = next_pos;
 }
 
 void UnitManager::update_multimesh_buffer(double p_delta) {
     if (type_renderers.empty()) return;
 
-    // 1. æ¸…ç©ºä¸Šä¸€å¸§çš„åˆ†ç»„
+    // 1. Çå¿ÕÉÏÒ»Ö¡µÄ·Ö×é
     for (auto& pair : type_grouping_cache) {
         pair.second.clear();
     }
 
-    // 2. æŒ‰ UnitStats æŒ‡é’ˆåˆ†ç»„
+    // 2. °´ UnitStats Ö¸Õë·Ö×é
     for (int i = 0; i < units.size(); ++i) {
-        // ç›´æ¥å– UnitStats çš„åŸå§‹æŒ‡é’ˆ
+        // Ö±½ÓÈ¡ UnitStats µÄÔ­Ê¼Ö¸Õë
         UnitStats* s_ptr = units[i].stats.ptr();
         type_grouping_cache[s_ptr].push_back(i);
     }
 
-    // 3. éå†æ¸²æŸ“å™¨å¹¶å¡«å……æ•°æ®
+    // 3. ±éÀúäÖÈ¾Æ÷²¢Ìî³äÊı¾İ
     for (auto const& [s_ptr, mmi] : type_renderers) {
         const std::vector<int>& indices = type_grouping_cache[s_ptr];
         int count = indices.size();
+
+        if (count == 0) continue;
 
         Ref<MultiMesh> mm = mmi->get_multimesh();
         if (mm->get_instance_count() != count) {
             mm->set_instance_count(count);
         }
 
-        if (count == 0) continue;
+        // »ñÈ¡Ó°×ÓäÖÈ¾Æ÷
+        MultiMeshInstance3D* s_mmi = shadow_renderers[s_ptr];
+        Ref<MultiMesh> s_mm = s_mmi->get_multimesh();
+        s_mm->set_instance_count(count);
 
-        // è¿™é‡Œ s_ptr å°±æ˜¯ UnitStats æŒ‡é’ˆï¼Œå¯ä»¥ç›´æ¥è®¿é—®é…ç½®æ•°æ®
+        // ÕâÀï s_ptr ¾ÍÊÇ UnitStats Ö¸Õë£¬¿ÉÒÔÖ±½Ó·ÃÎÊÅäÖÃÊı¾İ
         for (int i = 0; i < count; ++i) {
             int u_idx = indices[i];
             UnitData& unit = units[u_idx];
 
-            // æ›´æ–°å˜æ¢
-            Transform2D xform;
-            if (unit.velocity.length_squared() > 1.0f) {
-                xform.set_rotation(unit.velocity.angle() + Math_PI / 2.0f);
-            }
-            xform.set_origin(unit.position);
-            mm->set_instance_transform_2d(i, xform);
+            // ¸üĞÂ±ä»»
+            Transform3D xform;
 
-            // åŠ¨ç”»é€»è¾‘ï¼ˆç›´æ¥ä½¿ç”¨ s_ptrï¼‰
+            // ×ø±êÓ³Éä£º
+            // 2D X -> 3D X
+            // 2D Y -> 3D Z (Éî¶È£¬ÓÃÓÚ GPU ×Ô¶¯ Y-Sort)
+            // 2D Height -> 3D Y (ÊÓ¾õ¸ß¶È)
+            float fake_depth_offset = unit.position.y * 0.0001f;
+            Vector3 pos_3d = Vector3(unit.position.x, unit.height + fake_depth_offset, unit.position.y - unit.height);
+            xform.origin = pos_3d;
+
+            // Ğı×ª£ºÈÃ QuadMesh Á¢ÆğÀ´£¨QuadMesh Ä¬ÈÏÔÚ XY Æ½Ãæ£¬ÎÒÃÇĞèÒªËüÁ¢ÔÚ XZ Æ½ÃæÉÏ£©
+            // Èç¹ûÉãÏñ»úÊÇ¸©ÊÓµÄ£¬ÎÒÃÇĞèÒªÈÆ X ÖáĞı×ª -90 ¶È
+            xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
+
+            xform.basis = (xform.basis).rotated(Vector3(0, -1, 0), (unit.rotation + Math_PI / 2.0f));
+
+            mm->set_instance_transform(i, xform);
+
+            // ¶¯»­Âß¼­£¨Ö±½ÓÊ¹ÓÃ s_ptr£©
             int frames = (unit.state == MOVING) ? s_ptr->get_move_frames() : s_ptr->get_idle_frames();
             int row = (unit.state == MOVING) ? s_ptr->get_move_row() : s_ptr->get_idle_row();
             float duration = (float)frames / s_ptr->get_anim_fps();
@@ -492,7 +555,7 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
 
             mm->set_instance_custom_data(i, Color(frame_idx, row, 0, 0));
 
-            //å¤„ç†é¢œè‰²
+            //´¦ÀíÑÕÉ«
             Color display_color;
             if (unit.is_selected) {
                 if (unit.is_mouse_on) {
@@ -512,12 +575,49 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
             }
             mm->set_instance_color(i, display_color);
 
+
+            // ¸üĞÂÓ°×Ó±ä»» (XZÆ½ÃæÌÉÆ½)
+            Transform3D shadow_xform;
+
+            // ÉèÖÃÓ°×ÓÎ»ÖÃ£ºÉÔÎ¢Æ«ÒÆÒ»µãµã£¬ÈÃËü´ÓÌ¹¿ËÂÄ´øÖĞĞÄÍùÍâ¿¿Ò»µã
+            // ¼ÙÉè¹âÀ´×Ô×óÉÏ·½£¬ÎÒÃÇ½«Ó°×ÓÏòÓÒÏÂ½ÇÆ«ÒÆ
+            float shadow_offset_x = 4.0f; // ¸ù¾İÄãµÄÌ¹¿Ë³ß´çµ÷Õû
+            float shadow_offset_z = 4.0f;
+
+            // Ó°×Ó·ÅÔÚµØÃæ¸ß¶È£¬¸øÒ»¸ö¼«Ğ¡µÄÆ«ÒÆ (0.001) ·ÀÖ¹ÓëµØÃæ Z-Fighting
+            // ×¢Òâ£ºÓ°×ÓµÄ origin.y ²»Ëæ unit.height ±ä»¯£¬ËüÓÀÔ¶ÔÚµØÉÏ
+            shadow_xform.origin = Vector3(unit.position.x + shadow_offset_x,
+                unit.height + fake_depth_offset - 0.1f,
+                unit.position.y + shadow_offset_z);
+
+            // Ó°×ÓÊÇÌÉ×ÅµÄ
+            shadow_xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
+
+            shadow_xform.basis = (shadow_xform.basis).rotated(Vector3(0, -1, 0), (unit.rotation + Math_PI / 2.0f));
+
+            // Èç¹ûÄãÏ£ÍûÓ°×ÓÓĞĞ±ÏòÀ­Éì¸Ğ£¬¿ÉÒÔÔÚÕâÀïµş¼ÓËõ·Å
+            // shadow_xform.basis = shadow_xform.basis.scaled(Vector3(1.0, 1.5, 1.0));
+
+            s_mm->set_instance_transform(i, shadow_xform);
+
+            // Í¬²½¶¯»­Êı¾İ£¨Ó°×ÓÒ²Òª¶¯£©
+            s_mm->set_instance_custom_data(i, Color(frame_idx, row, 0, 0));
+
             unit.anim_time += p_delta;
         }
     }
 }
 
 void UnitManager::update_selection_state_and_target_position(UnitData& p_unit, int p_group_id) {
+    if (selection_manager->state != selection_manager->BOX_SELECTING) {
+        if (p_unit.id == selection_manager->selected_unit_id) {
+            p_unit.is_mouse_on = true;
+        }
+        else {
+            p_unit.is_mouse_on = false;
+        }
+    }
+
     switch (selection_manager->state) {
     case (selection_manager->NOT_SELECTING):
         break;
@@ -577,7 +677,7 @@ void UnitManager::update_selection_state_and_target_position(UnitData& p_unit, i
             p_unit.state = MOVING;
 
             if (p_unit.temp_group_id != -1) {
-                // è¿™ä¸ªå‡½æ•°ä¼šï¼š1.ä»æ—§ç»„IDåˆ—è¡¨ç§»é™¤è‡ªå·±(O(1)) 2.å¦‚æœä¹‹å‰åœ¨ç§»åŠ¨ï¼Œå‡å°‘æ—§ç»„è®¡æ•°
+                // Õâ¸öº¯Êı»á£º1.´Ó¾É×éIDÁĞ±íÒÆ³ı×Ô¼º(O(1)) 2.Èç¹ûÖ®Ç°ÔÚÒÆ¶¯£¬¼õÉÙ¾É×é¼ÆÊı
                 group_manager->remove_unit_from_temp_group(p_unit.temp_group_id, p_unit.id);
             }
             p_unit.temp_group_id = p_group_id;
@@ -623,30 +723,31 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(p_path);
     if (stats.is_null()) return;
 
-    // å­˜å…¥ç¼“å­˜ä¾› spawn_unit_by_type ä½¿ç”¨
+    // ´æÈë»º´æ¹© spawn_unit_by_type Ê¹ÓÃ
     unit_types_cache[p_name] = stats;
 
-    // è·å–åŸå§‹æŒ‡é’ˆä½œä¸º Key
+    // »ñÈ¡Ô­Ê¼Ö¸Õë×÷Îª Key
     UnitStats* stats_ptr = stats.ptr();
 
-    // å¦‚æœè¯¥ç±»å‹å·²ç»æ³¨å†Œè¿‡æ¸²æŸ“å™¨ï¼Œç›´æ¥è¿”å›
+    // Èç¹û¸ÃÀàĞÍÒÑ¾­×¢²á¹ıäÖÈ¾Æ÷£¬Ö±½Ó·µ»Ø
     if (type_renderers.find(stats_ptr) != type_renderers.end()) return;
 
-    // --- åˆ›å»ºæ¸²æŸ“å™¨ ---
-    MultiMeshInstance2D* mmi = memnew(MultiMeshInstance2D);
+    // --- ´´½¨äÖÈ¾Æ÷ ---
+    MultiMeshInstance3D* mmi = memnew(MultiMeshInstance3D);
     mmi->set_name(p_name + "_Renderer");
     add_child(mmi);
 
-    // é…ç½® MultiMesh
+    // ÅäÖÃ MultiMesh
     Ref<MultiMesh> mm;
     mm.instantiate();
+    mm->set_transform_format(MultiMesh::TRANSFORM_3D);
     mm->set_use_colors(true);
     mm->set_use_custom_data(true);
 
     Ref<QuadMesh> qmesh;
     qmesh.instantiate();
 
-    // åŠ è½½çº¹ç†å¹¶è®¾ç½®ç½‘æ ¼å¤§å°
+    // ¼ÓÔØÎÆÀí²¢ÉèÖÃÍø¸ñ´óĞ¡
     Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(stats->get_texture_path());
     if (tex.is_valid()) {
         Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
@@ -654,9 +755,8 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     }
     mm->set_mesh(qmesh);
     mmi->set_multimesh(mm);
-    mmi->set_texture(tex);
 
-    // è®¾ç½®æè´¨
+    // ÉèÖÃ²ÄÖÊ
     Ref<ShaderMaterial> mat;
     mat.instantiate();
     if (unit_shader.is_null()) {
@@ -665,10 +765,48 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     mat->set_shader(unit_shader);
     mat->set_shader_parameter("h_frames", stats->get_h_frames());
     mat->set_shader_parameter("v_frames", stats->get_v_frames());
-    mmi->set_material(mat);
+    mat->set_shader_parameter("albedo_texture", tex);
 
-    // å»ºç«‹æ˜ å°„
+    mmi->set_material_override(mat);
+
+    // ½¨Á¢Ó³Éä
     type_renderers[stats_ptr] = mmi;
+
+    // --- ´´½¨Ó°×ÓäÖÈ¾Æ÷ ---
+    MultiMeshInstance3D* s_mmi = memnew(MultiMeshInstance3D);
+    s_mmi->set_name(p_name + "_Shadows");
+    add_child(s_mmi);
+
+    Ref<MultiMesh> s_mm;
+    s_mm.instantiate();
+    s_mm->set_transform_format(MultiMesh::TRANSFORM_3D);
+    s_mm->set_use_custom_data(true);
+
+    // Ó°×Ó¿ÉÒÔÊ¹ÓÃ¸ü¼òµ¥µÄ QuadMesh
+    Ref<QuadMesh> s_qmesh;
+    s_qmesh.instantiate();
+    if (tex.is_valid()) {
+        Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
+        s_qmesh->set_size(frame_size);
+    }
+    // ... ÉèÖÃÍø¸ñ´óĞ¡ ...
+    s_mm->set_mesh(s_qmesh);
+    s_mmi->set_multimesh(s_mm);
+
+    // ÉèÖÃÓ°×Ó²ÄÖÊ
+    Ref<ShaderMaterial> s_mat;
+    s_mat.instantiate();
+    if (shadow_shader.is_null()) {
+        shadow_shader = ResourceLoader::get_singleton()->load("res://shader/unit_shadow.gdshader");
+    }
+    s_mat->set_shader(shadow_shader);
+    s_mat->set_shader_parameter("albedo_texture", tex);
+    s_mat->set_shader_parameter("h_frames", stats->get_h_frames());
+    s_mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    s_mmi->set_material_override(s_mat);
+
+    // ´æÈë Map
+    shadow_renderers[stats_ptr] = s_mmi;
 }
 
 int UnitManager::spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_team_id) {
@@ -681,9 +819,9 @@ int UnitManager::spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_tea
 void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_ids) {
     if (p_index < 0 || p_index >= group_manager->MAX_CONTROL_GROUPS) return;
 
-    // 1. æ¸…ç†æ—§å•ä½çš„åŒå‘æ˜ å°„
+    // 1. ÇåÀí¾Éµ¥Î»µÄË«ÏòÓ³Éä
     for (int old_uid : group_manager->control_groups[p_index]) {
-        //ä¹‹åå†™æˆå‡½æ•°
+        //Ö®ºóĞ´³Éº¯Êı
         int index = -1;
         auto it = id_to_index.find(old_uid);
         if (it != id_to_index.end()) {
@@ -691,7 +829,7 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
         }
 
         UnitData& data = units[index];
-        // ä»å›ºå®šæ•°ç»„ä¸­ç§»é™¤ç´¢å¼•
+        // ´Ó¹Ì¶¨Êı×éÖĞÒÆ³ıË÷Òı
         for (int i = 0; i < data.control_group_count; ++i) {
             if (data.control_group_indices[i] == p_index) {
                 data.control_group_indices[i] = data.control_group_indices[data.control_group_count - 1];
@@ -701,12 +839,12 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
         }
     }
 
-    // 2. æ›´æ–°ç¼–é˜Ÿæ•°æ®
+    // 2. ¸üĞÂ±à¶ÓÊı¾İ
     group_manager->control_groups[p_index] = p_unit_ids;
 
-    // 3. å»ºç«‹æ–°å•ä½çš„åŒå‘æ˜ å°„
+    // 3. ½¨Á¢ĞÂµ¥Î»µÄË«ÏòÓ³Éä
     for (int new_uid : p_unit_ids) {
-        //ä¹‹åå†™æˆå‡½æ•°
+        //Ö®ºóĞ´³Éº¯Êı
         int index = -1;
         auto it = id_to_index.find(new_uid);
         if (it != id_to_index.end()) {
@@ -714,7 +852,7 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
         }
 
         UnitData& data = units[index];
-        if (data.control_group_count < 3) { // å‡è®¾ä¸Šé™ 3
+        if (data.control_group_count < 3) { // ¼ÙÉèÉÏÏŞ 3
             data.control_group_indices[data.control_group_count++] = p_index;
         }
     }
@@ -751,8 +889,8 @@ void UnitManager::_bind_methods() {
    
     
 
-    //è°ƒè¯•
-    // 1. å…ˆç»‘å®šæ‰€æœ‰æ–¹æ³• (Getter/Setter)
+    //µ÷ÊÔ
+    // 1. ÏÈ°ó¶¨ËùÓĞ·½·¨ (Getter/Setter)
     ClassDB::bind_method(D_METHOD("get_flow_factor"), &UnitManager::get_flow_factor);
     ClassDB::bind_method(D_METHOD("set_flow_factor", "p_val"), &UnitManager::set_flow_factor);
 
@@ -780,7 +918,7 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_desired_integration"), &UnitManager::get_desired_integration);
     ClassDB::bind_method(D_METHOD("set_desired_integration", "p_val"), &UnitManager::set_desired_integration);
 
-    // 2. æ³¨å†Œå±æ€§åˆ° Godot å±æ€§é¢æ¿
+    // 2. ×¢²áÊôĞÔµ½ Godot ÊôĞÔÃæ°å
 
     ADD_GROUP("Force Settings", "");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "flow_factor"), "set_flow_factor", "get_flow_factor");
