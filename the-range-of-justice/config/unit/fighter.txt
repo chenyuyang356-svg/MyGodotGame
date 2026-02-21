@@ -27,7 +27,7 @@ turn_speed       = 10.0
 # [关键] 碰撞半径
 collision_radius = 40.0
 # 枚举可选: Ground, Air, Sea, Hover
-move_type        = Ground
+move_type        = Air
 
 # --- Vision (视野) ---
 sight_range      = 350.0

@@ -5,6 +5,7 @@
 #include "building_manager.h"
 #include "flow_field_manager.h"
 #include "selection_manager.h"
+#include "group_manager.h"
 #include "unit_loader.h"
 
 namespace godot {
@@ -17,6 +18,7 @@ namespace godot {
 		BuildingManager* building_manager = nullptr;
 		FlowFieldManager* flow_field_manager = nullptr;
 		SelectionManager* selection_manager = nullptr;
+		GroupManager* group_manager = nullptr;
 
 		bool is_setup = false;
 
@@ -35,13 +37,8 @@ namespace godot {
 		void set_building_manager(Node* p_node);
 		void set_flow_field_manager(Node* p_node);
 		void set_selection_manager(Node* p_node);
-<<<<<<< Updated upstream
 		void set_group_manager(Node* p_node);
-=======
-		void set_multimesh_instance(Node* p_node);
->>>>>>> Stashed changes
 		void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
-
 	};
 
 }
