@@ -22,6 +22,7 @@ void initialize_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(SelectionManager);
 	GDREGISTER_CLASS(UnitManager);
 	GDREGISTER_CLASS(BuildingManager);
+	GDREGISTER_CLASS(GroupManager);
 	GDREGISTER_CLASS(UnitStats);
 	GDREGISTER_CLASS(GameManager);
 	GDREGISTER_CLASS(godot::AttackManager); 

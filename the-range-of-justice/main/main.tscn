@@ -7,7 +7,6 @@
 [ext_resource type="Script" uid="uid://cxdwnig240dls" path="res://main/selection_manager.gd" id="4_3wy1v"]
 [ext_resource type="Shader" uid="uid://bl7iu8acjbtje" path="res://shader/unit_shader.gdshader" id="4_4dugh"]
 [ext_resource type="Texture2D" uid="uid://bgtdeojs6tf3g" path="res://asset/飞行单位03.png" id="5_67ri8"]
-[ext_resource type="Script" uid="uid://crcr302ib4qc4" path="res://main/debug_draw.gd" id="8_67ri8"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_3wy1v"]
 texture = ExtResource("1_53q0u")
@@ -42,8 +41,6 @@ script = ExtResource("1_3wy1v")
 
 [node name="GroupManager" type="GroupManager" parent="." unique_id=2096338072]
 
-[node name="AttackManager" type="AttackManager" parent="." unique_id=2054873409]
-
 [node name="FlowFieldManager" type="FlowFieldManager" parent="." unique_id=1905490724]
 
 [node name="TileMapLayer" type="TileMapLayer" parent="." unique_id=374535378]
@@ -73,7 +70,3 @@ building_manager = NodePath("../BuildingManager")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1226521325]
 script = ExtResource("2_pjrb6")
-
-[node name="DebugDraw" type="Node2D" parent="." unique_id=495314065]
-z_index = 100
-script = ExtResource("8_67ri8")
