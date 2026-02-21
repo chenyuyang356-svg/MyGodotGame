@@ -1,2 +1,2 @@
 # MyGodotGame
-game created by Royale Cruite
+game created by Royale Recruite
