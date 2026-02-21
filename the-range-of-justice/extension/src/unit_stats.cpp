@@ -86,25 +86,13 @@ void UnitStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_move_speed"), &UnitStats::get_move_speed);
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "move_speed"), "set_move_speed", "get_move_speed");
 
-    ClassDB::bind_method(D_METHOD("set_acceleration", "value"), &UnitStats::set_acceleration);
-    ClassDB::bind_method(D_METHOD("get_acceleration"), &UnitStats::get_acceleration);
-    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "acceleration"), "set_acceleration", "get_acceleration");
-
     ClassDB::bind_method(D_METHOD("set_turn_speed", "value"), &UnitStats::set_turn_speed);
     ClassDB::bind_method(D_METHOD("get_turn_speed"), &UnitStats::get_turn_speed);
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "turn_speed"), "set_turn_speed", "get_turn_speed");
 
-    ClassDB::bind_method(D_METHOD("set_turn_acceleration", "value"), &UnitStats::set_turn_acceleration);
-    ClassDB::bind_method(D_METHOD("get_turn_acceleration"), &UnitStats::get_turn_acceleration);
-    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "turn_acceleration"), "set_turn_acceleration", "get_turn_acceleration");
-
     ClassDB::bind_method(D_METHOD("set_collision_radius", "value"), &UnitStats::set_collision_radius);
     ClassDB::bind_method(D_METHOD("get_collision_radius"), &UnitStats::get_collision_radius);
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "collision_radius"), "set_collision_radius", "get_collision_radius");
-
-    ClassDB::bind_method(D_METHOD("set_base_height", "value"), &UnitStats::set_base_height);
-    ClassDB::bind_method(D_METHOD("get_base_height"), &UnitStats::get_base_height);
-    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "base_height"), "set_base_height", "get_base_height");
 
     ClassDB::bind_method(D_METHOD("set_move_type", "value"), &UnitStats::set_move_type);
     ClassDB::bind_method(D_METHOD("get_move_type"), &UnitStats::get_move_type);

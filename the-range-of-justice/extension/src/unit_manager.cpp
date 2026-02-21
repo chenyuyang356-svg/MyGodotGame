@@ -41,7 +41,6 @@ int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_t
     UnitData new_unit;
     new_unit.id = next_unit_id++;
     new_unit.position = p_world_pos;
-    new_unit.height = p_stats->base_height;
     new_unit.stats = p_stats; // 存入引用
 
     new_unit.team_id = p_team_id; // 赋值阵营
@@ -92,14 +91,35 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
 
     for (int i = 0; i < p_unit_ids.size(); i++) {
         int uid = p_unit_ids[i];
-
-        // 使用哈希表直接定位
         auto it = id_to_index.find(uid);
         if (it != id_to_index.end()) {
             UnitData& unit = units[it->second];
+            unit.is_patrolling = false; // 被强制移动时打断巡逻
             unit.target_pos = p_target_world_pos;
             unit.target_grid = target_grid_pos;
             unit.state = MOVING;
+            unit.target_id = -1; // 放弃当前目标
+        }
+    }
+}
+
+void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints) {
+    std::vector<Vector2> waypoints;
+    for (int i = 0; i < p_waypoints.size(); ++i) {
+        waypoints.push_back(p_waypoints[i]);
+    }
+    if (waypoints.empty()) return;
+
+    for (int i = 0; i < p_unit_ids.size(); i++) {
+        int uid = p_unit_ids[i];
+        auto it = id_to_index.find(uid);
+        if (it != id_to_index.end()) {
+            UnitData& unit = units[it->second];
+            unit.is_patrolling = true;
+            unit.patrol_waypoints = waypoints;
+            unit.current_waypoint_idx = 0;
+            unit.state = PATROLLING;
+            unit.target_id = -1;
         }
     }
 }
@@ -155,18 +175,24 @@ void UnitManager::update(double p_delta) {
     }
 
     selection_manager->selected_unit_id = -1;
-    float selected_unit_height = -100.0f;
     for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
         UnitData& unit = units[unit_idx];
         float selection_radius = (unit.stats)->get_collision_radius();
         if (((selection_manager->mouse_position).distance_squared_to(unit.position) <
             (selection_radius) * (selection_radius)) &&
-            (selection_manager->state != selection_manager->BOX_SELECTING) &&
-            (unit.height > selected_unit_height)) {
-            selection_manager->selected_unit_id = unit.id;
-            selection_manager->selected_unit_stats = unit.stats;
-            selection_manager->selected_team_id = unit.team_id;
-            selected_unit_height = unit.height;
+            (selection_manager->state != selection_manager->BOX_SELECTING)) {
+            unit.is_mouse_on = true;            
+        }
+        else {
+            unit.is_mouse_on = false;
+        }
+        if ((selection_manager->state == selection_manager->SINGLE_SELECTING) ||
+            (selection_manager->state == selection_manager->TYPE_SELECTING)) {
+            if (unit.is_mouse_on) {
+                selection_manager->selected_unit_id = unit.id;
+                selection_manager->selected_unit_stats = unit.stats;
+                selection_manager->selected_team_id = unit.team_id;
+            }
         }
     }
 
@@ -213,12 +239,6 @@ Vector2 UnitManager::get_separation(UnitData& p_unit) {
 
     for (int unit_idx : get_nearby_units(p_unit.position, ((p_unit.stats)->get_collision_radius()) * separation_radius_factor)) {
         const UnitData& nearby_unit = units[unit_idx];
-
-        if ((p_unit.stats->move_type == MOVE_AIR) && (nearby_unit.stats->move_type != MOVE_AIR) ||
-            (p_unit.stats->move_type != MOVE_AIR) && (nearby_unit.stats->move_type == MOVE_AIR)) {
-            continue;
-        }
-
         Vector2 radius_vector = nearby_unit.position - p_unit.position;
         float length_squared = radius_vector.length_squared();
         if (length_squared < 10e-12) {
@@ -270,7 +290,7 @@ void UnitManager::update_state(UnitData& p_unit) {
         break;
     case MOVING:
         if ((p_unit.stats)->get_move_type() == MOVE_AIR) {
-            float desired_distance = 2 * p_unit.stats->collision_radius;
+            float desired_distance = (float)((desired_integration + 1) * (flow_field_manager->get_cell_size()).x );
             if ((p_unit.position).distance_squared_to(p_unit.target_pos) <= desired_distance * desired_distance) {
                 p_unit.state = IDLE;
                 p_unit.velocity = Vector2(0, 0);
@@ -306,51 +326,8 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     }
     
     float max_speed = (p_unit.stats)->get_move_speed();
-    float accel = p_unit.stats->get_acceleration();
-
-    Vector2 desired_velocity = (p_unit.velocity + force * p_delta).limit_length(max_speed);
-
-    if ((desired_velocity.length_squared() > velocity_threshold_squared) &&
-        p_unit.state != IDLE) {
-        float target_angle = desired_velocity.angle();
-        float angle_diff = UtilityFunctions::angle_difference(p_unit.rotation, target_angle);
-
-        // 转向加速度逻辑
-        float turn_accel = p_unit.stats->get_turn_acceleration();
-        float max_turn_v = p_unit.stats->get_turn_speed();
-
-        // 简单的转向 PD 控制或加速度模拟
-        float target_angular_v = Math::sign(angle_diff) * max_turn_v;
-        // 如果接近目标角度，减速以防止震荡
-        if (Math::abs(angle_diff) < 0.5f) {
-            target_angular_v = (angle_diff / 0.5f) * max_turn_v;
-        }
-
-        p_unit.angular_velocity = UtilityFunctions::move_toward(
-            p_unit.angular_velocity,
-            target_angular_v,
-            turn_accel * p_delta
-        );
-    }
-    else {
-        // 停止时角速度归零
-        p_unit.angular_velocity = UtilityFunctions::move_toward(p_unit.angular_velocity, 0.0f, p_unit.stats->get_turn_acceleration() * p_delta);
-    }
-
-    p_unit.rotation += p_unit.angular_velocity * p_delta;
-
-    float forward_dot = 0.0f;
-    Vector2 forward_vec = Vector2(Math::cos(p_unit.rotation), Math::sin(p_unit.rotation));
-
-    if (desired_velocity.length_squared() > velocity_threshold_squared) {
-        forward_dot = Math::max(0.0f, forward_vec.dot(desired_velocity.normalized()));
-    }
-
-    // 限制：转向时速度会降低 (根据 dot 乘积，0.5 表示偏离 60 度时加速度减半)
-    float current_accel = accel * (0.5f + 0.5f * forward_dot);
-
-    // 应用加速度
-    p_unit.velocity = p_unit.velocity.move_toward(desired_velocity, current_accel * p_delta);
+    p_unit.velocity += force * p_delta;
+    p_unit.velocity = p_unit.velocity.limit_length(max_speed);
 
     if ((p_unit.velocity).length_squared() < velocity_threshold_squared) {
         p_unit.velocity= Vector2(0, 0);
@@ -372,11 +349,7 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
         for (int other_idx : nearby) {
             UnitData& other = units[other_idx];
             if (other.id == p_unit.id) continue;
-            if (other.state == IDLE && p_unit.temp_group_id != -1) continue;
-            if ((p_unit.stats->move_type == MOVE_AIR) && (other.stats->move_type != MOVE_AIR) ||
-                (p_unit.stats->move_type != MOVE_AIR) && (other.stats->move_type == MOVE_AIR)) {
-                continue;
-            }
+            if (other.state == IDLE) continue;
 
             Vector2 to_other = other.position - next_pos;
             float dist_sq = to_other.length_squared();
@@ -491,17 +464,12 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
         const std::vector<int>& indices = type_grouping_cache[s_ptr];
         int count = indices.size();
 
-        if (count == 0) continue;
-
         Ref<MultiMesh> mm = mmi->get_multimesh();
         if (mm->get_instance_count() != count) {
             mm->set_instance_count(count);
         }
 
-        // 获取影子渲染器
-        MultiMeshInstance3D* s_mmi = shadow_renderers[s_ptr];
-        Ref<MultiMesh> s_mm = s_mmi->get_multimesh();
-        s_mm->set_instance_count(count);
+        if (count == 0) continue;
 
         // 这里 s_ptr 就是 UnitStats 指针，可以直接访问配置数据
         for (int i = 0; i < count; ++i) {
@@ -509,23 +477,12 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
             UnitData& unit = units[u_idx];
 
             // 更新变换
-            Transform3D xform;
-
-            // 坐标映射：
-            // 2D X -> 3D X
-            // 2D Y -> 3D Z (深度，用于 GPU 自动 Y-Sort)
-            // 2D Height -> 3D Y (视觉高度)
-            float fake_depth_offset = unit.position.y * 0.0001f;
-            Vector3 pos_3d = Vector3(unit.position.x, unit.height + fake_depth_offset, unit.position.y - unit.height);
-            xform.origin = pos_3d;
-
-            // 旋转：让 QuadMesh 立起来（QuadMesh 默认在 XY 平面，我们需要它立在 XZ 平面上）
-            // 如果摄像机是俯视的，我们需要绕 X 轴旋转 -90 度
-            xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
-
-            xform.basis = (xform.basis).rotated(Vector3(0, -1, 0), (unit.rotation + Math_PI / 2.0f));
-
-            mm->set_instance_transform(i, xform);
+            Transform2D xform;
+            if (unit.velocity.length_squared() > 1.0f) {
+                xform.set_rotation(unit.velocity.angle() + Math_PI / 2.0f);
+            }
+            xform.set_origin(unit.position);
+            mm->set_instance_transform_2d(i, xform);
 
             // 动画逻辑（直接使用 s_ptr）
             int frames = (unit.state == MOVING) ? s_ptr->get_move_frames() : s_ptr->get_idle_frames();
@@ -555,49 +512,12 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
             }
             mm->set_instance_color(i, display_color);
 
-
-            // 更新影子变换 (XZ平面躺平)
-            Transform3D shadow_xform;
-
-            // 设置影子位置：稍微偏移一点点，让它从坦克履带中心往外靠一点
-            // 假设光来自左上方，我们将影子向右下角偏移
-            float shadow_offset_x = 4.0f; // 根据你的坦克尺寸调整
-            float shadow_offset_z = 4.0f;
-
-            // 影子放在地面高度，给一个极小的偏移 (0.001) 防止与地面 Z-Fighting
-            // 注意：影子的 origin.y 不随 unit.height 变化，它永远在地上
-            shadow_xform.origin = Vector3(unit.position.x + shadow_offset_x,
-                unit.height + fake_depth_offset - 0.1f,
-                unit.position.y + shadow_offset_z);
-
-            // 影子是躺着的
-            shadow_xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
-
-            shadow_xform.basis = (shadow_xform.basis).rotated(Vector3(0, -1, 0), (unit.rotation + Math_PI / 2.0f));
-
-            // 如果你希望影子有斜向拉伸感，可以在这里叠加缩放
-            // shadow_xform.basis = shadow_xform.basis.scaled(Vector3(1.0, 1.5, 1.0));
-
-            s_mm->set_instance_transform(i, shadow_xform);
-
-            // 同步动画数据（影子也要动）
-            s_mm->set_instance_custom_data(i, Color(frame_idx, row, 0, 0));
-
             unit.anim_time += p_delta;
         }
     }
 }
 
 void UnitManager::update_selection_state_and_target_position(UnitData& p_unit, int p_group_id) {
-    if (selection_manager->state != selection_manager->BOX_SELECTING) {
-        if (p_unit.id == selection_manager->selected_unit_id) {
-            p_unit.is_mouse_on = true;
-        }
-        else {
-            p_unit.is_mouse_on = false;
-        }
-    }
-
     switch (selection_manager->state) {
     case (selection_manager->NOT_SELECTING):
         break;
@@ -713,14 +633,13 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     if (type_renderers.find(stats_ptr) != type_renderers.end()) return;
 
     // --- 创建渲染器 ---
-    MultiMeshInstance3D* mmi = memnew(MultiMeshInstance3D);
+    MultiMeshInstance2D* mmi = memnew(MultiMeshInstance2D);
     mmi->set_name(p_name + "_Renderer");
     add_child(mmi);
 
     // 配置 MultiMesh
     Ref<MultiMesh> mm;
     mm.instantiate();
-    mm->set_transform_format(MultiMesh::TRANSFORM_3D);
     mm->set_use_colors(true);
     mm->set_use_custom_data(true);
 
@@ -735,6 +654,7 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     }
     mm->set_mesh(qmesh);
     mmi->set_multimesh(mm);
+    mmi->set_texture(tex);
 
     // 设置材质
     Ref<ShaderMaterial> mat;
@@ -745,48 +665,10 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     mat->set_shader(unit_shader);
     mat->set_shader_parameter("h_frames", stats->get_h_frames());
     mat->set_shader_parameter("v_frames", stats->get_v_frames());
-    mat->set_shader_parameter("albedo_texture", tex);
-
-    mmi->set_material_override(mat);
+    mmi->set_material(mat);
 
     // 建立映射
     type_renderers[stats_ptr] = mmi;
-
-    // --- 创建影子渲染器 ---
-    MultiMeshInstance3D* s_mmi = memnew(MultiMeshInstance3D);
-    s_mmi->set_name(p_name + "_Shadows");
-    add_child(s_mmi);
-
-    Ref<MultiMesh> s_mm;
-    s_mm.instantiate();
-    s_mm->set_transform_format(MultiMesh::TRANSFORM_3D);
-    s_mm->set_use_custom_data(true);
-
-    // 影子可以使用更简单的 QuadMesh
-    Ref<QuadMesh> s_qmesh;
-    s_qmesh.instantiate();
-    if (tex.is_valid()) {
-        Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
-        s_qmesh->set_size(frame_size);
-    }
-    // ... 设置网格大小 ...
-    s_mm->set_mesh(s_qmesh);
-    s_mmi->set_multimesh(s_mm);
-
-    // 设置影子材质
-    Ref<ShaderMaterial> s_mat;
-    s_mat.instantiate();
-    if (shadow_shader.is_null()) {
-        shadow_shader = ResourceLoader::get_singleton()->load("res://shader/unit_shadow.gdshader");
-    }
-    s_mat->set_shader(shadow_shader);
-    s_mat->set_shader_parameter("albedo_texture", tex);
-    s_mat->set_shader_parameter("h_frames", stats->get_h_frames());
-    s_mat->set_shader_parameter("v_frames", stats->get_v_frames());
-    s_mmi->set_material_override(s_mat);
-
-    // 存入 Map
-    shadow_renderers[stats_ptr] = s_mmi;
 }
 
 int UnitManager::spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_team_id) {
@@ -838,17 +720,36 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
     }
 }
 
+int UnitManager::get_unit_index_by_id(int p_id) {
+    auto it = id_to_index.find(p_id);
+    if (it != id_to_index.end()) {
+        return it->second;
+    }
+    return -1;
+}
+
+void UnitManager::set_attack_manager(Node* p_node) {
+    attack_manager = Object::cast_to<AttackManager>(p_node);
+    if (attack_manager) {
+        attack_manager->setup(this); // 初始化 AttackManager
+    }
+}
+
 void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &UnitManager::setup_system);
     ClassDB::bind_method(D_METHOD("spawn_unit", "world_position", "type", "team_id"), &UnitManager::spawn_unit);
+    ClassDB::bind_method(D_METHOD("spawn_unit_by_type", "type_name", "pos", "team_id"), &UnitManager::spawn_unit_by_type);
     ClassDB::bind_method(D_METHOD("command_units_to_move", "unit_ids", "target_world_pos"), &UnitManager::command_units_to_move);
+    ClassDB::bind_method(D_METHOD("command_units_to_patrol", "unit_ids", "waypoints"), &UnitManager::command_units_to_patrol);
     ClassDB::bind_method(D_METHOD("get_unit_position", "unit_id"), &UnitManager::get_unit_position);
     ClassDB::bind_method(D_METHOD("get_unit_state", "unit_id"), &UnitManager::get_unit_state);
     ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &UnitManager::set_flow_field_manager);
     ClassDB::bind_method(D_METHOD("set_selection_manager", "node"), &UnitManager::set_selection_manager);
     ClassDB::bind_method(D_METHOD("set_group_manager", "node"), &UnitManager::set_group_manager);
+    ClassDB::bind_method(D_METHOD("set_attack_manager", "node"), &UnitManager::set_attack_manager);
     ClassDB::bind_method(D_METHOD("register_unit_type", "name", "path"), &UnitManager::register_unit_type);
-    ClassDB::bind_method(D_METHOD("spawn_unit_by_type", "type_name", "pos", "team_id"), &UnitManager::spawn_unit_by_type);
+   
+    
 
     //调试
     // 1. 先绑定所有方法 (Getter/Setter)
@@ -895,19 +796,6 @@ void UnitManager::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "desired_integration"), "set_desired_integration", "get_desired_integration");
 }
 
-int UnitManager::get_unit_index_by_id(int p_id) {
-    auto it = id_to_index.find(p_id);
-    if (it != id_to_index.end()) {
-        return it->second;
-    }
-    return -1;
-}
 
-void UnitManager::set_attack_manager(Node* p_node) {
-    attack_manager = Object::cast_to<AttackManager>(p_node);
-    if (attack_manager) {
-        attack_manager->setup(this); // 初始化 AttackManager
-    }
-}
 
 
