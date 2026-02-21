@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="the_range_of_justice"
+config/name="the_range_of_justice (Copy)"
 run/main_scene="uid://mtrpe2gqo68j"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"

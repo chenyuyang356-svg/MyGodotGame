@@ -6,10 +6,12 @@ extends SelectionManager
 @export var drag_threshold_dist: float = 10.0      # 移动超过多少像素判定为框选（而非单击）
 @export var long_press_threshold_ms: int = 500    # 虽然 RTS 通常按距离判定框选，但这里预留时间判定
 @export var building_manager: Node2D
+@export var camera_3d: Camera3D
 
 # 输入状态跟踪
 var is_left_down: bool = false
 var press_start_pos: Vector2 = Vector2.ZERO
+var press_start_screen_pos: Vector2 = Vector2.ZERO
 var press_start_time: int = 0
 var last_left_click_time: int = 0
 var is_actual_drag: bool = false # 是否达到了框选的触发门槛
@@ -38,7 +40,7 @@ func _unhandled_input(event: InputEvent):
 		if is_left_down:
 			_on_left_drag_motion()
 		else:
-			set_mouse_position(get_global_mouse_position())
+			set_mouse_position(camera_3d.get_mouse_world_pos())
 
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
@@ -56,23 +58,24 @@ func _unhandled_input(event: InputEvent):
 
 func _on_left_pressed():
 	is_left_down = true
-	press_start_pos = get_global_mouse_position()
+	press_start_pos = camera_3d.get_mouse_world_pos()
+	press_start_screen_pos = get_global_mouse_position()
 	press_start_time = Time.get_ticks_msec()
 	is_actual_drag = false
 
 func _on_left_drag_motion():
 	# 检查是否满足移动距离门槛，满足则开启框选视觉
 	if not is_actual_drag:
-		if get_global_mouse_position().distance_to(press_start_pos) > drag_threshold_dist:
+		if camera_3d.get_mouse_world_pos().distance_to(press_start_pos) > drag_threshold_dist:
 			is_actual_drag = true
 	
 	if is_actual_drag:
-		set_mouse_position(get_global_mouse_position())
+		set_mouse_position(camera_3d.get_mouse_world_pos())
 		box_selecting()
 		queue_redraw() # 更新框选框绘制
 
 func _on_left_released():
-	var release_pos = get_global_mouse_position()
+	var release_pos = camera_3d.get_mouse_world_pos()
 	var current_time = Time.get_ticks_msec()
 	var duration = current_time - press_start_time
 	
@@ -96,7 +99,7 @@ func _on_left_released():
 	queue_redraw()
 
 func _on_right_released():
-	set_mouse_position(get_global_mouse_position())
+	set_mouse_position(camera_3d.get_mouse_world_pos())
 	selecting_target_position()
 
 # --- 具体执行动作 ---
@@ -126,8 +129,8 @@ func _get_rect(p1: Vector2, p2: Vector2) -> Rect2:
 
 func _draw():
 	if is_left_down and is_actual_drag:
-		var current_mouse_pos = get_global_mouse_position()
-		var rect = _get_rect(press_start_pos, current_mouse_pos)
+		var current_mouse_screen_pos = get_global_mouse_position()
+		var rect = _get_rect(press_start_screen_pos, current_mouse_screen_pos)
 		
 		# 绘制空心矩形和半透明填充
 		draw_rect(rect, Color(0, 1, 0, 0.1), true)
