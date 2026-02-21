@@ -61,9 +61,6 @@ void UnitManager::despawn_unit(int p_unit_id) {
     size_t index_to_remove = it->second;
     int last_unit_idx = units.size() - 1;
 
-    UnitData& unit_to_remove = units[index_to_remove];
-    group_manager->handle_unit_death(p_unit_id, unit_to_remove.temp_group_id, unit_to_remove.control_group_indices, unit_to_remove.control_group_count);
-
     if (index_to_remove != last_unit_idx) {
         // 1. 获取最后一个单位的数据
         UnitData& last_unit = units.back();
@@ -91,14 +88,35 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
 
     for (int i = 0; i < p_unit_ids.size(); i++) {
         int uid = p_unit_ids[i];
-
-        // 使用哈希表直接定位
         auto it = id_to_index.find(uid);
         if (it != id_to_index.end()) {
             UnitData& unit = units[it->second];
+            unit.is_patrolling = false; // 被强制移动时打断巡逻
             unit.target_pos = p_target_world_pos;
             unit.target_grid = target_grid_pos;
             unit.state = MOVING;
+            unit.target_id = -1; // 放弃当前目标
+        }
+    }
+}
+
+void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints) {
+    std::vector<Vector2> waypoints;
+    for (int i = 0; i < p_waypoints.size(); ++i) {
+        waypoints.push_back(p_waypoints[i]);
+    }
+    if (waypoints.empty()) return;
+
+    for (int i = 0; i < p_unit_ids.size(); i++) {
+        int uid = p_unit_ids[i];
+        auto it = id_to_index.find(uid);
+        if (it != id_to_index.end()) {
+            UnitData& unit = units[it->second];
+            unit.is_patrolling = true;
+            unit.patrol_waypoints = waypoints;
+            unit.current_waypoint_idx = 0;
+            unit.state = PATROLLING;
+            unit.target_id = -1;
         }
     }
 }
@@ -175,6 +193,7 @@ void UnitManager::update(double p_delta) {
         }
     }
 
+<<<<<<< Updated upstream
     
 
     int new_gid = -1;
@@ -182,13 +201,22 @@ void UnitManager::update(double p_delta) {
         new_gid = group_manager->create_temporary_group(selection_manager->mouse_position);
     }
 
+=======
+>>>>>>> Stashed changes
     update_spatial_grid();
     flow_field_manager->update(p_delta);
 
     for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
         UnitData& unit = units[unit_idx];
         update_state(unit);
-        update_selection_state_and_target_position(unit, new_gid);
+        update_selection_state_and_target_position(unit);
+
+        if (unit.state == MOVING) {
+            if (flow_field_manager->get_integration(unit.position, unit.target_pos) <= desired_integration) {
+                unit.state = IDLE;
+                unit.velocity = Vector2(0, 0);
+            }
+        }
         update_velocity(unit, p_delta);
         move(unit, p_delta);
     }
@@ -203,12 +231,7 @@ void UnitManager::update(double p_delta) {
 }
 
 Vector2 UnitManager::get_flow(UnitData& p_unit) {
-    Vector2 flow;
-    if ((p_unit.stats)->get_move_type() == MOVE_AIR) {
-        flow = (p_unit.target_pos - p_unit.position).normalized();
-        return flow;
-    }
-    flow = flow_field_manager->get_flow_direction(p_unit.position, p_unit.target_pos);
+    Vector2 flow = flow_field_manager->get_flow_direction(p_unit.position, p_unit.target_pos);
     return flow;
 }
 
@@ -268,20 +291,9 @@ void UnitManager::update_state(UnitData& p_unit) {
     case IDLE:
         break;
     case MOVING:
-        if ((p_unit.stats)->get_move_type() == MOVE_AIR) {
-            float desired_distance = (float)((desired_integration + 1) * (flow_field_manager->get_cell_size()).x );
-            if ((p_unit.position).distance_squared_to(p_unit.target_pos) <= desired_distance * desired_distance) {
-                p_unit.state = IDLE;
-                p_unit.velocity = Vector2(0, 0);
-                group_manager->decrement_moving_count(p_unit.temp_group_id);
-            }
-        }
-        else {
-            if (flow_field_manager->get_integration(p_unit.position, p_unit.target_pos) <= desired_integration) {
-                p_unit.state = IDLE;
-                p_unit.velocity = Vector2(0, 0);
-                group_manager->decrement_moving_count(p_unit.temp_group_id);
-            }
+        if (flow_field_manager->get_integration(p_unit.position, p_unit.target_pos) <= desired_integration) {
+            p_unit.state = IDLE;
+            p_unit.velocity = Vector2(0, 0);
         }
         break;
     }
@@ -305,16 +317,8 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     }
     
     float max_speed = (p_unit.stats)->get_move_speed();
-    switch (p_unit.state) {
-    case IDLE:
-        p_unit.velocity += force * p_delta;
-        p_unit.velocity = (p_unit.velocity).limit_length(max_speed);
-        break;
-    case MOVING:
-        p_unit.velocity += force * p_delta;
-        p_unit.velocity = (p_unit.velocity).limit_length(max_speed);
-        break;
-    }
+    p_unit.velocity += force * p_delta;
+    p_unit.velocity = p_unit.velocity.limit_length(max_speed);
 
     if ((p_unit.velocity).length_squared() < velocity_threshold_squared) {
         p_unit.velocity= Vector2(0, 0);
@@ -330,6 +334,7 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
     Vector2i cell_size = flow_field_manager->get_cell_size();
 
     // 处理单位间的“硬修正”（防止重叠）
+<<<<<<< Updated upstream
     // IDLE且处于temp_group中的单位不参与
     if (p_unit.state != IDLE || p_unit.temp_group_id == -1) {
         std::vector<int> nearby = get_nearby_units(next_pos, radius * 2.0f);
@@ -337,37 +342,35 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
             UnitData& other = units[other_idx];
             if (other.id == p_unit.id) continue;
             if (other.state == IDLE) continue;
+=======
+    std::vector<int> nearby = get_nearby_units(next_pos, radius * 2.0f);
+    for (int other_idx : nearby) {
+        UnitData& other = units[other_idx];
+        if (other.id == p_unit.id) continue;
+>>>>>>> Stashed changes
 
-            Vector2 to_other = other.position - next_pos;
-            float dist_sq = to_other.length_squared();
-            float min_dist = radius + (other.stats)->get_collision_radius();
+        Vector2 to_other = other.position - next_pos;
+        float dist_sq = to_other.length_squared();
+        float min_dist = radius + (other.stats)->get_collision_radius();
 
-            if (dist_sq < min_dist * min_dist && dist_sq > 0.001f) {
-                float dist = Math::sqrt(dist_sq);
-                float overlap = min_dist - dist;
-                Vector2 resolve_dir = to_other / dist;
+        if (dist_sq < min_dist * min_dist && dist_sq > 0.001f) {
+            float dist = Math::sqrt(dist_sq);
+            float overlap = min_dist - dist;
+            Vector2 resolve_dir = to_other / dist;
 
-                // 关键点：只推开重叠部分的一小部分（例如 40%），防止产生剧烈抖动
-                // 如果两个单位都在移动，各推一半
-                float push_strength = 0.4f;
-                Vector2 push_vector = resolve_dir * (overlap * push_strength);
+            // 关键点：只推开重叠部分的一小部分（例如 40%），防止产生剧烈抖动
+            // 如果两个单位都在移动，各推一半
+            float push_strength = 0.4f;
+            Vector2 push_vector = resolve_dir * (overlap * push_strength);
 
-                next_pos -= push_vector;
-                // 也可以顺便给对方一个反向的推力，但为了逻辑简单，
-                // 每一个单位在自己的 move 循环里处理被推开即可
-            }
+            next_pos -= push_vector;
+            // 也可以顺便给对方一个反向的推力，但为了逻辑简单，
+            // 每一个单位在自己的 move 循环里处理被推开即可
         }
     }
 
     // 处理墙体碰撞
     // 确定需要检查的网格范围 (单位周围的 2x2 或 3x3 区域)
-    // MOVE_AIR的单位不参与
-
-    if ((p_unit.stats)->get_move_type() == MOVE_AIR) {
-        p_unit.position = next_pos;
-        return;
-    }
-
     Vector2i min_grid = flow_field_manager->world_to_grid(next_pos - Vector2(radius, radius));
     Vector2i max_grid = flow_field_manager->world_to_grid(next_pos + Vector2(radius, radius));
 
@@ -504,7 +507,7 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
     }
 }
 
-void UnitManager::update_selection_state_and_target_position(UnitData& p_unit, int p_group_id) {
+void UnitManager::update_selection_state_and_target_position(UnitData& p_unit) {
     switch (selection_manager->state) {
     case (selection_manager->NOT_SELECTING):
         break;
@@ -556,19 +559,10 @@ void UnitManager::update_selection_state_and_target_position(UnitData& p_unit, i
     case (selection_manager->SELECTING_TARGET_POSITION):
         if ((p_unit.is_selected) && (selection_manager->team_id == p_unit.team_id)) {
             Vector2i target_grid_pos = flow_field_manager->world_to_grid(selection_manager->mouse_position);
-            if ((p_unit.stats)->get_move_type() != MOVE_AIR) {
-                flow_field_manager->create_flow_field(target_grid_pos, false);
-            }
+            flow_field_manager->create_flow_field(target_grid_pos, false);
             p_unit.target_pos = selection_manager->mouse_position;
             p_unit.target_grid = target_grid_pos;
             p_unit.state = MOVING;
-
-            if (p_unit.temp_group_id != -1) {
-                // 这个函数会：1.从旧组ID列表移除自己(O(1)) 2.如果之前在移动，减少旧组计数
-                group_manager->remove_unit_from_temp_group(p_unit.temp_group_id, p_unit.id);
-            }
-            p_unit.temp_group_id = p_group_id;
-            group_manager->add_unit_to_temp_group(p_group_id, p_unit.id);
         }
         break;
     }
@@ -600,10 +594,6 @@ void UnitManager::set_flow_field_manager(Node* p_node) {
 
 void UnitManager::set_selection_manager(Node* p_node) {
     selection_manager = Object::cast_to<SelectionManager>(p_node);
-}
-
-void UnitManager::set_group_manager(Node* p_node) {
-    group_manager = Object::cast_to<GroupManager>(p_node);
 }
 
 void UnitManager::register_unit_type(String p_name, String p_path) {
@@ -658,69 +648,70 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     type_renderers[stats_ptr] = mmi;
 }
 
+<<<<<<< Updated upstream
 int UnitManager::spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_team_id) {
     if (unit_types_cache.has(p_type_name)) {
         return spawn_unit(p_pos, unit_types_cache[p_type_name], p_team_id);
+=======
+int UnitManager::spawn_unit_by_type(String p_type_name, Vector2 p_pos,int team_id) {
+    if (unit_types_cache.has(p_type_name)) {
+        return spawn_unit(p_pos, unit_types_cache[p_type_name], team_id);
+>>>>>>> Stashed changes
     }
     return -1;
 }
 
-void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_ids) {
-    if (p_index < 0 || p_index >= group_manager->MAX_CONTROL_GROUPS) return;
 
-    // 1. 清理旧单位的双向映射
-    for (int old_uid : group_manager->control_groups[p_index]) {
-        //之后写成函数
-        int index = -1;
-        auto it = id_to_index.find(old_uid);
-        if (it != id_to_index.end()) {
-            index = it->second;
-        }
-
-        UnitData& data = units[index];
-        // 从固定数组中移除索引
-        for (int i = 0; i < data.control_group_count; ++i) {
-            if (data.control_group_indices[i] == p_index) {
-                data.control_group_indices[i] = data.control_group_indices[data.control_group_count - 1];
-                data.control_group_count--;
-                break;
-            }
-        }
+int UnitManager::get_unit_index_by_id(int p_id) {
+    auto it = id_to_index.find(p_id);
+    if (it != id_to_index.end()) {
+        return it->second;
     }
+    return -1;
+}
 
-    // 2. 更新编队数据
-    group_manager->control_groups[p_index] = p_unit_ids;
-
-    // 3. 建立新单位的双向映射
-    for (int new_uid : p_unit_ids) {
-        //之后写成函数
-        int index = -1;
-        auto it = id_to_index.find(new_uid);
-        if (it != id_to_index.end()) {
-            index = it->second;
-        }
-
-        UnitData& data = units[index];
-        if (data.control_group_count < 3) { // 假设上限 3
-            data.control_group_indices[data.control_group_count++] = p_index;
-        }
+void UnitManager::set_attack_manager(Node* p_node) {
+    attack_manager = Object::cast_to<AttackManager>(p_node);
+    if (attack_manager) {
+        attack_manager->setup(this); // 初始化 AttackManager
     }
 }
 
 void UnitManager::_bind_methods() {
+    BIND_ENUM_CONSTANT(IDLE);
+    BIND_ENUM_CONSTANT(MOVING);
+
     ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &UnitManager::setup_system);
     ClassDB::bind_method(D_METHOD("spawn_unit", "world_position", "type", "team_id"), &UnitManager::spawn_unit);
+    ClassDB::bind_method(D_METHOD("spawn_unit_by_type", "type_name", "pos", "team_id"), &UnitManager::spawn_unit_by_type);
     ClassDB::bind_method(D_METHOD("command_units_to_move", "unit_ids", "target_world_pos"), &UnitManager::command_units_to_move);
+    ClassDB::bind_method(D_METHOD("command_units_to_patrol", "unit_ids", "waypoints"), &UnitManager::command_units_to_patrol);
     ClassDB::bind_method(D_METHOD("get_unit_position", "unit_id"), &UnitManager::get_unit_position);
     ClassDB::bind_method(D_METHOD("get_unit_state", "unit_id"), &UnitManager::get_unit_state);
     ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &UnitManager::set_flow_field_manager);
     ClassDB::bind_method(D_METHOD("set_selection_manager", "node"), &UnitManager::set_selection_manager);
+<<<<<<< Updated upstream
     ClassDB::bind_method(D_METHOD("set_group_manager", "node"), &UnitManager::set_group_manager);
+    ClassDB::bind_method(D_METHOD("set_attack_manager", "node"), &UnitManager::set_attack_manager);
+    ClassDB::bind_method(D_METHOD("register_unit_type", "name", "path"), &UnitManager::register_unit_type);
+   
+    
+=======
     ClassDB::bind_method(D_METHOD("register_unit_type", "name", "path"), &UnitManager::register_unit_type);
     ClassDB::bind_method(D_METHOD("spawn_unit_by_type", "type_name", "pos", "team_id"), &UnitManager::spawn_unit_by_type);
+>>>>>>> Stashed changes
 
     //调试
     // 1. 先绑定所有方法 (Getter/Setter)
+    ClassDB::bind_method(D_METHOD("get_unit_speed"), &UnitManager::get_unit_speed);
+    ClassDB::bind_method(D_METHOD("set_unit_speed", "p_val"), &UnitManager::set_unit_speed);
+
+    ClassDB::bind_method(D_METHOD("get_unit_radius"), &UnitManager::get_unit_radius);
+    ClassDB::bind_method(D_METHOD("set_unit_radius", "p_val"), &UnitManager::set_unit_radius);
+
+    ClassDB::bind_method(D_METHOD("get_unit_selection_radius"), &UnitManager::get_unit_selection_radius);
+    ClassDB::bind_method(D_METHOD("set_unit_selection_radius", "p_val"), &UnitManager::set_unit_selection_radius);
+
     ClassDB::bind_method(D_METHOD("get_flow_factor"), &UnitManager::get_flow_factor);
     ClassDB::bind_method(D_METHOD("set_flow_factor", "p_val"), &UnitManager::set_flow_factor);
 
@@ -750,6 +741,11 @@ void UnitManager::_bind_methods() {
 
     // 2. 注册属性到 Godot 属性面板
 
+    ADD_GROUP("Unit Defaults", "unit_");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "unit_speed"), "set_unit_speed", "get_unit_speed");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "unit_radius"), "set_unit_radius", "get_unit_radius");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "unit_selection_radius"), "set_unit_selection_radius", "get_unit_selection_radius");
+
     ADD_GROUP("Force Settings", "");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "flow_factor"), "set_flow_factor", "get_flow_factor");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "separation_factor"), "set_separation_factor", "get_separation_factor");
@@ -764,19 +760,6 @@ void UnitManager::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "desired_integration"), "set_desired_integration", "get_desired_integration");
 }
 
-int UnitManager::get_unit_index_by_id(int p_id) {
-    auto it = id_to_index.find(p_id);
-    if (it != id_to_index.end()) {
-        return it->second;
-    }
-    return -1;
-}
 
-void UnitManager::set_attack_manager(Node* p_node) {
-    attack_manager = Object::cast_to<AttackManager>(p_node);
-    if (attack_manager) {
-        attack_manager->setup(this); // 初始化 AttackManager
-    }
-}
 
 

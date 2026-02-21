@@ -7,8 +7,9 @@ func _ready() -> void:
 	var building_manager: BuildingManager = $BuildingManager
 	var flow_field_manager: FlowFieldManager = $FlowFieldManager
 	var selection_manager: SelectionManager = $SelectionManager
-	var group_manager: GroupManager = $GroupManager
+	# var group_manager: GroupManager = $GroupManager
 	var game_manager: GameManager = $GameManager
+	var attack_manager: AttackManager = $AttackManager
 	
 	var cell_size: Vector2i = tile_map_layer.tile_set.tile_size
 	var used_rect: Rect2i = tile_map_layer.get_used_rect()
@@ -20,7 +21,14 @@ func _ready() -> void:
 	game_manager.set_unit_manager(unit_manager)
 	game_manager.set_flow_field_manager(flow_field_manager)
 	game_manager.set_selection_manager(selection_manager)
+<<<<<<< Updated upstream
 	game_manager.set_group_manager(group_manager)
+	
+	unit_manager.set_attack_manager(attack_manager)
+=======
+#	game_manager.set_group_manager(group_manager)
+	game_manager.set_multimesh_instance(multi_mesh_instance_2d)
+>>>>>>> Stashed changes
 	
 	game_manager.setup_system(width, height, cell_size, grid_origin)
 	
@@ -43,10 +51,36 @@ func _ready() -> void:
 								continue
 				flow_field_manager.set_cost(coords, 1)
 	
+<<<<<<< Updated upstream
+	# 1. 获取你的 DebugDraw 节点
+	var debug_draw: Node2D = $DebugDraw 
+
+	unit_manager.register_unit_type("Fighter", "res://config/unit/fighter.txt")
+	unit_manager.register_unit_type("Tank", "res://config/unit/tank.txt")
+
+
+	# 2. 准备一个数组来存放生成的单位 ID
+	var active_unit_ids: Array = []
+
 	for x in range(10):
 		for y in range(10):
-			unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
-			unit_manager.spawn_unit_by_type("Tank", -32 * Vector2(x, y) + Vector2(1000, 1000), 1)
-			unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(3000, 3000), 2)
+			# 3. 接收生成的 ID
+			var id1 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
+			var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(3000, 3000), 2)
+
+			# 4. 存入数组
+			active_unit_ids.append(id1)
+			active_unit_ids.append(id2)
+
+	# 5. 把管理节点和 ID 列表传给画图脚本
+	if debug_draw != null:
+		debug_draw.unit_manager = unit_manager
+		debug_draw.unit_ids_to_draw = active_unit_ids
 	
+=======
+	for x in range(10):
+		for y in range(10):
+			unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 0)
+			unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
+>>>>>>> Stashed changes
 	
