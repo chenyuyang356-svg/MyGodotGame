@@ -8,15 +8,13 @@
 #include <godot_cpp/variant/vector2.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
 #include <godot_cpp/variant/array.hpp>
+#include <godot_cpp/classes/multi_mesh_instance2d.hpp>
 #include <godot_cpp/classes/multi_mesh.hpp>
 #include <godot_cpp/classes/quad_mesh.hpp>
 #include <godot_cpp/classes/shader_material.hpp>
 #include <godot_cpp/classes/shader.hpp>
 #include <godot_cpp/classes/texture2d.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
-
-#include <godot_cpp/classes/node3d.hpp>
-#include <godot_cpp/classes/multi_mesh_instance3d.hpp>
 
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/color.hpp>
@@ -30,8 +28,8 @@
 namespace godot {
 	class AttackManager; // 1. 前向声明
 
-	class UnitManager : public Node3D {
-		GDCLASS(UnitManager, Node3D)
+	class UnitManager : public Node2D {
+		GDCLASS(UnitManager, Node2D)
 
 		friend class GameManager;
 		friend class AttackManager;
@@ -104,17 +102,13 @@ namespace godot {
 		bool is_setup = false;
 
 		// 渲染器映射：每个 UnitStats 资源对应一个 MultiMeshInstance2D
-		std::unordered_map<UnitStats*, MultiMeshInstance3D*> type_renderers;
+		std::unordered_map<UnitStats*, MultiMeshInstance2D*> type_renderers;
 
 		// 分组缓存：每一帧将单位按 UnitStats 指针分组
 		std::unordered_map<UnitStats*, std::vector<int>> type_grouping_cache;
 
 		// 共享的 Shader 资源，避免每个类型都创建一个新的 Shader
 		Ref<Shader> unit_shader;
-
-		// 影子渲染器
-		std::unordered_map<UnitStats*, MultiMeshInstance3D*> shadow_renderers;
-		Ref<Shader> shadow_shader;
 
 		HashMap<String, Ref<UnitStats>> unit_types_cache;
 
