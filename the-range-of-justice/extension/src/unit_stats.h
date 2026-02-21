@@ -24,14 +24,12 @@ namespace godot {
         AttackType attack_type = ATTACK_PHYSICAL;
         float projectile_speed = 500.0f;
         TargetPriority target_priority = PRIORITY_CLOSEST;
+        bool can_fire_on_move = false;
 
         // --- 移动 ---
         float move_speed = 200.0f;
-        float acceleration = 1000.0f;      
         float turn_speed = 5.0f;
-        float turn_acceleration = 20.0f;
         float collision_radius = 10.0f;
-        float base_height = 0.0f;
         MoveType move_type = MOVE_GROUND;
 
         // --- 其他 ---
@@ -102,20 +100,11 @@ namespace godot {
         void set_move_speed(float p_value) { move_speed = p_value; }
         float get_move_speed() const { return move_speed; }
 
-        void set_acceleration(float p_val) { acceleration = p_val; }
-        float get_acceleration() const { return acceleration; }
-
         void set_turn_speed(float p_value) { turn_speed = p_value; }
         float get_turn_speed() const { return turn_speed; }
 
-        void set_turn_acceleration(float p_val) { turn_acceleration = p_val; }
-        float get_turn_acceleration() const { return turn_acceleration; }
-
         void set_collision_radius(float p_value) { collision_radius = p_value; }
         float get_collision_radius() const { return collision_radius; }
-
-        void set_base_height(float p_value) { base_height = p_value; }
-        float get_base_height() const { return base_height; }
 
         void set_move_type(MoveType p_value) { move_type = p_value; }
         MoveType get_move_type() const { return move_type; }
@@ -131,6 +120,9 @@ namespace godot {
 
         void set_build_time(float p_value) { build_time = p_value; }
         float get_build_time() const { return build_time; }
+
+        void set_can_fire_on_move(bool p_value) { can_fire_on_move = p_value; }
+        bool get_can_fire_on_move() const { return can_fire_on_move; }
 
         void set_unit_tags(BitField<UnitTag> p_value) { unit_tags = p_value; }
         BitField<UnitTag> get_unit_tags() const { return unit_tags; }
