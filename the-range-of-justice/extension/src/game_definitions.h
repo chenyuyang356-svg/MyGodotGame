@@ -40,7 +40,6 @@ namespace godot {
         TAG_SUMMONED = 1 << 2,
         TAG_HERO = 1 << 3
     };
-
 }
 
 // --- 2. 注册转换宏 (必须在 namespace 外面) ---

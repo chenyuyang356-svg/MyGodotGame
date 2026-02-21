@@ -1,6 +1,7 @@
 #pragma once
 #include "attack_manager.h"
 #include "unit_stats.h" 
+#include <godot_cpp/variant/utility_functions.hpp> 
 
 using namespace godot;
 
@@ -19,19 +20,26 @@ void AttackManager::update_units(double p_delta) {
     if (!unit_manager) return;
 
     for (int i = 0; i < unit_manager->units.size(); ++i) {
-        UnitData& unit = unit_manager->units[i];
+        UnitManager::UnitData& unit = unit_manager->units[i];
 
         // 1. 冷却逻辑
         if (unit.attack_cooldown > 0) unit.attack_cooldown -= p_delta;
 
         // 2. 状态分发
         switch (unit.state) {
+<<<<<<< Updated upstream
         case IDLE:      _handle_idle(unit); break;
         case CHASING:   _handle_chasing(unit); break;
         case ATTACKING: _handle_attacking(unit, p_delta); break;
-        case MOVING:
+        case MOVING: break;
+        case PATROLLING: _handle_patrolling(unit); break;
+=======
+        case UnitManager::IDLE:      _handle_idle(unit); break;
+        case UnitManager::CHASING:   _handle_chasing(unit); break;
+        case UnitManager::ATTACKING: _handle_attacking(unit, p_delta); break;
+        case UnitManager::MOVING:
+>>>>>>> Stashed changes
             // 可选：移动攻击 (Attack Move) 逻辑可以在这里加
-            break;
         }
     }
         // 3. 死亡清理
@@ -42,26 +50,30 @@ void AttackManager::update_units(double p_delta) {
     }
 }
 
-bool AttackManager::AttackManager::try_get_combat_force(UnitData& p_unit, Vector2& out_force) {
+bool AttackManager::AttackManager::try_get_combat_force(UnitManager::UnitData& p_unit, Vector2& out_force) {
     // 如果单位在追逐，应用“寻敌移动”力
-    if (p_unit.state == CHASING) {
+<<<<<<< Updated upstream
+    if (p_unit.state == CHASING || p_unit.state == PATROLLING) {
+=======
+    if (p_unit.state == UnitManager::CHASING) {
         // 目标位置已在 _handle_chasing 中更新到 p_unit.target_pos
+>>>>>>> Stashed changes
         Vector2 desired = (p_unit.target_pos - p_unit.position).normalized() * p_unit.stats->get_move_speed();
         Vector2 steering = (desired - p_unit.velocity);
-
-        // 加上分离力
         Vector2 separation = unit_manager->get_separation(p_unit) * unit_manager->get_separation_factor();
-
         out_force = steering + separation;
         return true;
     }
-        // 如果单位在攻击，应用“停止/摩擦”力
+<<<<<<< Updated upstream
     else if (p_unit.state == ATTACKING) {
+=======
+        // 如果单位在攻击，应用“停止/摩擦”力
+    else if (p_unit.state == UnitManager::ATTACKING) {
         // 攻击时停下
+>>>>>>> Stashed changes
         out_force = unit_manager->get_friction(p_unit) * unit_manager->get_friction_factor() * 2.0f;
         return true;
     }
-
     // 其他状态（IDLE, MOVING）不归战斗系统管
     return false;
 }
@@ -77,24 +89,58 @@ bool AttackManager::_is_target_valid(int p_target_id) {
     return true;
 }
 
+<<<<<<< Updated upstream
 void AttackManager::_handle_idle(UnitData& p_unit) {
+    // 空闲时尝试索敌（获取警戒范围内的最近目标）
+    float range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius();
+    if (_try_find_target(p_unit)) {
+        p_unit.state = ATTACKING; // 直接开火，不进入CHASING
+=======
+void AttackManager::_handle_idle(UnitManager::UnitData& p_unit) {
     // 空闲时尝试索敌
     if (_try_find_target(p_unit)) {
-        p_unit.state = CHASING;
+        p_unit.state = UnitManager::CHASING;
+>>>>>>> Stashed changes
     }
+
+        int target_idx = unit_manager->get_unit_index_by_id(p_unit.target_id);
+        if (target_idx != -1) {
+            UnitData& target = unit_manager->units[target_idx];
+            float dist_sq = p_unit.position.distance_squared_to(target.position);
+
+            // 计算实际的攻击距离（基础攻击距离 + 双方碰撞体积）
+            float atk_range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target.stats->get_collision_radius();
+
+            if (dist_sq <= atk_range * atk_range) {
+                // 如果最近的敌人在攻击范围内，直接进入攻击状态
+                p_unit.state = ATTACKING;
+            }
+            else {
+                // 如果虽然在警戒范围内，但超出了攻击范围
+                // 因为是 IDLE 状态“不会主动追击”，所以当做没看见，清除目标
+                p_unit.target_id = -1;
+            }
+        }
+        else {
+            p_unit.target_id = -1;
+        }
 }
 
-void AttackManager::_handle_chasing(UnitData& p_unit) {
+void AttackManager::_handle_chasing(UnitManager::UnitData& p_unit) {
     if (!_is_target_valid(p_unit.target_id)) {
-        p_unit.state = IDLE;
+<<<<<<< Updated upstream
+=======
+        p_unit.state = UnitManager::IDLE;
+>>>>>>> Stashed changes
         p_unit.target_id = -1;
+        p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE; // 回退状态
         return;
     }
 
     int target_idx = unit_manager->get_unit_index_by_id(p_unit.target_id);
-    UnitData& target = unit_manager->units[target_idx];
+    UnitManager::UnitData& target = unit_manager->units[target_idx];
 
-    // 更新目标位置，供 update_velocity 使用
+    // 更新目标位置，供 UnitManager::update_velocity 使用
     p_unit.target_pos = target.position;
 
     // 距离判断
@@ -102,23 +148,45 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
     float range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target.stats->get_collision_radius();
 
     if (dist_sq <= range * range) {
-        p_unit.state = ATTACKING;
+<<<<<<< Updated upstream
+        // 【修改】实现边跑边打逻辑
+        if (p_unit.stats->get_can_fire_on_move()) {
+            if (p_unit.attack_cooldown <= 0) {
+                _execute_attack(p_unit, target);
+                p_unit.attack_cooldown = p_unit.stats->get_attack_interval();
+            }
+        }
+        else {
+            p_unit.state = ATTACKING; // 传统定点攻击
+        }
+=======
+        p_unit.state = UnitManager::ATTACKING;
+>>>>>>> Stashed changes
     }
-    // 如果追太远了 (比如 2 倍警戒范围)，放弃追击
     else if (dist_sq > p_unit.stats->get_aggro_range() * p_unit.stats->get_aggro_range() * 4.0f) {
-        p_unit.state = IDLE;
+<<<<<<< Updated upstream
+        // 追太远了，放弃追击，恢复状态
+=======
+        p_unit.state = UnitManager::IDLE;
+>>>>>>> Stashed changes
         p_unit.target_id = -1;
+        p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE;
     }
 }
 
-void AttackManager::_handle_attacking(UnitData& p_unit, double p_delta) {
+void AttackManager::_handle_attacking(UnitManager::UnitData& p_unit, double p_delta) {
     if (!_is_target_valid(p_unit.target_id)) {
-        p_unit.state = IDLE;
+<<<<<<< Updated upstream
+        p_unit.target_id = -1;
+        p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE; // 目标死亡恢复状态
+=======
+        p_unit.state = UnitManager::IDLE;
+>>>>>>> Stashed changes
         return;
     }
 
     int target_idx = unit_manager->get_unit_index_by_id(p_unit.target_id);
-    UnitData& target = unit_manager->units[target_idx];
+    UnitManager::UnitData& target = unit_manager->units[target_idx];
 
     // 如果目标跑出攻击范围，转回追击
     float dist_sq = p_unit.position.distance_squared_to(target.position);
@@ -127,8 +195,20 @@ void AttackManager::_handle_attacking(UnitData& p_unit, double p_delta) {
     // 给一点容错空间 (buffer)，防止在临界点反复抽搐
     float buffer = 10.0f;
     if (dist_sq > (range + buffer) * (range + buffer)) {
+<<<<<<< Updated upstream
         p_unit.state = CHASING;
+
+    // 当目标无效（死亡或消失）时
+    if (!_is_target_valid(p_unit.target_id)) {
+        p_unit.target_id = -1;
+   // 如果身上带有巡逻标记，就回去继续巡逻，否则回退到 IDLE
+        p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE;
+=======
+        p_unit.state = UnitManager::CHASING;
+>>>>>>> Stashed changes
         return;
+        }
+    return;
     }
 
     // 执行攻击
@@ -138,8 +218,32 @@ void AttackManager::_handle_attacking(UnitData& p_unit, double p_delta) {
     }
 }
 
+void AttackManager::_handle_patrolling(UnitData& p_unit) {
+    // 1. 巡逻时主动寻找 aggro_range 范围内的敌人
+    if (_try_find_target(p_unit)) {
+        p_unit.state = CHASING;
+        return;
+    }
+
+    // 2. 没有敌人，沿着指定路径点移动
+    if (p_unit.patrol_waypoints.empty()) {
+        p_unit.is_patrolling = false;
+        p_unit.state = IDLE;
+        return;
+    }
+
+    Vector2 current_target = p_unit.patrol_waypoints[p_unit.current_waypoint_idx];
+    p_unit.target_pos = current_target;
+
+    // 检查是否到达当前巡逻点 (给予一点寻路容差)
+    float col_rad = p_unit.stats->get_collision_radius();
+    if (p_unit.position.distance_squared_to(current_target) < col_rad * col_rad * 4.0f) {
+        p_unit.current_waypoint_idx = (p_unit.current_waypoint_idx + 1) % p_unit.patrol_waypoints.size();
+    }
+}
+
 // 索敌逻辑：使用 UnitManager 的网格查询
-bool AttackManager::_try_find_target(UnitData& p_unit) {
+bool AttackManager::_try_find_target(UnitManager::UnitData& p_unit) {
     float range = p_unit.stats->get_aggro_range();
     std::vector<int> nearby = unit_manager->get_nearby_units(p_unit.position, range);
 
@@ -147,7 +251,7 @@ bool AttackManager::_try_find_target(UnitData& p_unit) {
     float min_dist_sq = range * range;
 
     for (int idx : nearby) {
-        UnitData& other = unit_manager->units[idx];
+        UnitManager::UnitData& other = unit_manager->units[idx];
 
         if (other.id == p_unit.id) continue;          // 不是自己
         if (other.team_id == p_unit.team_id) continue; // 不是友军
@@ -167,16 +271,18 @@ bool AttackManager::_try_find_target(UnitData& p_unit) {
     return false;
 }
 
-void AttackManager::_execute_attack(UnitData& attacker, UnitData& defender) {
+void AttackManager::_execute_attack(UnitManager::UnitData& attacker, UnitManager::UnitData& defender) {
     // 简单的伤害计算
     float dmg = attacker.stats->get_attack_damage();
     // 这里可以加减防逻辑: dmg -= defender.stats->get_armor()...
 
     defender.current_health -= dmg;
+    UtilityFunctions::print("单位 ", attacker.id, " 攻击了 ", defender.id, "，造成伤害:", dmg, " 剩余血量:", defender.current_health);
 
     // 简单的反击AI：如果不动且被打，就打回去
-    if (defender.state == IDLE && defender.target_id == -1) {
+    if (defender.state == UnitManager::IDLE && defender.target_id == -1) {
         defender.target_id = attacker.id;
-        defender.state = CHASING;
+        defender.state = UnitManager::CHASING;
     }
 }
+
