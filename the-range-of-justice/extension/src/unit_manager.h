@@ -94,6 +94,7 @@ namespace godot {
 		int spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id = 0);
 		void despawn_unit(int p_unit_id);
 		void command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos);
+		void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints);
 
 		// --- 空间网格核心操作 ---
 		void update_spatial_grid();
