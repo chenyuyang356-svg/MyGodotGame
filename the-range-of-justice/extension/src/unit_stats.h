@@ -24,6 +24,7 @@ namespace godot {
         AttackType attack_type = ATTACK_PHYSICAL;
         float projectile_speed = 500.0f;
         TargetPriority target_priority = PRIORITY_CLOSEST;
+        bool can_fire_on_move = false;
 
         // --- 移动 ---
         float move_speed = 200.0f;
@@ -131,6 +132,9 @@ namespace godot {
 
         void set_build_time(float p_value) { build_time = p_value; }
         float get_build_time() const { return build_time; }
+
+        void set_can_fire_on_move(bool p_value) { can_fire_on_move = p_value; }
+        bool get_can_fire_on_move() const { return can_fire_on_move; }
 
         void set_unit_tags(BitField<UnitTag> p_value) { unit_tags = p_value; }
         BitField<UnitTag> get_unit_tags() const { return unit_tags; }
