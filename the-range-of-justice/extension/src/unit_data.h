@@ -7,9 +7,8 @@ namespace godot {
     enum UnitState {
         IDLE,        // 待机
         MOVING,      // 移动中
-        CHASING,     // 追击中
-        ATTACKING,   // 攻击中
-        PATROLLING,  // 巡逻中
+        CHASING,
+        ATTACKING
     };
 
     struct UnitData {
@@ -37,10 +36,6 @@ namespace godot {
         int team_id = 0;
         int target_id = -1;
         float attack_cooldown = 0.1f;
-
-        bool is_patrolling = false;
-        std::vector<Vector2> patrol_waypoints;
-        int current_waypoint_idx = 0;
 
         UnitData() : id(-1), state(IDLE), current_health(0) {}
     };

@@ -91,35 +91,14 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
 
     for (int i = 0; i < p_unit_ids.size(); i++) {
         int uid = p_unit_ids[i];
+
+        // 使用哈希表直接定位
         auto it = id_to_index.find(uid);
         if (it != id_to_index.end()) {
             UnitData& unit = units[it->second];
-            unit.is_patrolling = false; // 被强制移动时打断巡逻
             unit.target_pos = p_target_world_pos;
             unit.target_grid = target_grid_pos;
             unit.state = MOVING;
-            unit.target_id = -1; // 放弃当前目标
-        }
-    }
-}
-
-void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints) {
-    std::vector<Vector2> waypoints;
-    for (int i = 0; i < p_waypoints.size(); ++i) {
-        waypoints.push_back(p_waypoints[i]);
-    }
-    if (waypoints.empty()) return;
-
-    for (int i = 0; i < p_unit_ids.size(); i++) {
-        int uid = p_unit_ids[i];
-        auto it = id_to_index.find(uid);
-        if (it != id_to_index.end()) {
-            UnitData& unit = units[it->second];
-            unit.is_patrolling = true;
-            unit.patrol_waypoints = waypoints;
-            unit.current_waypoint_idx = 0;
-            unit.state = PATROLLING;
-            unit.target_id = -1;
         }
     }
 }
@@ -326,8 +305,16 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     }
     
     float max_speed = (p_unit.stats)->get_move_speed();
-    p_unit.velocity += force * p_delta;
-    p_unit.velocity = p_unit.velocity.limit_length(max_speed);
+    switch (p_unit.state) {
+    case IDLE:
+        p_unit.velocity += force * p_delta;
+        p_unit.velocity = (p_unit.velocity).limit_length(max_speed);
+        break;
+    case MOVING:
+        p_unit.velocity += force * p_delta;
+        p_unit.velocity = (p_unit.velocity).limit_length(max_speed);
+        break;
+    }
 
     if ((p_unit.velocity).length_squared() < velocity_threshold_squared) {
         p_unit.velocity= Vector2(0, 0);
@@ -720,36 +707,17 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
     }
 }
 
-int UnitManager::get_unit_index_by_id(int p_id) {
-    auto it = id_to_index.find(p_id);
-    if (it != id_to_index.end()) {
-        return it->second;
-    }
-    return -1;
-}
-
-void UnitManager::set_attack_manager(Node* p_node) {
-    attack_manager = Object::cast_to<AttackManager>(p_node);
-    if (attack_manager) {
-        attack_manager->setup(this); // 初始化 AttackManager
-    }
-}
-
 void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &UnitManager::setup_system);
     ClassDB::bind_method(D_METHOD("spawn_unit", "world_position", "type", "team_id"), &UnitManager::spawn_unit);
-    ClassDB::bind_method(D_METHOD("spawn_unit_by_type", "type_name", "pos", "team_id"), &UnitManager::spawn_unit_by_type);
     ClassDB::bind_method(D_METHOD("command_units_to_move", "unit_ids", "target_world_pos"), &UnitManager::command_units_to_move);
-    ClassDB::bind_method(D_METHOD("command_units_to_patrol", "unit_ids", "waypoints"), &UnitManager::command_units_to_patrol);
     ClassDB::bind_method(D_METHOD("get_unit_position", "unit_id"), &UnitManager::get_unit_position);
     ClassDB::bind_method(D_METHOD("get_unit_state", "unit_id"), &UnitManager::get_unit_state);
     ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &UnitManager::set_flow_field_manager);
     ClassDB::bind_method(D_METHOD("set_selection_manager", "node"), &UnitManager::set_selection_manager);
     ClassDB::bind_method(D_METHOD("set_group_manager", "node"), &UnitManager::set_group_manager);
-    ClassDB::bind_method(D_METHOD("set_attack_manager", "node"), &UnitManager::set_attack_manager);
     ClassDB::bind_method(D_METHOD("register_unit_type", "name", "path"), &UnitManager::register_unit_type);
-   
-    
+    ClassDB::bind_method(D_METHOD("spawn_unit_by_type", "type_name", "pos", "team_id"), &UnitManager::spawn_unit_by_type);
 
     //调试
     // 1. 先绑定所有方法 (Getter/Setter)
@@ -796,6 +764,19 @@ void UnitManager::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "desired_integration"), "set_desired_integration", "get_desired_integration");
 }
 
+int UnitManager::get_unit_index_by_id(int p_id) {
+    auto it = id_to_index.find(p_id);
+    if (it != id_to_index.end()) {
+        return it->second;
+    }
+    return -1;
+}
 
+void UnitManager::set_attack_manager(Node* p_node) {
+    attack_manager = Object::cast_to<AttackManager>(p_node);
+    if (attack_manager) {
+        attack_manager->setup(this); // 初始化 AttackManager
+    }
+}
 
 
