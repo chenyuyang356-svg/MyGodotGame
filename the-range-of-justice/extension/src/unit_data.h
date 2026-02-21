@@ -16,8 +16,6 @@ namespace godot {
         int id;                 // 唯一标识符
         Vector2 position;       // 当前世界坐标
         Vector2 velocity;       // 当前速度向量
-        float rotation = 0.0f;          // 当前朝向 (弧度)
-        float angular_velocity = 0.0f;      // 当前角速度
         Vector2 target_pos;		// 目标的世界坐标
         Vector2i target_grid;   // 目标的网格坐标（与流场坐标一致，不同于unit_grid中的坐标）
 
@@ -28,7 +26,6 @@ namespace godot {
         bool is_mouse_on = false;
         float selection_radius;
         float current_health;
-        float height = 0.0f;
 
         float anim_time = 0.0f; // 累计播放时间
 

@@ -7,7 +7,6 @@
 #include "unit_loader.h"
 #include "game_manager.h"
 #include "attack_manager.h"
-#include "map_manager.h"
 
 #include <gdextension_interface.h>
 #include <godot_cpp/core/defs.hpp>
@@ -25,8 +24,7 @@ void initialize_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(BuildingManager);
 	GDREGISTER_CLASS(UnitStats);
 	GDREGISTER_CLASS(GameManager);
-	GDREGISTER_CLASS(AttackManager); 
-	GDREGISTER_CLASS(MapManager);
+	GDREGISTER_CLASS(godot::AttackManager); 
 }
 
 void uninitialize_module(ModuleInitializationLevel p_level) {
