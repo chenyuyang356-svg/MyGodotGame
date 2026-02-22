@@ -12,7 +12,7 @@ armor_type       = Light
 
 # --- Attack (攻击) ---
 attack_damage    = 6.0
-attack_range     = 150.0
+attack_range     = 1500.0
 attack_interval  = 0.86
 # 枚举可选: Physical, Magic, Siege
 attack_type      = Physical
@@ -34,7 +34,7 @@ move_type        = Ground
 
 # --- Vision (视野) ---
 sight_range      = 350.0
-aggro_range      = 300.0
+aggro_range      = 3000.0
 
 # --- Economy (经济) ---
 cost             = 50

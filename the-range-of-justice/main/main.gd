@@ -15,6 +15,9 @@ func _ready() -> void:
 	var width: int = used_rect.size.x
 	var height: int = used_rect.size.y
 	var grid_origin: Vector2i = used_rect.position
+	var attack_manager: AttackManager = $AttackManager
+	var debug_draw: Node2D = $DebugCanvas/DebugDraw
+	var main_camera: Camera3D = $Camera3D
 	
 	map_manager.load_from_tilemap(tile_map_layer)
 	tile_map_layer.hide()
@@ -24,6 +27,7 @@ func _ready() -> void:
 	game_manager.set_flow_field_manager(flow_field_manager)
 	game_manager.set_selection_manager(selection_manager)
 	game_manager.set_group_manager(group_manager)
+	unit_manager.set_attack_manager(attack_manager)
 	
 	game_manager.setup_system(width, height, cell_size, grid_origin)
 	
@@ -46,10 +50,19 @@ func _ready() -> void:
 								continue
 				flow_field_manager.set_cost(coords, 1)
 	
+	var active_unit_ids: Array = []
+	
 	for x in range(10):
 		for y in range(10):
-			unit_manager.spawn_unit_by_type("Tank", -32 * Vector2(x, y), 1)
-			unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
-			unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(3000, 3000), 2)
-	
+			var id1 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
+			var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(3000, 3000), 2)
+			
+			
+			active_unit_ids.append(id1)
+			active_unit_ids.append(id2)
+			
+	if debug_draw != null:
+		debug_draw.unit_manager = unit_manager
+		debug_draw.camera = main_camera
+		debug_draw.unit_ids_to_draw = active_unit_ids
 	

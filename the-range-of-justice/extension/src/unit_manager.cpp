@@ -95,11 +95,10 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
         auto it = id_to_index.find(uid);
         if (it != id_to_index.end()) {
             UnitData& unit = units[it->second];
-            unit.is_patrolling = false; // è¢«å¼ºåˆ¶ç§»åŠ¨æ—¶æ‰“æ–­å·¡é€»
-            unit.target_pos = p_target_world_pos;
+            unit.is_patrolling = false;      
             unit.target_grid = target_grid_pos;
             unit.state = MOVING;
-            unit.target_id = -1; // æ”¾å¼ƒå½“å‰ç›®æ ‡
+            unit.target_id = -1;
         }
     }
 }
@@ -869,8 +868,25 @@ int UnitManager::get_unit_index_by_id(int p_id) {
 void UnitManager::set_attack_manager(Node* p_node) {
     attack_manager = Object::cast_to<AttackManager>(p_node);
     if (attack_manager) {
-        attack_manager->setup(this); // åˆå§‹åŒ– AttackManager
+        attack_manager->setup(this); // åˆå§‹åŒ?AttackManager
     }
+}
+
+float UnitManager::get_unit_aggro_range(int p_unit_id) const {
+    auto it = id_to_index.find(p_unit_id);
+    if (it != id_to_index.end()) {
+        // Ö±½Ó´Óµ¥Î»µÄ stats ÖĞ¶ÁÈ¡¼ÓÔØºÃµÄÕæÊµÅäÖÃ
+        return units[it->second].stats->get_aggro_range();
+    }
+    return 0.0f;
+}
+
+float UnitManager::get_unit_attack_range(int p_unit_id) const {
+    auto it = id_to_index.find(p_unit_id);
+    if (it != id_to_index.end()) {
+        return units[it->second].stats->get_attack_range();
+    }
+    return 0.0f;
 }
 
 void UnitManager::_bind_methods() {
@@ -886,7 +902,8 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_group_manager", "node"), &UnitManager::set_group_manager);
     ClassDB::bind_method(D_METHOD("set_attack_manager", "node"), &UnitManager::set_attack_manager);
     ClassDB::bind_method(D_METHOD("register_unit_type", "name", "path"), &UnitManager::register_unit_type);
-   
+    ClassDB::bind_method(D_METHOD("get_unit_aggro_range", "unit_id"), &UnitManager::get_unit_aggro_range);
+    ClassDB::bind_method(D_METHOD("get_unit_attack_range", "unit_id"), &UnitManager::get_unit_attack_range);
     
 
     //µ÷ÊÔ

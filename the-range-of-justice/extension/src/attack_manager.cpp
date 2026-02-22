@@ -43,7 +43,7 @@ void AttackManager::update_units(double p_delta) {
     }
 }
 
-bool AttackManager::AttackManager::try_get_combat_force(UnitData& p_unit, Vector2& out_force) {
+bool AttackManager::try_get_combat_force(UnitData& p_unit, Vector2& out_force) {
     // 如果单位在追逐，应用“寻敌移动”力
     if (p_unit.state == CHASING || p_unit.state == PATROLLING) {
         Vector2 desired = (p_unit.target_pos - p_unit.position).normalized() * p_unit.stats->get_move_speed();

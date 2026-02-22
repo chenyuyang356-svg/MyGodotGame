@@ -124,6 +124,8 @@ namespace godot {
 
 		// 获取数据供 Godot 渲染
 		Vector2 get_unit_position(int p_unit_id) const;
+		float get_unit_aggro_range(int p_unit_id) const;
+		float get_unit_attack_range(int p_unit_id) const;
 		int get_unit_state(int p_unit_id) const;
 		void set_flow_field_manager(Node* p_node);
 		void set_selection_manager(Node* p_node);
