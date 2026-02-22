@@ -23,9 +23,9 @@ target_priority  = Closest
 
 # --- Movement (移动与碰撞) ---
 move_speed       = 250.0
-acceleration     = 150.0
-turn_speed       = 0.8
-turn_acceleration= 1.0
+acceleration     = 1000.0
+turn_speed       = 2.0
+turn_acceleration= 10.0
 # [关键] 碰撞半径
 collision_radius = 30.0
 base_height = 50.0
