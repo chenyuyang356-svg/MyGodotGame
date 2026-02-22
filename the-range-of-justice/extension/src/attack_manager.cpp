@@ -35,12 +35,6 @@ void AttackManager::update_units(double p_delta) {
             // 可选：移动攻击 (Attack Move) 逻辑可以在这里加
         }
     }
-        // 3. 死亡清理
-    for (int i = unit_manager->units.size() - 1; i >= 0; --i) {
-        if (unit_manager->units[i].current_health <= 0) {
-            unit_manager->despawn_unit(unit_manager->units[i].id);
-        }
-    }
 }
 
 bool AttackManager::AttackManager::try_get_combat_force(UnitData& p_unit, Vector2& out_force) {

@@ -9,6 +9,7 @@ func _ready() -> void:
 	var selection_manager: SelectionManager = $SelectionManager
 	var group_manager: GroupManager = $GroupManager
 	var game_manager: GameManager = $GameManager
+	var attack_maanger: AttackManager = $AttackManager
 	
 	var cell_size: Vector2i = tile_map_layer.tile_set.tile_size
 	var used_rect: Rect2i = tile_map_layer.get_used_rect()
@@ -24,6 +25,7 @@ func _ready() -> void:
 	game_manager.set_flow_field_manager(flow_field_manager)
 	game_manager.set_selection_manager(selection_manager)
 	game_manager.set_group_manager(group_manager)
+	unit_manager.set_attack_manager(attack_maanger)
 	
 	game_manager.setup_system(width, height, cell_size, grid_origin)
 	
@@ -37,6 +39,7 @@ func _ready() -> void:
 			if data == null or data.get_custom_data("IsWall"):
 				flow_field_manager.set_cost(coords, 255)
 			else:
+				flow_field_manager.set_cost(coords, 1)
 				for dx in range(-1, 2):
 					for dy in range(-1, 2):
 						if Vector2i(dx, dy) != Vector2i.ZERO:
@@ -44,7 +47,6 @@ func _ready() -> void:
 							if neighbor_data == null or neighbor_data.get_custom_data("IsWall"):
 								flow_field_manager.set_cost(coords, 30)
 								continue
-				flow_field_manager.set_cost(coords, 1)
 	
 	for x in range(10):
 		for y in range(10):
