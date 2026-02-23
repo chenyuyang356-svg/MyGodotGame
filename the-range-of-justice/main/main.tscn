@@ -4,7 +4,7 @@
 [ext_resource type="Texture2D" uid="uid://b5homoc2mg5u0" path="res://asset/Tileset.png" id="1_53q0u"]
 [ext_resource type="Script" uid="uid://dctuafq0a0mpn" path="res://main/building_manager.gd" id="3_kfbq2"]
 [ext_resource type="Script" uid="uid://cxdwnig240dls" path="res://main/selection_manager.gd" id="4_3wy1v"]
-[ext_resource type="Script" uid="uid://3bqvng8q6y28" path="res://main/camera_3d.gd" id="5_3wy1v"]
+[ext_resource type="Script" path="res://main/camera_3d.gd" id="5_3wy1v"]
 [ext_resource type="Script" uid="uid://rcx1w1scq2ev" path="res://main/debug_draw.gd" id="6_kfbq2"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_3wy1v"]
@@ -44,11 +44,6 @@ friction_factor = 15.0
 force_threshold_squared = 0.0
 desired_integration = 1.0
 
-[node name="BuildingManager" type="BuildingManager" parent="." unique_id=2078401615 node_paths=PackedStringArray("flow_field_manager", "unit_manager")]
-script = ExtResource("3_kfbq2")
-flow_field_manager = NodePath("../FlowFieldManager")
-unit_manager = NodePath("../UnitManager")
-
 [node name="Camera3D" type="Camera3D" parent="." unique_id=217203825]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 1000, 0)
 projection = 1
@@ -59,7 +54,13 @@ script = ExtResource("4_3wy1v")
 building_manager = NodePath("../BuildingManager")
 camera_3d = NodePath("../Camera3D")
 
+[node name="BuildingManager" type="BuildingManager" parent="." unique_id=2078401615 node_paths=PackedStringArray("camera", "flow_field_manager")]
+script = ExtResource("3_kfbq2")
+camera = NodePath("../Camera3D")
+flow_field_manager = NodePath("../FlowFieldManager")
+
 [node name="DebugCanvas" type="CanvasLayer" parent="." unique_id=800377856]
 
 [node name="DebugDraw" type="Node2D" parent="DebugCanvas" unique_id=1412301083]
 script = ExtResource("6_kfbq2")
+show_debug = false

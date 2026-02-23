@@ -878,14 +878,14 @@ int UnitManager::get_unit_index_by_id(int p_id) {
 void UnitManager::set_attack_manager(Node* p_node) {
     attack_manager = Object::cast_to<AttackManager>(p_node);
     if (attack_manager) {
-        attack_manager->setup(this); // åˆå§‹åŒ?AttackManager
+        attack_manager->setup(this); // åˆå§‹ï¿½?AttackManager
     }
 }
 
 float UnitManager::get_unit_aggro_range(int p_unit_id) const {
     auto it = id_to_index.find(p_unit_id);
     if (it != id_to_index.end()) {
-        // Ö±½Ó´Óµ¥Î»µÄ stats ÖĞ¶ÁÈ¡¼ÓÔØºÃµÄÕæÊµÅäÖÃ
+        // Ö±ï¿½Ó´Óµï¿½Î»ï¿½ï¿½ stats ï¿½Ğ¶ï¿½È¡ï¿½ï¿½ï¿½ØºÃµï¿½ï¿½ï¿½Êµï¿½ï¿½ï¿½ï¿½
         return units[it->second].stats->get_aggro_range();
     }
     return 0.0f;

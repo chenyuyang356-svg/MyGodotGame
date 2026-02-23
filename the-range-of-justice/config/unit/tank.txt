@@ -3,7 +3,7 @@
 #########################################
 
 # --- Survival (生存) ---
-health_max       = 45.0
+health_max       = 90.0
 health_regen     = 0.5
 shield_max       = 0.0
 shield_regen     = 0.0
@@ -12,7 +12,7 @@ armor_type       = Light
 
 # --- Attack (攻击) ---
 attack_damage    = 6.0
-attack_range     = 1500.0
+attack_range     = 1500
 attack_interval  = 0.86
 # 枚举可选: Physical, Magic, Siege
 attack_type      = Physical
