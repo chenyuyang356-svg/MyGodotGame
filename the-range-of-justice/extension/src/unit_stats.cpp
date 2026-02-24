@@ -62,11 +62,8 @@ void UnitStats::_bind_methods() {
 
     ClassDB::bind_method(D_METHOD("set_attack_interval", "value"), &UnitStats::set_attack_interval);
     ClassDB::bind_method(D_METHOD("get_attack_interval"), &UnitStats::get_attack_interval);
+    // [修复] suffix:s 放入引号内
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "attack_interval", PROPERTY_HINT_RANGE, "0.01,10,0.01,suffix:s"), "set_attack_interval", "get_attack_interval");
-
-    ClassDB::bind_method(D_METHOD("set_can_fire_on_move", "p_value"), &UnitStats::set_can_fire_on_move);
-    ClassDB::bind_method(D_METHOD("get_can_fire_on_move"), &UnitStats::get_can_fire_on_move);
-    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "can_fire_on_move"), "set_can_fire_on_move", "get_can_fire_on_move");
 
     ClassDB::bind_method(D_METHOD("set_attack_type", "value"), &UnitStats::set_attack_type);
     ClassDB::bind_method(D_METHOD("get_attack_type"), &UnitStats::get_attack_type);
@@ -173,4 +170,3 @@ void UnitStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_anim_fps", "p_val"), &UnitStats::set_anim_fps);
     ADD_PROPERTY(PropertyInfo(Variant::INT, "anim_fps"), "set_anim_fps", "get_anim_fps");
 }
-

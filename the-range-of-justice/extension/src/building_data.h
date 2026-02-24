@@ -4,6 +4,11 @@
 #include "building_stats.h"
 
 namespace godot {
+    enum class BuildingState {
+        BUILDING,
+        IDLE,
+        WORKING
+    };
 
     struct BuildingData {
         int id;
@@ -11,6 +16,8 @@ namespace godot {
         Ref<BuildingStats> stats;
         int team_id;
         float current_health;
+        float anim_time = 0.0f;
+        BuildingState state = BuildingState::BUILDING;
     };
 
 }
