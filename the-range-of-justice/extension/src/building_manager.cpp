@@ -108,9 +108,12 @@ void BuildingManager::register_building_type(String p_name, String p_path) {
 
     Ref<QuadMesh> qmesh;
     qmesh.instantiate();
-    Vector2i fp = stats->get_footprint();
-    // 假设网格尺寸为 32x32，你可以根据 flow_field_manager 获取
-    qmesh->set_size(Vector2(fp.x * 32.0f, fp.y * 32.0f));
+
+    Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(stats->get_texture_path());
+    if (tex.is_valid()) {
+        Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
+        qmesh->set_size(frame_size);
+    }
     mm->set_mesh(qmesh);
     mmi->set_multimesh(mm);
 
@@ -121,7 +124,6 @@ void BuildingManager::register_building_type(String p_name, String p_path) {
         building_shader = ResourceLoader::get_singleton()->load("res://shader/unit_shader.gdshader");
     }
     mat->set_shader(building_shader);
-    Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(stats->get_texture_path());
     mat->set_shader_parameter("albedo_texture", tex);
     mat->set_shader_parameter("h_frames", stats->get_h_frames());
     mat->set_shader_parameter("v_frames", stats->get_v_frames());

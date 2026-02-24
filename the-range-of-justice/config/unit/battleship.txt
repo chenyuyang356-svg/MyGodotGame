@@ -1,0 +1,57 @@
+#########################################
+# 战列舰单位配置文件 (Marine)
+#########################################
+
+# --- Survival (生存) ---
+health_max       = 90.0
+health_regen     = 0.5
+shield_max       = 0.0
+shield_regen     = 0.0
+# 枚举可选: Light, Heavy, Building, Hero
+armor_type       = Light
+
+# --- Attack (攻击) ---
+attack_damage    = 6.0
+attack_range     = 1500
+attack_interval  = 0.86
+# 枚举可选: Physical, Magic, Siege
+attack_type      = Physical
+projectile_speed = 800.0
+splash_radius    = 0.0
+# 枚举可选: Closest, Lowest_hp, Highest_value
+target_priority  = Closest
+
+# --- Movement (移动与碰撞) ---
+move_speed       = 150.0
+acceleration     = 80.0
+turn_speed       = 0.7
+turn_acceleration= 1.0
+# [关键] 碰撞半径
+collision_radius = 48.0
+# 枚举可选: Ground, Air, Sea, Hover
+base_height = 0.0
+move_type        = Sea
+
+# --- Vision (视野) ---
+sight_range      = 350.0
+aggro_range      = 3000.0
+
+# --- Economy (经济) ---
+cost             = 50
+build_time       = 12.5
+
+# --- Misc (其他/标签) ---
+# 支持逗号分隔的多个标签
+unit_tags        = Biological
+
+# 渲染基础
+texture_path = res://asset/海上单位03.png
+h_frames = 1
+v_frames = 2
+
+# 状态机动画定义
+idle_row = 0
+idle_frames = 1
+move_row = 1
+move_frames = 1
+anim_fps = 10

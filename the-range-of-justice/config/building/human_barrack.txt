@@ -5,7 +5,7 @@
 
 [Identity]
 # 建筑名称
-name=HumanBarrack
+building_name=HumanBarrack
 # 建筑类型: Generic, Barracks, Turret, Collector, Storage (对应枚举 BuildingType)
 building_type=Barracks
 
@@ -27,7 +27,7 @@ clearance=3,3
 
 [Visuals]
 # 纹理文件路径
-texture_path=res://icon.svg
+texture_path=res://asset/建筑01改1.png
 # 图集分栏 (整个贴图有多少列和多少行)
 h_frames=1
 # 图集分栏

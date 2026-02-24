@@ -398,7 +398,7 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
         for (int other_idx : nearby) {
             UnitData& other = units[other_idx];
             if (other.id == p_unit.id) continue;
-            if (other.state == IDLE && p_unit.temp_group_id != -1) continue;
+            if (0 && other.state == IDLE && p_unit.temp_group_id != -1) continue;
             if ((p_unit.stats->move_type == MOVE_AIR) && (other.stats->move_type != MOVE_AIR) ||
                 (p_unit.stats->move_type != MOVE_AIR) && (other.stats->move_type == MOVE_AIR)) {
                 continue;

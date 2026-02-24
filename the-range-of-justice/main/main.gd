@@ -34,6 +34,7 @@ func _ready() -> void:
 	
 	unit_manager.register_unit_type("Tank", "res://config/unit/tank.txt")
 	unit_manager.register_unit_type("Fighter", "res://config/unit/fighter.txt")
+	unit_manager.register_unit_type("Battleship", "res://config/unit/battleship.txt")
 	
 	for x in range(used_rect.position.x, used_rect.end.x):
 		for y in range(used_rect.position.y, used_rect.end.y):
@@ -57,6 +58,8 @@ func _ready() -> void:
 		for y in range(10):
 			var id1 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
 			var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(3000, 3000), 2)
+			var id3 = unit_manager.spawn_unit_by_type("Tank", -32 * Vector2(x, y), 1)
+			var id4 = unit_manager.spawn_unit_by_type("Battleship", -32 * Vector2(x, y) + 256 * Vector2(-36, -7), 1)
 			
 			
 			active_unit_ids.append(id1)
