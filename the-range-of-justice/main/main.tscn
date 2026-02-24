@@ -71,3 +71,4 @@ offset_bottom = 40.0
 
 [node name="DebugDraw" type="Node2D" parent="DebugCanvas" unique_id=1412301083]
 script = ExtResource("6_kfbq2")
+show_debug = false
