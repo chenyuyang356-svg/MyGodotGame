@@ -20,7 +20,6 @@ namespace godot {
         float angular_velocity = 0.0f;      // 当前角速度
         Vector2 target_pos;		// 目标的世界坐标
         Vector2i target_grid;   // 目标的网格坐标（与流场坐标一致，不同于unit_grid中的坐标）
-        bool is_manual_target = false;
 
         Ref<UnitStats> stats;
 

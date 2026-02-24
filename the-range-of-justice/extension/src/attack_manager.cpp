@@ -124,14 +124,8 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
             p_unit.state = ATTACKING; // 传统定点攻击
         }
     }
-
     else if (dist_sq > p_unit.stats->get_aggro_range() * p_unit.stats->get_aggro_range() * 4.0f) {
         // 追太远了，放弃追击，恢复状态
-        p_unit.target_id = -1;
-        p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE;
-    }
-
-    else if (!p_unit.is_manual_target && dist_sq > p_unit.stats->get_aggro_range() * p_unit.stats->get_aggro_range() * 4.0f) {
         p_unit.target_id = -1;
         p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE;
     }
@@ -221,7 +215,6 @@ bool AttackManager::_try_find_target(UnitData& p_unit) {
 
     if (best_target != -1) {
         p_unit.target_id = best_target;
-        p_unit.is_manual_target = false;
         return true;
     }
     return false;
