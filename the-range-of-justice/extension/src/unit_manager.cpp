@@ -42,11 +42,11 @@ int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_t
     new_unit.id = next_unit_id++;
     new_unit.position = p_world_pos;
     new_unit.height = p_stats->base_height;
-    new_unit.stats = p_stats; // ´æÈëÒıÓÃ
+    new_unit.stats = p_stats; //         
 
-    new_unit.team_id = p_team_id; // ¸³ÖµÕóÓª
+    new_unit.team_id = p_team_id; //   Öµ  Óª
 
-    // ´Ó×ÊÔ´ÖĞ³õÊ¼»¯ÊµÊ±ÊıÖµ
+    //     Ô´ Ğ³ Ê¼  ÊµÊ±  Öµ
     new_unit.current_health = p_stats->get_health_max();
     new_unit.state = IDLE;
 
@@ -66,17 +66,17 @@ void UnitManager::despawn_unit(int p_unit_id) {
     group_manager->handle_unit_death(p_unit_id, unit_to_remove.temp_group_id, unit_to_remove.control_group_indices, unit_to_remove.control_group_count);
 
     if (index_to_remove != last_unit_idx) {
-        // 1. »ñÈ¡×îºóÒ»¸öµ¥Î»µÄÊı¾İ
+        // 1.   È¡   Ò»    Î»      
         UnitData& last_unit = units.back();
 
-        // 2. ½«×îºóÒ»¸öµ¥Î»ÒÆ¶¯µ½ÒªÉ¾³ıµÄÎ»ÖÃ
+        // 2.      Ò»    Î» Æ¶   ÒªÉ¾    Î»  
         units[index_to_remove] = last_unit;
 
-        // 3. ¸üĞÂ±»ÒÆ¶¯µ¥Î»ÔÚ¹şÏ£±íÖĞµÄË÷Òı
+        // 3.    Â±  Æ¶   Î» Ú¹ Ï£   Ğµ     
         id_to_index[last_unit.id] = index_to_remove;
     }
 
-    // 4. É¾³ı vector ×îºóÒ»¸öÔªËØ£¬²¢´Ó¹şÏ£±íÖĞÒÆ³ıÄ¿±ê ID
+    // 4. É¾   vector    Ò»  Ôª Ø£    Ó¹ Ï£     Æ³ Ä¿   ID
     units.pop_back();
     id_to_index.erase(p_unit_id);
 }
@@ -99,7 +99,11 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
             unit.target_grid = target_grid_pos;
             unit.state = MOVING;
             unit.target_id = -1;
+            unit.is_patrolling = false;
+            unit.is_manual_target = false;   
+            unit.target_id = -1;
         }
+        
     }
 }
 
@@ -119,8 +123,12 @@ void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints) {
             unit.patrol_waypoints = waypoints;
             unit.current_waypoint_idx = 0;
             unit.state = PATROLLING;
+            unit.target_id = -1; 
+            unit.is_patrolling = true;
+            unit.is_manual_target = false; 
             unit.target_id = -1;
         }
+       
     }
 }
 
@@ -131,7 +139,6 @@ void UnitManager::update_spatial_grid() {
     for (int i = 0; i < units.size(); ++i) {
         Vector2i rel_pos = flow_field_manager->world_to_relative(units[i].position);
 
-        // Ëõ·Åµ½µ¥Î»Íø¸ñ£¨µ¥Î»Íø¸ñ³ß´çÊÇÁ÷³¡µÄ 2 ±¶£©
         int ux = rel_pos.x / 2;
         int uy = rel_pos.y / 2;
 
@@ -150,7 +157,7 @@ std::vector<int> UnitManager::get_nearby_units(Vector2 p_world_pos, float p_radi
     int dx = int(p_radius / unit_grid_cell_size.x) + 1;
     int dy = int(p_radius / unit_grid_cell_size.y) + 1;
 
-    // ¼ì²é 3x3 ·¶Î§ÄÚµÄ¸ñ×Ó
+    //     3x3   Î§ ÚµÄ¸   
     for (int nx = ux - dx; nx <= ux + dx; ++nx) {
         for (int ny = uy - dy; ny <= uy + dy; ++ny) {
             if (nx >= 0 && nx < unit_grid_width && ny >= 0 && ny < unit_grid_height) {
@@ -312,12 +319,12 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     Vector2 force = get_force(p_unit);
     bool is_combat_controlled = false;
 
-    // Ñ¯ÎÊ AttackManager ÊÇ·ñ½Ó¹Ü´Ëµ¥Î»µÄÎïÀí
+    // Ñ¯   AttackManager  Ç· Ó¹Ü´Ëµ Î»      
     if (attack_manager) {
         is_combat_controlled = attack_manager->try_get_combat_force(p_unit, force);
     }
 
-    // Èç¹ûÃ»ÓĞ±»Õ½¶·ÏµÍ³½Ó¹Ü£¬ÔòÊ¹ÓÃÄ¬ÈÏµÄÁ÷³¡ÒÆ¶¯Âß¼­
+    //    Ã» Ğ± Õ½  ÏµÍ³ Ó¹Ü£   Ê¹  Ä¬ Ïµ      Æ¶  ß¼ 
     if (!is_combat_controlled) {
         force = get_force(p_unit);
     }
@@ -334,13 +341,13 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
         float target_angle = desired_velocity.angle();
         float angle_diff = UtilityFunctions::angle_difference(p_unit.rotation, target_angle);
 
-        // ×ªÏò¼ÓËÙ¶ÈÂß¼­
+        // ×ª    Ù¶  ß¼ 
         float turn_accel = p_unit.stats->get_turn_acceleration();
         float max_turn_v = p_unit.stats->get_turn_speed();
 
-        // ¼òµ¥µÄ×ªÏò PD ¿ØÖÆ»ò¼ÓËÙ¶ÈÄ£Äâ
+        //  òµ¥µ ×ª   PD    Æ»   Ù¶ Ä£  
         float target_angular_v = Math::sign(angle_diff) * max_turn_v;
-        // Èç¹û½Ó½üÄ¿±ê½Ç¶È£¬¼õËÙÒÔ·ÀÖ¹Õğµ´
+        //     Ó½ Ä¿  Ç¶È£      Ô· Ö¹  
         if (Math::abs(angle_diff) < 0.5f) {
             target_angular_v = (angle_diff / 0.5f) * max_turn_v;
         }
@@ -352,7 +359,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
         );
     }
     else {
-        // Í£Ö¹Ê±½ÇËÙ¶È¹éÁã
+        // Í£Ö¹Ê±   Ù¶È¹   
         p_unit.angular_velocity = UtilityFunctions::move_toward(p_unit.angular_velocity, 0.0f, p_unit.stats->get_turn_acceleration() * p_delta);
     }
 
@@ -365,10 +372,10 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
         forward_dot = Math::max(0.0f, forward_vec.dot(desired_velocity.normalized()));
     }
 
-    // ÏŞÖÆ£º×ªÏòÊ±ËÙ¶È»á½µµÍ (¸ù¾İ dot ³Ë»ı£¬0.5 ±íÊ¾Æ«Àë 60 ¶ÈÊ±¼ÓËÙ¶È¼õ°ë)
+    //    Æ£ ×ª  Ê± Ù¶È»á½µ   (     dot  Ë»   0.5   Ê¾Æ«   60   Ê±   Ù¶È¼   )
     float current_accel = accel * (0.5f + 0.5f * forward_dot);
 
-    // Ó¦ÓÃ¼ÓËÙ¶È
+    // Ó¦ Ã¼  Ù¶ 
     p_unit.velocity = p_unit.velocity.move_toward(desired_velocity, current_accel * p_delta);
 
     if ((p_unit.velocity).length_squared() < velocity_threshold_squared) {
@@ -379,13 +386,13 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
 void UnitManager::move(UnitData& p_unit, double p_delta) {
     if (!flow_field_manager) return;
 
-    // ¼ÆËãÔ¤²âÎ»ÖÃ
+    //     Ô¤  Î»  
     Vector2 next_pos = p_unit.position + p_unit.velocity * p_delta;
     float radius = (p_unit.stats)->get_collision_radius();
     Vector2i cell_size = flow_field_manager->get_cell_size();
 
-    // ´¦Àíµ¥Î»¼äµÄ¡°Ó²ĞŞÕı¡±£¨·ÀÖ¹ÖØµş£©
-    // IDLEÇÒ´¦ÓÚtemp_groupÖĞµÄµ¥Î»²»²ÎÓë
+    //      Î»  Ä¡ Ó²          Ö¹ Øµ   
+    // IDLE Ò´   temp_group ĞµÄµ Î»      
     if (1 || p_unit.state != IDLE || p_unit.temp_group_id == -1) {
         std::vector<int> nearby = get_nearby_units(next_pos, radius * 2.0f);
         for (int other_idx : nearby) {
@@ -406,21 +413,21 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
                 float overlap = min_dist - dist;
                 Vector2 resolve_dir = to_other / dist;
 
-                // ¹Ø¼üµã£ºÖ»ÍÆ¿ªÖØµş²¿·ÖµÄÒ»Ğ¡²¿·Ö£¨ÀıÈç 40%£©£¬·ÀÖ¹²úÉú¾çÁÒ¶¶¶¯
-                // Èç¹ûÁ½¸öµ¥Î»¶¼ÔÚÒÆ¶¯£¬¸÷ÍÆÒ»°ë
+                //  Ø¼  ã£ºÖ» Æ¿  Øµ    Öµ Ò»Ğ¡   Ö£      40%      Ö¹       Ò¶   
+                //          Î»     Æ¶       Ò»  
                 float push_strength = 0.4f;
                 Vector2 push_vector = resolve_dir * (overlap * push_strength);
 
                 next_pos -= push_vector;
-                // Ò²¿ÉÒÔË³±ã¸ø¶Ô·½Ò»¸ö·´ÏòµÄÍÆÁ¦£¬µ«ÎªÁËÂß¼­¼òµ¥£¬
-                // Ã¿Ò»¸öµ¥Î»ÔÚ×Ô¼ºµÄ move Ñ­»·Àï´¦Àí±»ÍÆ¿ª¼´¿É
+                // Ò²    Ë³    Ô· Ò»               Îª   ß¼  òµ¥£ 
+                // Ã¿Ò»    Î»   Ô¼    move Ñ­   ï´¦    Æ¿     
             }
         }
     }
 
-    // ´¦ÀíÇ½ÌåÅö×²
-    // È·¶¨ĞèÒª¼ì²éµÄÍø¸ñ·¶Î§ (µ¥Î»ÖÜÎ§µÄ 2x2 »ò 3x3 ÇøÓò)
-    // MOVE_AIRµÄµ¥Î»²»²ÎÓë
+    //     Ç½    ×²
+    // È·    Òª        Î§ (  Î»  Î§   2x2    3x3     )
+    // MOVE_AIR Äµ Î»      
 
     if ((p_unit.stats)->get_move_type() == MOVE_AIR) {
         p_unit.position = next_pos;
@@ -430,31 +437,31 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
     Vector2i min_grid = flow_field_manager->world_to_grid(next_pos - Vector2(radius, radius));
     Vector2i max_grid = flow_field_manager->world_to_grid(next_pos + Vector2(radius, radius));
 
-    // ±éÀú·¶Î§ÄÚµÄ¸ñ×Ó½øĞĞÅö×²´¦Àí
+    //       Î§ ÚµÄ¸  Ó½     ×²    
     for (int gx = min_grid.x; gx <= max_grid.x; ++gx) {
         for (int gy = min_grid.y; gy <= max_grid.y; ++gy) {
             Vector2i check_grid(gx, gy);
 
-            // Èç¹û¸Ã¸ñ×ÓÊÇÇ½ (Cost == 255)
+            //     Ã¸     Ç½ (Cost == 255)
             if (flow_field_manager->get_cost(check_grid) == 255) {
 
-                // ¼ÆËã¸ñ×ÓµÄÊÀ½ç×ø±ê±ß½ç (AABB)
-                // ×¢Òâ£ºÕâÀï¼ÙÉèÍø¸ñ×óÉÏ½Ç¶ÔÆëÂß¼­Óë world_to_grid Ò»ÖÂ
+                //       Óµ         ß½  (AABB)
+                // ×¢ â£º              Ï½Ç¶    ß¼    world_to_grid Ò»  
                 float rect_left = (float)gx * cell_size.x;
                 float rect_top = (float)gy * cell_size.y;
                 float rect_right = rect_left + cell_size.x;
                 float rect_bottom = rect_top + cell_size.y;
 
-                // ÕÒµ½¾ØĞÎÄÚÀëÔ²ĞÄ×î½üµÄµã
+                //  Òµ         Ô²      Äµ 
                 float closest_x = Math::clamp(next_pos.x, rect_left, rect_right);
                 float closest_y = Math::clamp(next_pos.y, rect_top, rect_bottom);
                 Vector2 closest_point(closest_x, closest_y);
 
-                // ¼ÆËãÔ²ĞÄµ½×î½üµãµÄÏòÁ¿
+                //     Ô² Äµ           
                 Vector2 diff = next_pos - closest_point;
                 float distance_squared = diff.length_squared();
 
-                // Èç¹û¾àÀëĞ¡ÓÚ°ë¾¶£¬·¢ÉúÅö×²
+                //        Ğ¡ Ú°ë¾¶        ×²
 
                 if (distance_squared < radius * radius && distance_squared > 0.00001f) {
                     float factor = 0.5;
@@ -465,19 +472,19 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
                     float distance = Math::sqrt(distance_squared);
                     float overlap = radius - distance;
 
-                    // ½«µ¥Î»ÑØÅö×²·¨ÏßÍÆ¿ª
+                    //     Î»    ×²     Æ¿ 
                     next_pos += (diff / distance) * overlap * factor;
 
-                    // Åö×²ºóÍ¨³£ĞèÒªÏ÷¼õ¸Ã·½ÏòµÄËÙ¶È£¬ÊµÏÖ¡°ÑØÇ½»¬¶¯¡±
+                    //   ×²  Í¨    Òª     Ã·     Ù¶È£ Êµ Ö¡   Ç½      
                     Vector2 normal = diff / distance;
                     if (p_unit.velocity.dot(normal) < 0) {
-                        // ¼õÈ¥·¨Ïß·½ÏòµÄËÙ¶È·ÖÁ¿
+                        //   È¥   ß·     Ù¶È·   
                         p_unit.velocity -= normal * p_unit.velocity.dot(normal);
                     }
                 }
-                // ´¦ÀíÔ²ĞÄÕıºÃÔÚÇ½ÄÚµÄÇé¿ö
+                //     Ô²        Ç½ Úµ    
                 else if (distance_squared <= 0.00001f) {
-                    // ´ÖÂÔ´¦Àí£ºÏò¸ñ×ÓÖĞĞÄµÄ·´·½ÏòÍÆ
+                    //    Ô´            ÄµÄ·       
                     Vector2 cell_center(rect_left + cell_size.x * 0.5f, rect_top + cell_size.y * 0.5f);
                     Vector2 push_dir = (next_pos - cell_center).normalized();
                     next_pos += push_dir * radius;
@@ -486,26 +493,26 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
         }
     }
 
-    // 4. Ó¦ÓÃ×îÖÕÎ»ÖÃ
+    // 4. Ó¦      Î»  
     p_unit.position = next_pos;
 }
 
 void UnitManager::update_multimesh_buffer(double p_delta) {
     if (type_renderers.empty()) return;
 
-    // 1. Çå¿ÕÉÏÒ»Ö¡µÄ·Ö×é
+    // 1.      Ò»Ö¡ Ä·   
     for (auto& pair : type_grouping_cache) {
         pair.second.clear();
     }
 
-    // 2. °´ UnitStats Ö¸Õë·Ö×é
+    // 2.    UnitStats Ö¸     
     for (int i = 0; i < units.size(); ++i) {
-        // Ö±½ÓÈ¡ UnitStats µÄÔ­Ê¼Ö¸Õë
+        // Ö±  È¡ UnitStats   Ô­Ê¼Ö¸  
         UnitStats* s_ptr = units[i].stats.ptr();
         type_grouping_cache[s_ptr].push_back(i);
     }
 
-    // 3. ±éÀúäÖÈ¾Æ÷²¢Ìî³äÊı¾İ
+    // 3.       È¾           
     for (auto const& [s_ptr, mmi] : type_renderers) {
         const std::vector<int>& indices = type_grouping_cache[s_ptr];
         int count = indices.size();
@@ -517,36 +524,36 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
             mm->set_instance_count(count);
         }
 
-        // »ñÈ¡Ó°×ÓäÖÈ¾Æ÷
+        //   È¡Ó°    È¾  
         MultiMeshInstance3D* s_mmi = shadow_renderers[s_ptr];
         Ref<MultiMesh> s_mm = s_mmi->get_multimesh();
         s_mm->set_instance_count(count);
 
-        // ÕâÀï s_ptr ¾ÍÊÇ UnitStats Ö¸Õë£¬¿ÉÒÔÖ±½Ó·ÃÎÊÅäÖÃÊı¾İ
+        //      s_ptr      UnitStats Ö¸ ë£¬    Ö± Ó·           
         for (int i = 0; i < count; ++i) {
             int u_idx = indices[i];
             UnitData& unit = units[u_idx];
 
-            // ¸üĞÂ±ä»»
+            //    Â±ä»»
             Transform3D xform;
 
-            // ×ø±êÓ³Éä£º
+            //     Ó³ ä£º
             // 2D X -> 3D X
-            // 2D Y -> 3D Z (Éî¶È£¬ÓÃÓÚ GPU ×Ô¶¯ Y-Sort)
-            // 2D Height -> 3D Y (ÊÓ¾õ¸ß¶È)
+            // 2D Y -> 3D Z (  È£      GPU  Ô¶  Y-Sort)
+            // 2D Height -> 3D Y ( Ó¾  ß¶ )
             float fake_depth_offset = unit.position.y * 0.0001f;
             Vector3 pos_3d = Vector3(unit.position.x, unit.height + fake_depth_offset, unit.position.y - unit.height);
             xform.origin = pos_3d;
 
-            // Ğı×ª£ºÈÃ QuadMesh Á¢ÆğÀ´£¨QuadMesh Ä¬ÈÏÔÚ XY Æ½Ãæ£¬ÎÒÃÇĞèÒªËüÁ¢ÔÚ XZ Æ½ÃæÉÏ£©
-            // Èç¹ûÉãÏñ»úÊÇ¸©ÊÓµÄ£¬ÎÒÃÇĞèÒªÈÆ X ÖáĞı×ª -90 ¶È
+            //   ×ª     QuadMesh         QuadMesh Ä¬     XY Æ½ æ£¬      Òª       XZ Æ½   Ï£ 
+            //          Ç¸  ÓµÄ£       Òª   X     ×ª -90   
             xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
 
             xform.basis = (xform.basis).rotated(Vector3(0, -1, 0), (unit.rotation + Math_PI / 2.0f));
 
             mm->set_instance_transform(i, xform);
 
-            // ¶¯»­Âß¼­£¨Ö±½ÓÊ¹ÓÃ s_ptr£©
+            //      ß¼   Ö±  Ê¹   s_ptr  
             int frames = (unit.state == MOVING) ? s_ptr->get_move_frames() : s_ptr->get_idle_frames();
             int row = (unit.state == MOVING) ? s_ptr->get_move_row() : s_ptr->get_idle_row();
             float duration = (float)frames / s_ptr->get_anim_fps();
@@ -554,7 +561,7 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
 
             mm->set_instance_custom_data(i, Color(frame_idx, row, 0, 0));
 
-            //´¦ÀíÑÕÉ«
+            //      É«
             Color display_color;
             if (unit.is_selected) {
                 if (unit.is_mouse_on) {
@@ -575,31 +582,31 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
             mm->set_instance_color(i, display_color);
 
 
-            // ¸üĞÂÓ°×Ó±ä»» (XZÆ½ÃæÌÉÆ½)
+            //     Ó° Ó±ä»» (XZÆ½    Æ½)
             Transform3D shadow_xform;
 
-            // ÉèÖÃÓ°×ÓÎ»ÖÃ£ºÉÔÎ¢Æ«ÒÆÒ»µãµã£¬ÈÃËü´ÓÌ¹¿ËÂÄ´øÖĞĞÄÍùÍâ¿¿Ò»µã
-            // ¼ÙÉè¹âÀ´×Ô×óÉÏ·½£¬ÎÒÃÇ½«Ó°×ÓÏòÓÒÏÂ½ÇÆ«ÒÆ
-            float shadow_offset_x = 4.0f; // ¸ù¾İÄãµÄÌ¹¿Ë³ß´çµ÷Õû
+            //     Ó°  Î» Ã£   Î¢Æ«  Ò»  ã£¬      Ì¹   Ä´        â¿¿Ò»  
+            //             Ï·      Ç½ Ó°       Â½ Æ«  
+            float shadow_offset_x = 4.0f; //        Ì¹ Ë³ß´    
             float shadow_offset_z = 4.0f;
 
-            // Ó°×Ó·ÅÔÚµØÃæ¸ß¶È£¬¸øÒ»¸ö¼«Ğ¡µÄÆ«ÒÆ (0.001) ·ÀÖ¹ÓëµØÃæ Z-Fighting
-            // ×¢Òâ£ºÓ°×ÓµÄ origin.y ²»Ëæ unit.height ±ä»¯£¬ËüÓÀÔ¶ÔÚµØÉÏ
+            // Ó° Ó·  Úµ   ß¶È£   Ò»    Ğ¡  Æ«   (0.001)   Ö¹      Z-Fighting
+            // ×¢ â£ºÓ° Óµ  origin.y      unit.height  ä»¯      Ô¶ Úµ   
             shadow_xform.origin = Vector3(unit.position.x + shadow_offset_x,
                 unit.height + fake_depth_offset - 0.1f,
                 unit.position.y + shadow_offset_z);
 
-            // Ó°×ÓÊÇÌÉ×ÅµÄ
+            // Ó°       Åµ 
             shadow_xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
 
             shadow_xform.basis = (shadow_xform.basis).rotated(Vector3(0, -1, 0), (unit.rotation + Math_PI / 2.0f));
 
-            // Èç¹ûÄãÏ£ÍûÓ°×ÓÓĞĞ±ÏòÀ­Éì¸Ğ£¬¿ÉÒÔÔÚÕâÀïµş¼ÓËõ·Å
+            //      Ï£  Ó°    Ğ±      Ğ£                  
             // shadow_xform.basis = shadow_xform.basis.scaled(Vector3(1.0, 1.5, 1.0));
 
             s_mm->set_instance_transform(i, shadow_xform);
 
-            // Í¬²½¶¯»­Êı¾İ£¨Ó°×ÓÒ²Òª¶¯£©
+            // Í¬         İ£ Ó°  Ò²Òª    
             s_mm->set_instance_custom_data(i, Color(frame_idx, row, 0, 0));
 
             unit.anim_time += p_delta;
@@ -676,7 +683,7 @@ void UnitManager::update_selection_state_and_target_position(UnitData& p_unit, i
             p_unit.state = MOVING;
 
             if (p_unit.temp_group_id != -1) {
-                // Õâ¸öº¯Êı»á£º1.´Ó¾É×éIDÁĞ±íÒÆ³ı×Ô¼º(O(1)) 2.Èç¹ûÖ®Ç°ÔÚÒÆ¶¯£¬¼õÉÙ¾É×é¼ÆÊı
+                //         á£º1. Ó¾   ID Ğ±  Æ³  Ô¼ (O(1)) 2.   Ö®Ç°   Æ¶      Ù¾      
                 group_manager->remove_unit_from_temp_group(p_unit.temp_group_id, p_unit.id);
             }
             p_unit.temp_group_id = p_group_id;
@@ -722,21 +729,21 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(p_path);
     if (stats.is_null()) return;
 
-    // ´æÈë»º´æ¹© spawn_unit_by_type Ê¹ÓÃ
+    //    ë»º æ¹© spawn_unit_by_type Ê¹  
     unit_types_cache[p_name] = stats;
 
-    // »ñÈ¡Ô­Ê¼Ö¸Õë×÷Îª Key
+    //   È¡Ô­Ê¼Ö¸    Îª Key
     UnitStats* stats_ptr = stats.ptr();
 
-    // Èç¹û¸ÃÀàĞÍÒÑ¾­×¢²á¹ıäÖÈ¾Æ÷£¬Ö±½Ó·µ»Ø
+    //           Ñ¾ ×¢     È¾    Ö± Ó·   
     if (type_renderers.find(stats_ptr) != type_renderers.end()) return;
 
-    // --- ´´½¨äÖÈ¾Æ÷ ---
+    // ---       È¾   ---
     MultiMeshInstance3D* mmi = memnew(MultiMeshInstance3D);
     mmi->set_name(p_name + "_Renderer");
     add_child(mmi);
 
-    // ÅäÖÃ MultiMesh
+    //      MultiMesh
     Ref<MultiMesh> mm;
     mm.instantiate();
     mm->set_transform_format(MultiMesh::TRANSFORM_3D);
@@ -746,7 +753,7 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     Ref<QuadMesh> qmesh;
     qmesh.instantiate();
 
-    // ¼ÓÔØÎÆÀí²¢ÉèÖÃÍø¸ñ´óĞ¡
+    //                   Ğ¡
     Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(stats->get_texture_path());
     if (tex.is_valid()) {
         Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
@@ -755,7 +762,7 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     mm->set_mesh(qmesh);
     mmi->set_multimesh(mm);
 
-    // ÉèÖÃ²ÄÖÊ
+    //    Ã²   
     Ref<ShaderMaterial> mat;
     mat.instantiate();
     if (unit_shader.is_null()) {
@@ -768,10 +775,10 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
 
     mmi->set_material_override(mat);
 
-    // ½¨Á¢Ó³Éä
+    //     Ó³  
     type_renderers[stats_ptr] = mmi;
 
-    // --- ´´½¨Ó°×ÓäÖÈ¾Æ÷ ---
+    // ---     Ó°    È¾   ---
     MultiMeshInstance3D* s_mmi = memnew(MultiMeshInstance3D);
     s_mmi->set_name(p_name + "_Shadows");
     add_child(s_mmi);
@@ -781,18 +788,18 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     s_mm->set_transform_format(MultiMesh::TRANSFORM_3D);
     s_mm->set_use_custom_data(true);
 
-    // Ó°×Ó¿ÉÒÔÊ¹ÓÃ¸ü¼òµ¥µÄ QuadMesh
+    // Ó° Ó¿   Ê¹ Ã¸  òµ¥µ  QuadMesh
     Ref<QuadMesh> s_qmesh;
     s_qmesh.instantiate();
     if (tex.is_valid()) {
         Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
         s_qmesh->set_size(frame_size);
     }
-    // ... ÉèÖÃÍø¸ñ´óĞ¡ ...
+    // ...          Ğ¡ ...
     s_mm->set_mesh(s_qmesh);
     s_mmi->set_multimesh(s_mm);
 
-    // ÉèÖÃÓ°×Ó²ÄÖÊ
+    //     Ó° Ó²   
     Ref<ShaderMaterial> s_mat;
     s_mat.instantiate();
     if (shadow_shader.is_null()) {
@@ -804,7 +811,7 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     s_mat->set_shader_parameter("v_frames", stats->get_v_frames());
     s_mmi->set_material_override(s_mat);
 
-    // ´æÈë Map
+    //      Map
     shadow_renderers[stats_ptr] = s_mmi;
 }
 
@@ -818,9 +825,9 @@ int UnitManager::spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_tea
 void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_ids) {
     if (p_index < 0 || p_index >= group_manager->MAX_CONTROL_GROUPS) return;
 
-    // 1. ÇåÀí¾Éµ¥Î»µÄË«ÏòÓ³Éä
+    // 1.     Éµ Î»  Ë«  Ó³  
     for (int old_uid : group_manager->control_groups[p_index]) {
-        //Ö®ºóĞ´³Éº¯Êı
+        //Ö®  Ğ´ Éº   
         int index = -1;
         auto it = id_to_index.find(old_uid);
         if (it != id_to_index.end()) {
@@ -828,7 +835,7 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
         }
 
         UnitData& data = units[index];
-        // ´Ó¹Ì¶¨Êı×éÖĞÒÆ³ıË÷Òı
+        //  Ó¹Ì¶        Æ³     
         for (int i = 0; i < data.control_group_count; ++i) {
             if (data.control_group_indices[i] == p_index) {
                 data.control_group_indices[i] = data.control_group_indices[data.control_group_count - 1];
@@ -838,12 +845,12 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
         }
     }
 
-    // 2. ¸üĞÂ±à¶ÓÊı¾İ
+    // 2.    Â±      
     group_manager->control_groups[p_index] = p_unit_ids;
 
-    // 3. ½¨Á¢ĞÂµ¥Î»µÄË«ÏòÓ³Éä
+    // 3.      Âµ Î»  Ë«  Ó³  
     for (int new_uid : p_unit_ids) {
-        //Ö®ºóĞ´³Éº¯Êı
+        //Ö®  Ğ´ Éº   
         int index = -1;
         auto it = id_to_index.find(new_uid);
         if (it != id_to_index.end()) {
@@ -851,7 +858,7 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
         }
 
         UnitData& data = units[index];
-        if (data.control_group_count < 3) { // ¼ÙÉèÉÏÏŞ 3
+        if (data.control_group_count < 3) { //          3
             data.control_group_indices[data.control_group_count++] = p_index;
         }
     }
@@ -868,14 +875,14 @@ int UnitManager::get_unit_index_by_id(int p_id) {
 void UnitManager::set_attack_manager(Node* p_node) {
     attack_manager = Object::cast_to<AttackManager>(p_node);
     if (attack_manager) {
-        attack_manager->setup(this); // åˆå§‹åŒ?AttackManager
+        attack_manager->setup(this); // åˆå§‹ ?AttackManager
     }
 }
 
 float UnitManager::get_unit_aggro_range(int p_unit_id) const {
     auto it = id_to_index.find(p_unit_id);
     if (it != id_to_index.end()) {
-        // Ö±½Ó´Óµ¥Î»µÄ stats ÖĞ¶ÁÈ¡¼ÓÔØºÃµÄÕæÊµÅäÖÃ
+        // Ö± Ó´Óµ Î»   stats  Ğ¶ È¡   ØºÃµ   Êµ    
         return units[it->second].stats->get_aggro_range();
     }
     return 0.0f;
@@ -889,12 +896,33 @@ float UnitManager::get_unit_attack_range(int p_unit_id) const {
     return 0.0f;
 }
 
+void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_id) {
+    for (int i = 0; i < p_unit_ids.size(); i++) {
+        int uid = p_unit_ids[i];
+        auto it = id_to_index.find(uid);
+        if (it != id_to_index.end()) {
+            UnitData& unit = units[it->second];
+
+            // 1.       Ğµ  Æ¶   Ñ²  ×´Ì¬
+            unit.is_patrolling = false;
+
+            // 2.     Ä¿  
+            unit.target_id = p_target_id;
+            unit.is_manual_target = true;
+
+            // 3. Ö±      ×·  ×´Ì¬  
+            unit.state = CHASING;
+        }
+    }
+}
+
 void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &UnitManager::setup_system);
     ClassDB::bind_method(D_METHOD("spawn_unit", "world_position", "type", "team_id"), &UnitManager::spawn_unit);
     ClassDB::bind_method(D_METHOD("spawn_unit_by_type", "type_name", "pos", "team_id"), &UnitManager::spawn_unit_by_type);
     ClassDB::bind_method(D_METHOD("command_units_to_move", "unit_ids", "target_world_pos"), &UnitManager::command_units_to_move);
     ClassDB::bind_method(D_METHOD("command_units_to_patrol", "unit_ids", "waypoints"), &UnitManager::command_units_to_patrol);
+    ClassDB::bind_method(D_METHOD("command_units_to_attack_target", "unit_ids", "target_id"), &UnitManager::command_units_to_attack_target);
     ClassDB::bind_method(D_METHOD("get_unit_position", "unit_id"), &UnitManager::get_unit_position);
     ClassDB::bind_method(D_METHOD("get_unit_state", "unit_id"), &UnitManager::get_unit_state);
     ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &UnitManager::set_flow_field_manager);
@@ -906,8 +934,8 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_unit_attack_range", "unit_id"), &UnitManager::get_unit_attack_range);
     
 
-    //µ÷ÊÔ
-    // 1. ÏÈ°ó¶¨ËùÓĞ·½·¨ (Getter/Setter)
+    //    
+    // 1.  È°    Ğ·    (Getter/Setter)
     ClassDB::bind_method(D_METHOD("get_flow_factor"), &UnitManager::get_flow_factor);
     ClassDB::bind_method(D_METHOD("set_flow_factor", "p_val"), &UnitManager::set_flow_factor);
 
@@ -935,7 +963,7 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_desired_integration"), &UnitManager::get_desired_integration);
     ClassDB::bind_method(D_METHOD("set_desired_integration", "p_val"), &UnitManager::set_desired_integration);
 
-    // 2. ×¢²áÊôĞÔµ½ Godot ÊôĞÔÃæ°å
+    // 2. ×¢     Ôµ  Godot        
 
     ADD_GROUP("Force Settings", "");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "flow_factor"), "set_flow_factor", "get_flow_factor");
