@@ -43,10 +43,6 @@ void BuildingStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_clearance_size", "p_val"), &BuildingStats::set_clearance_size);
     ADD_PROPERTY(PropertyInfo(Variant::VECTOR2I, "clearance_size"), "set_clearance_size", "get_clearance_size");
 
-    ClassDB::bind_method(D_METHOD("get_texture_path"), &BuildingStats::get_texture_path);
-    ClassDB::bind_method(D_METHOD("set_texture_path", "p_val"), &BuildingStats::set_texture_path);
-    ADD_PROPERTY(PropertyInfo(Variant::STRING, "texture_path"), "set_texture_path", "get_texture_path");
-
     // --- 兵营属性绑定 ---
     ADD_GROUP("Barracks", "production_");
     ClassDB::bind_method(D_METHOD("get_producible_units"), &BuildingStats::get_producible_units);
@@ -84,4 +80,36 @@ void BuildingStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_collection_capacity"), &BuildingStats::get_collection_capacity);
     ClassDB::bind_method(D_METHOD("set_collection_capacity", "p_val"), &BuildingStats::set_collection_capacity);
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "collection_capacity"), "set_collection_capacity", "get_collection_capacity");
+
+    ClassDB::bind_method(D_METHOD("get_texture_path"), &BuildingStats::get_texture_path);
+    ClassDB::bind_method(D_METHOD("set_texture_path", "p_path"), &BuildingStats::set_texture_path);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "texture_path"), "set_texture_path", "get_texture_path");
+
+    ClassDB::bind_method(D_METHOD("get_h_frames"), &BuildingStats::get_h_frames);
+    ClassDB::bind_method(D_METHOD("set_h_frames", "p_val"), &BuildingStats::set_h_frames);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "h_frames"), "set_h_frames", "get_h_frames");
+
+    ClassDB::bind_method(D_METHOD("get_v_frames"), &BuildingStats::get_v_frames);
+    ClassDB::bind_method(D_METHOD("set_v_frames", "p_val"), &BuildingStats::set_v_frames);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "v_frames"), "set_v_frames", "get_v_frames");
+
+    ClassDB::bind_method(D_METHOD("get_anim_fps"), &BuildingStats::get_anim_fps);
+    ClassDB::bind_method(D_METHOD("set_anim_fps", "p_val"), &BuildingStats::set_anim_fps);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "anim_fps"), "set_anim_fps", "get_anim_fps");
+
+    ClassDB::bind_method(D_METHOD("get_idle_frames"), &BuildingStats::get_idle_frames);
+    ClassDB::bind_method(D_METHOD("set_idle_frames", "p_val"), &BuildingStats::set_idle_frames);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "idle_frames"), "set_idle_frames", "get_idle_frames");
+
+    ClassDB::bind_method(D_METHOD("get_idle_row"), &BuildingStats::get_idle_row);
+    ClassDB::bind_method(D_METHOD("set_idle_row", "p_val"), &BuildingStats::set_idle_row);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "idle_row"), "set_idle_row", "get_idle_row");
+
+    ClassDB::bind_method(D_METHOD("get_working_frames"), &BuildingStats::get_working_frames);
+    ClassDB::bind_method(D_METHOD("set_working_frames", "p_val"), &BuildingStats::set_working_frames);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "working_frames"), "set_working_frames", "get_working_frames");
+
+    ClassDB::bind_method(D_METHOD("get_working_row"), &BuildingStats::get_working_row);
+    ClassDB::bind_method(D_METHOD("set_working_row", "p_val"), &BuildingStats::set_working_row);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "working_row"), "set_working_row", "get_working_row");
 }

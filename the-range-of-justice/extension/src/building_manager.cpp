@@ -14,11 +14,148 @@ void BuildingManager::set_unit_manager(Node* p_node) {
     unit_manager = Object::cast_to<UnitManager>(p_node);
 }
 
+void BuildingManager::update(double p_delta) {
+    update_multimesh_buffer(p_delta);
+}
+
+void BuildingManager::update_multimesh_buffer(double p_delta) {
+    if (type_renderers.empty()) return;
+
+    // 1. 分组
+    for (auto& pair : type_grouping_cache) pair.second.clear();
+    for (auto const& [id, data] : buildings) {
+        type_grouping_cache[data.stats.ptr()].push_back(id);
+    }
+
+    // 假设默认单元格大小
+    Vector2 cell_sz = Vector2(32, 32);
+    if (flow_field_manager) {
+        cell_sz = Vector2(flow_field_manager->get_cell_size());
+    }
+
+    // 2. 遍历渲染
+    for (auto& [s_ptr, mmi] : type_renderers) {
+        const std::vector<int>& ids = type_grouping_cache[s_ptr];
+        int count = (int)ids.size();
+
+        // 获取主体和影子 MultiMesh
+        Ref<MultiMesh> mm = mmi->get_multimesh();
+        MultiMeshInstance3D* s_mmi = shadow_renderers[s_ptr];
+        Ref<MultiMesh> s_mm = s_mmi->get_multimesh();
+
+        if (mm->get_instance_count() != count) {
+            mm->set_instance_count(count);
+            s_mm->set_instance_count(count);
+        }
+
+        for (int i = 0; i < count; ++i) {
+            BuildingData& b = buildings[ids[i]];
+
+            // --- A. 主体位置 ---
+            Vector2 fp_size = Vector2(b.stats->get_footprint()) * cell_sz;
+            Vector2 center = Vector2(b.grid_pos) * cell_sz + fp_size * 0.5f;
+            float fake_depth_offset = center.y * 0.0001f;
+
+            Transform3D xform;
+            xform.origin = Vector3(center.x, fake_depth_offset, center.y);
+            xform.basis = Basis().rotated(Vector3(1, 0, 0), -Math_PI / 2.0);
+            mm->set_instance_transform(i, xform);
+
+            // --- B. 影子位置 ---
+            // 影子偏移量：X+4, Z+4 (仿照 UnitManager)
+            // 影子高度稍微降低 (-0.1) 以免和主体重叠
+            Transform3D s_xform;
+            s_xform.origin = Vector3(center.x + 4.0f, fake_depth_offset - 0.1f, center.y + 4.0f);
+            s_xform.basis = xform.basis; // 旋转角度一致
+            s_mm->set_instance_transform(i, s_xform);
+
+            // --- C. 动画同步 ---
+            int frames = (b.state == BuildingState::WORKING) ? s_ptr->get_working_frames() : s_ptr->get_idle_frames();
+            int row = (b.state == BuildingState::WORKING) ? s_ptr->get_working_row() : s_ptr->get_idle_row();
+            float duration = (float)frames / s_ptr->get_anim_fps();
+            int frame_idx = (int)(Math::fmod(b.anim_time, duration) * s_ptr->get_anim_fps());
+
+            Color anim_data = Color((float)frame_idx, (float)row, 0, 0);
+            mm->set_instance_custom_data(i, anim_data);
+            s_mm->set_instance_custom_data(i, anim_data); // 影子也播放同样动作
+
+            mm->set_instance_color(i, Color(1, 1, 1, 1));
+
+            b.anim_time += (float)p_delta;
+        }
+    }
+}
+
 void BuildingManager::register_building_type(String p_name, String p_path) {
     Ref<BuildingStats> stats = BuildingLoader::load_from_txt(p_path);
-    if (stats.is_valid()) {
-        building_types_cache[p_name] = stats;
+    if (stats.is_null()) return;
+
+    building_types_cache[p_name] = stats;
+    BuildingStats* s_ptr = stats.ptr();
+
+    if (type_renderers.count(s_ptr)) return;
+
+    // --- A. 初始化建筑主体渲染器 ---
+    MultiMeshInstance3D* mmi = memnew(MultiMeshInstance3D);
+    mmi->set_name(p_name + "_Renderer");
+    add_child(mmi);
+
+    Ref<MultiMesh> mm;
+    mm.instantiate();
+    mm->set_transform_format(MultiMesh::TRANSFORM_3D);
+    mm->set_use_colors(true);
+    mm->set_use_custom_data(true);
+
+    Ref<QuadMesh> qmesh;
+    qmesh.instantiate();
+    Vector2i fp = stats->get_footprint();
+    // 假设网格尺寸为 32x32，你可以根据 flow_field_manager 获取
+    qmesh->set_size(Vector2(fp.x * 32.0f, fp.y * 32.0f));
+    mm->set_mesh(qmesh);
+    mmi->set_multimesh(mm);
+
+    // 设置主体材质
+    Ref<ShaderMaterial> mat;
+    mat.instantiate();
+    if (building_shader.is_null()) {
+        building_shader = ResourceLoader::get_singleton()->load("res://shader/unit_shader.gdshader");
     }
+    mat->set_shader(building_shader);
+    Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(stats->get_texture_path());
+    mat->set_shader_parameter("albedo_texture", tex);
+    mat->set_shader_parameter("h_frames", stats->get_h_frames());
+    mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    mmi->set_material_override(mat);
+    type_renderers[s_ptr] = mmi;
+
+    // --- B. 初始化影子渲染器 ---
+    MultiMeshInstance3D* s_mmi = memnew(MultiMeshInstance3D);
+    s_mmi->set_name(p_name + "_Shadow");
+    add_child(s_mmi);
+
+    Ref<MultiMesh> s_mm;
+    s_mm.instantiate();
+    s_mm->set_transform_format(MultiMesh::TRANSFORM_3D);
+    s_mm->set_use_custom_data(true); // 影子也要同步动画帧
+
+    Ref<QuadMesh> s_qmesh;
+    s_qmesh.instantiate();
+    s_qmesh->set_size(qmesh->get_size()); // 影子大小与建筑一致
+    s_mm->set_mesh(s_qmesh);
+    s_mmi->set_multimesh(s_mm);
+
+    // 设置影子材质
+    Ref<ShaderMaterial> s_mat;
+    s_mat.instantiate();
+    if (shadow_shader.is_null()) {
+        shadow_shader = ResourceLoader::get_singleton()->load("res://shader/unit_shadow.gdshader");
+    }
+    s_mat->set_shader(shadow_shader);
+    s_mat->set_shader_parameter("albedo_texture", tex);
+    s_mat->set_shader_parameter("h_frames", stats->get_h_frames());
+    s_mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    s_mmi->set_material_override(s_mat);
+    shadow_renderers[s_ptr] = s_mmi;
 }
 
 bool BuildingManager::is_area_clear(Vector2i p_grid_pos, Ref<BuildingStats> p_stats) {

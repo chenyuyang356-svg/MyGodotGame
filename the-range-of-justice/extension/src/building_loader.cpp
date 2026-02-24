@@ -47,7 +47,7 @@ Ref<BuildingStats> BuildingLoader::load_from_txt(String p_path, Ref<BuildingStat
             }
             stats->set_producible_units(unit_list);
         }
-        else if (key == "texture_path" || key == "building_name" || key == "resource_type") {
+        else if (key == "texture_path" || key == "name" || key == "resource_type") {
             stats->set(key, val);
         }
         else {

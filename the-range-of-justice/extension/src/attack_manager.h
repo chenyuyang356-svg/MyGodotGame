@@ -27,7 +27,6 @@ namespace godot {
         void _handle_chasing(UnitData& p_unit);
         void _handle_attacking(UnitData& p_unit, double p_delta);
         void _handle_patrolling(UnitData& p_unit);
-        void _handle_moving(UnitData& p_unit);
 
         // 行为逻辑
         bool _try_find_target(UnitData& p_unit);
