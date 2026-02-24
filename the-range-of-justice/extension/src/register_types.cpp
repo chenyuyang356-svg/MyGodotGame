@@ -8,6 +8,8 @@
 #include "game_manager.h"
 #include "attack_manager.h"
 #include "map_manager.h"
+#include "building_stats.h"
+#include "building_loader.h"
 
 #include <gdextension_interface.h>
 #include <godot_cpp/core/defs.hpp>
@@ -28,6 +30,8 @@ void initialize_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(GameManager);
 	GDREGISTER_CLASS(AttackManager); 
 	GDREGISTER_CLASS(MapManager);
+	GDREGISTER_CLASS(BuildingStats);
+	GDREGISTER_CLASS(BuildingLoader);
 }
 
 void uninitialize_module(ModuleInitializationLevel p_level) {

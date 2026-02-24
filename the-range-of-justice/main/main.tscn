@@ -54,13 +54,20 @@ script = ExtResource("4_3wy1v")
 building_manager = NodePath("../BuildingManager")
 camera_3d = NodePath("../Camera3D")
 
-[node name="BuildingManager" type="BuildingManager" parent="." unique_id=2078401615 node_paths=PackedStringArray("camera", "flow_field_manager")]
+[node name="BuildingManager" type="BuildingManager" parent="." unique_id=2078401615 node_paths=PackedStringArray("camera", "flow_field_manager", "selection_manager", "build_menu_container")]
 script = ExtResource("3_kfbq2")
 camera = NodePath("../Camera3D")
 flow_field_manager = NodePath("../FlowFieldManager")
+selection_manager = NodePath("../SelectionManager")
+build_menu_container = NodePath("CanvasLayer/BuildingMenu")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="BuildingManager" unique_id=817356954]
+
+[node name="BuildingMenu" type="PanelContainer" parent="BuildingManager/CanvasLayer" unique_id=644269358]
+offset_right = 40.0
+offset_bottom = 40.0
 
 [node name="DebugCanvas" type="CanvasLayer" parent="." unique_id=800377856]
 
 [node name="DebugDraw" type="Node2D" parent="DebugCanvas" unique_id=1412301083]
 script = ExtResource("6_kfbq2")
-show_debug = false
