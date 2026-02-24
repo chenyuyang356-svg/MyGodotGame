@@ -1,14 +1,9 @@
 #pragma once
 
-#include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/classes/node2d.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
-
-#include <godot_cpp/classes/multi_mesh_instance3d.hpp>
-#include <godot_cpp/classes/multi_mesh.hpp>
-#include <godot_cpp/classes/quad_mesh.hpp>
-#include <godot_cpp/classes/shader_material.hpp>
 
 #include "unit_manager.h"
 #include "flow_field_manager.h"
@@ -18,8 +13,8 @@
 
 namespace godot {
 
-    class BuildingManager : public Node3D {
-        GDCLASS(BuildingManager, Node3D)
+    class BuildingManager : public Node2D {
+        GDCLASS(BuildingManager, Node2D)
 
     private:
         FlowFieldManager* flow_field_manager = nullptr;
@@ -28,17 +23,6 @@ namespace godot {
         std::unordered_map<int, BuildingData> buildings;
         HashMap<String, Ref<BuildingStats>> building_types_cache;
         int next_building_id = 0;
-
-        // --- 原有的渲染器 ---
-        std::unordered_map<BuildingStats*, MultiMeshInstance3D*> type_renderers;
-        Ref<Shader> building_shader;
-
-        // --- 新增：影子渲染器 ---
-        std::unordered_map<BuildingStats*, MultiMeshInstance3D*> shadow_renderers;
-        Ref<Shader> shadow_shader;
-
-        // 分组缓存
-        std::unordered_map<BuildingStats*, std::vector<int>> type_grouping_cache;
 
     protected:
         static void _bind_methods();
@@ -51,9 +35,6 @@ namespace godot {
         void set_unit_manager(Node* p_node);
 
         // --- 核心功能 ---
-
-        void update(double p_delta);
-        void update_multimesh_buffer(double p_delta);
 
         // 注册建筑：从 txt 加载配置并缓存
         void register_building_type(String p_name, String p_path);

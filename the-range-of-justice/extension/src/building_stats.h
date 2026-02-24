@@ -28,15 +28,7 @@ namespace godot {
         float health_max = 500.0f;
         Vector2i footprint = Vector2i(1, 1);
         Vector2i clearance_size = Vector2i(1, 1);
-        
         String texture_path;
-        int h_frames = 1;
-        int v_frames = 1;
-        int anim_fps = 10;
-        int idle_frames = 1;
-        int idle_row = 0;
-        int working_frames = 1;
-        int working_row = 0;
 
         // --- 兵营类属性 ---
         PackedStringArray producible_units;
@@ -84,6 +76,9 @@ namespace godot {
         void set_clearance_size(Vector2i p_size) { clearance_size = p_size; }
         Vector2i get_clearance_size() const { return clearance_size; }
 
+        void set_texture_path(String p_path) { texture_path = p_path; }
+        String get_texture_path() const { return texture_path; }
+
         // Barracks
         void set_producible_units(PackedStringArray p_units) { producible_units = p_units; }
         PackedStringArray get_producible_units() const { return producible_units; }
@@ -110,32 +105,6 @@ namespace godot {
 
         void set_collection_capacity(float p_cap) { collection_capacity = p_cap; }
         float get_collection_capacity() const { return collection_capacity; }
-
-        // 纹理路径
-        void set_texture_path(const String p_path) { texture_path = p_path; }
-        String get_texture_path() const { return texture_path; }
-
-        // 图集分栏
-        void set_h_frames(int p_val) { h_frames = p_val; }
-        int get_h_frames() const { return h_frames; }
-
-        void set_v_frames(int p_val) { v_frames = p_val; }
-        int get_v_frames() const { return v_frames; }
-
-        void set_anim_fps(int p_val) { anim_fps = p_val; }
-        int get_anim_fps() const { return anim_fps; }
-
-        void set_idle_frames(int p_val) { idle_frames = p_val; }
-        int get_idle_frames() const { return idle_frames; }
-
-        void set_idle_row(int p_val) { idle_row = p_val; }
-        int get_idle_row() const { return idle_row; }
-
-        void set_working_frames(int p_val) { working_frames = p_val; }
-        int get_working_frames() const { return working_frames; }
-
-        void set_working_row(int p_val) { working_row = p_val; }
-        int get_working_row() const { return working_row; }
     };
 
 }

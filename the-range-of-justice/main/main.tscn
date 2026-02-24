@@ -44,6 +44,16 @@ friction_factor = 15.0
 force_threshold_squared = 0.0
 desired_integration = 1.0
 
+[node name="Camera3D" type="Camera3D" parent="." unique_id=217203825]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 1000, 0)
+projection = 1
+script = ExtResource("5_3wy1v")
+
+[node name="SelectionManager" type="SelectionManager" parent="." unique_id=803111584 node_paths=PackedStringArray("building_manager", "camera_3d")]
+script = ExtResource("4_3wy1v")
+building_manager = NodePath("../BuildingManager")
+camera_3d = NodePath("../Camera3D")
+
 [node name="BuildingManager" type="BuildingManager" parent="." unique_id=2078401615 node_paths=PackedStringArray("camera", "flow_field_manager", "selection_manager", "build_menu_container")]
 script = ExtResource("3_kfbq2")
 camera = NodePath("../Camera3D")
@@ -57,18 +67,8 @@ build_menu_container = NodePath("CanvasLayer/BuildingMenu")
 offset_right = 40.0
 offset_bottom = 40.0
 
-[node name="SelectionManager" type="SelectionManager" parent="." unique_id=803111584 node_paths=PackedStringArray("building_manager", "camera_3d")]
-script = ExtResource("4_3wy1v")
-building_manager = NodePath("../BuildingManager")
-camera_3d = NodePath("../Camera3D")
-
 [node name="DebugCanvas" type="CanvasLayer" parent="." unique_id=800377856]
 
 [node name="DebugDraw" type="Node2D" parent="DebugCanvas" unique_id=1412301083]
 script = ExtResource("6_kfbq2")
 show_debug = false
-
-[node name="Camera3D" type="Camera3D" parent="." unique_id=217203825]
-transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 1000, 0)
-projection = 1
-script = ExtResource("5_3wy1v")

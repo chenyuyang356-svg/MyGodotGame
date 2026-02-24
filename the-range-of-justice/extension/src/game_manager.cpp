@@ -12,7 +12,6 @@ GameManager::~GameManager() {}
 void GameManager::_physics_process(double p_delta) {
 	if (!unit_manager || !building_manager || !flow_field_manager || !selection_manager || !group_manager || !is_setup) { return; }
 	unit_manager->update(p_delta);
-	building_manager->update(p_delta);
 	update_group(p_delta);
 }
 

@@ -55,7 +55,7 @@ namespace godot {
 
         double cleanup_timer = 0.0;      // 累加时间
         const double CLEANUP_INTERVAL = 2.0; // 每 2 秒扫描一次
-        const double UNUSED_THRESHOLD = 1.0; // 超过 1 秒没用就删除
+        const double UNUSED_THRESHOLD = 10.0; // 超过 10 秒没用就删除
 
     protected:
         static void _bind_methods();
