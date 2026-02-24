@@ -53,6 +53,10 @@ namespace godot {
 
 		void end_box_selecting();
 
-		void set_team_id(int p_value);
+		void set_team_id(int p_id) { team_id = p_id; }
+		int get_team_id() const { return team_id; }
+
+		void set_selected_unit_id(int p_id) { selected_unit_id = p_id; }
+		int get_selected_unit_id() const { return selected_unit_id; }
 	};
 }

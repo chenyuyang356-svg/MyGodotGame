@@ -1,0 +1,16 @@
+# 人族兵营
+building_name = Human Barrack
+type = barracks
+texture_path = res://icon.svg
+
+# 物理占用 3x3，检测范围 5x5 (防止贴脸造)
+footprint = 1,1
+clearance = 3,3
+
+max_health = 1200
+cost = 200
+build_time = 20.0
+
+# 兵营特有：可以训练的单位列表（对应 UnitManager 注册的 key）
+producible_units = Fighter, Tank
+production_speed_modifier = 1.0

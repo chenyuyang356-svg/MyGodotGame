@@ -177,6 +177,14 @@ std::vector<int> UnitManager::get_nearby_units(Vector2 p_world_pos, float p_radi
 void UnitManager::update(double p_delta) {
     if (!is_setup || !flow_field_manager || !selection_manager) { return; }
 
+    // --- 处理单位死亡 (从后徢�前遍厄1�7) ---
+    for (int i = (int)units.size() - 1; i >= 0; --i) {
+        if (units[i].current_health <= 0) {
+            // 注意：despawn_unit 内部已经处理亄1�7 group_manager 清理咄1�7 id_to_index 更新
+            despawn_unit(units[i].id);
+        }
+    }
+
     if (attack_manager) {
         attack_manager->update_units(p_delta);
     }
@@ -372,7 +380,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
         forward_dot = Math::max(0.0f, forward_vec.dot(desired_velocity.normalized()));
     }
 
-    //    ƣ ת  ʱ ٶȻή   (     dot  ˻   0.5   ʾƫ   60   ʱ   ٶȼ   )
+    //    ƣ ת  ʱ ٶȻὄ1�7   (     dot  ˻   0.5   ʾƫ   60   ʱ   ٶȼ   )
     float current_accel = accel * (0.5f + 0.5f * forward_dot);
 
     // Ӧ ü  ٶ 
@@ -398,7 +406,7 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
         for (int other_idx : nearby) {
             UnitData& other = units[other_idx];
             if (other.id == p_unit.id) continue;
-            if (other.state == IDLE && p_unit.temp_group_id != -1) continue;
+            if (0 && other.state == IDLE && p_unit.temp_group_id != -1) continue;
             if ((p_unit.stats->move_type == MOVE_AIR) && (other.stats->move_type != MOVE_AIR) ||
                 (p_unit.stats->move_type != MOVE_AIR) && (other.stats->move_type == MOVE_AIR)) {
                 continue;
@@ -413,14 +421,14 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
                 float overlap = min_dist - dist;
                 Vector2 resolve_dir = to_other / dist;
 
-                //  ؼ  㣺ֻ ƿ  ص    ֵ һС   ֣      40%      ֹ       Ҷ   
+                //  ؼ  㣺ք1�7 ƿ  ص    ֵ һС   ֣      40%      ֹ       Ҷ   
                 //          λ     ƶ       һ  
                 float push_strength = 0.4f;
                 Vector2 push_vector = resolve_dir * (overlap * push_strength);
 
                 next_pos -= push_vector;
                 // Ҳ    ˳    Է һ               Ϊ   ߼  򵥣 
-                // ÿһ    λ   Լ    move ѭ   ﴦ    ƿ     
+                // ÿһ    λ   Լ    move ѭ   ﴄ1�7    ƿ     
             }
         }
     }
@@ -446,7 +454,7 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
             if (flow_field_manager->get_cost(check_grid) == 255) {
 
                 //       ӵ         ߽  (AABB)
-                // ע ⣺              ϽǶ    ߼    world_to_grid һ  
+                // ע ⣄1�7              ϽǶ    ߼    world_to_grid һ  
                 float rect_left = (float)gx * cell_size.x;
                 float rect_top = (float)gy * cell_size.y;
                 float rect_right = rect_left + cell_size.x;
@@ -461,7 +469,7 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
                 Vector2 diff = next_pos - closest_point;
                 float distance_squared = diff.length_squared();
 
-                //        С ڰ뾶        ײ
+                //        С ڰ뾄1�7        ײ
 
                 if (distance_squared < radius * radius && distance_squared > 0.00001f) {
                     float factor = 0.5;
@@ -494,6 +502,7 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
     }
 
     // 4. Ӧ      λ  
+    // 4. Ӧ������λ��
     p_unit.position = next_pos;
 }
 
@@ -501,6 +510,7 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
     if (type_renderers.empty()) return;
 
     // 1.      һ֡ ķ   
+    // 1. �����һ֡�ķ��ￄ1�7
     for (auto& pair : type_grouping_cache) {
         pair.second.clear();
     }
@@ -508,45 +518,62 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
     // 2.    UnitStats ָ     
     for (int i = 0; i < units.size(); ++i) {
         // ֱ  ȡ UnitStats   ԭʼָ  
+    // 2. �� UnitStats ָ����ￄ1�7
+    for (int i = 0; i < units.size(); ++i) {
+        // ֱ��ȡ UnitStats ��ԭʼָ��
         UnitStats* s_ptr = units[i].stats.ptr();
         type_grouping_cache[s_ptr].push_back(i);
     }
 
     // 3.       Ⱦ           
+    // 3. ������Ⱦ����������ￄ1�7
     for (auto const& [s_ptr, mmi] : type_renderers) {
         const std::vector<int>& indices = type_grouping_cache[s_ptr];
         int count = indices.size();
 
-        if (count == 0) continue;
-
         Ref<MultiMesh> mm = mmi->get_multimesh();
-        if (mm->get_instance_count() != count) {
-            mm->set_instance_count(count);
-        }
 
         //   ȡӰ    Ⱦ  
+        // ��ȡӰ����Ⱦ��
         MultiMeshInstance3D* s_mmi = shadow_renderers[s_ptr];
         Ref<MultiMesh> s_mm = s_mmi->get_multimesh();
         s_mm->set_instance_count(count);
 
-        //      s_ptr      UnitStats ָ 룬    ֱ ӷ           
+        //      s_ptr      UnitStats ָ 룄1�7    ֱ ӷ           
+        if (mm->get_instance_count() != count) {
+            mm->set_instance_count(count);
+            s_mm->set_instance_count(count);
+        }
+
+        if (count == 0) continue;
+
+        // ���� s_ptr ���� UnitStats ָ�룬����ֱ�ӷ�����������
         for (int i = 0; i < count; ++i) {
             int u_idx = indices[i];
             UnitData& unit = units[u_idx];
 
-            //    ±任
+            //    ±仄1�7
             Transform3D xform;
 
-            //     ӳ 䣺
+            //     ӳ 䣄1�7
             // 2D X -> 3D X
             // 2D Y -> 3D Z (  ȣ      GPU  Զ  Y-Sort)
             // 2D Height -> 3D Y ( Ӿ  ߶ )
+            // ���±任
+            Transform3D xform;
+
+            // ����ӳ�䣺
+            // 2D X -> 3D X
+            // 2D Y -> 3D Z (��ȣ����ￄ1�7 GPU �Զ� Y-Sort)
+            // 2D Height -> 3D Y (�Ӿ��߶�)
             float fake_depth_offset = unit.position.y * 0.0001f;
             Vector3 pos_3d = Vector3(unit.position.x, unit.height + fake_depth_offset, unit.position.y - unit.height);
             xform.origin = pos_3d;
 
-            //   ת     QuadMesh         QuadMesh Ĭ     XY ƽ 棬      Ҫ       XZ ƽ   ϣ 
+            //   ת     QuadMesh         QuadMesh Ĭ     XY ƽ 棄1�7      Ҫ       XZ ƽ   ϣ 
             //          Ǹ  ӵģ       Ҫ   X     ת -90   
+            // ��ת���� QuadMesh ��������QuadMesh Ĭ���� XY ƽ�棬������Ҫ������ XZ ƽ���ϣ�
+            // ���������Ǹ��ӵģ�������Ҫ�� X ����ת -90 ��
             xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
 
             xform.basis = (xform.basis).rotated(Vector3(0, -1, 0), (unit.rotation + Math_PI / 2.0f));
@@ -554,6 +581,7 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
             mm->set_instance_transform(i, xform);
 
             //      ߼   ֱ  ʹ   s_ptr  
+            // �����߼���ֱ��ʹ�� s_ptr��
             int frames = (unit.state == MOVING) ? s_ptr->get_move_frames() : s_ptr->get_idle_frames();
             int row = (unit.state == MOVING) ? s_ptr->get_move_row() : s_ptr->get_idle_row();
             float duration = (float)frames / s_ptr->get_anim_fps();
@@ -562,6 +590,7 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
             mm->set_instance_custom_data(i, Color(frame_idx, row, 0, 0));
 
             //      ɫ
+            //������ɫ
             Color display_color;
             if (unit.is_selected) {
                 if (unit.is_mouse_on) {
@@ -582,31 +611,44 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
             mm->set_instance_color(i, display_color);
 
 
-            //     Ӱ ӱ任 (XZƽ    ƽ)
+            //     Ӱ ӱ仄1�7 (XZƽ    ƽ)
             Transform3D shadow_xform;
 
-            //     Ӱ  λ ã   ΢ƫ  һ  㣬      ̹   Ĵ        ⿿һ  
+            //     Ӱ  λ ã   ΢ƫ  һ  㣄1�7      ̹   Ĵ        ⿿҄1�7  
             //             Ϸ      ǽ Ӱ       ½ ƫ  
             float shadow_offset_x = 4.0f; //        ̹ ˳ߴ    
             float shadow_offset_z = 4.0f;
 
             // Ӱ ӷ  ڵ   ߶ȣ   һ    С  ƫ   (0.001)   ֹ      Z-Fighting
-            // ע ⣺Ӱ ӵ  origin.y      unit.height  仯      Զ ڵ   
+            // ע ⣺ӄ1�7 ӵ  origin.y      unit.height  仄1�7      Զ ڵ   
+            // ����Ӱ�ӱ任 (XZƽ����ƽ)
+            Transform3D shadow_xform;
+
+            // ����Ӱ��λ�ã���΢ƫ��һ��㣬������̹���Ĵ��������⿿һ�ￄ1�7
+            // ������������Ϸ������ǽ�Ӱ�������½�ƫ�ￄ1�7
+            float shadow_offset_x = 4.0f; // �������̹�˳ߴ����
+            float shadow_offset_z = 4.0f;
+
+            // Ӱ�ӷ��ڵ���߶ȣ���һ����С��ƫ�ￄ1�7 (0.001) ��ֹ����ￄ1�7 Z-Fighting
+            // ע�⣺Ӱ�ӵ� origin.y ���� unit.height �仯������Զ�ڵ���
             shadow_xform.origin = Vector3(unit.position.x + shadow_offset_x,
                 unit.height + fake_depth_offset - 0.1f,
                 unit.position.y + shadow_offset_z);
 
             // Ӱ       ŵ 
+            // Ӱ�������ŵ�
             shadow_xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
 
             shadow_xform.basis = (shadow_xform.basis).rotated(Vector3(0, -1, 0), (unit.rotation + Math_PI / 2.0f));
 
             //      ϣ  Ӱ    б      У                  
+            // �����ϣ��Ӱ����б������У�����������������ￄ1�7
             // shadow_xform.basis = shadow_xform.basis.scaled(Vector3(1.0, 1.5, 1.0));
 
             s_mm->set_instance_transform(i, shadow_xform);
 
             // ͬ         ݣ Ӱ  ҲҪ    
+            // ͬ���������ݣ�Ӱ��ҲҪ����
             s_mm->set_instance_custom_data(i, Color(frame_idx, row, 0, 0));
 
             unit.anim_time += p_delta;
@@ -683,7 +725,8 @@ void UnitManager::update_selection_state_and_target_position(UnitData& p_unit, i
             p_unit.state = MOVING;
 
             if (p_unit.temp_group_id != -1) {
-                //         ᣺1. Ӿ   ID б  Ƴ  Լ (O(1)) 2.   ֮ǰ   ƶ      پ      
+                //         ᣄ1�71. Ӿ   ID б  Ƴ  Լ (O(1)) 2.   ֮ǰ   ƶ      پ      
+                // ��������ᣄ1�71.�Ӿ���ID�б��Ƴ��Լ�(O(1)) 2.���֮ǰ���ƶ������پ������
                 group_manager->remove_unit_from_temp_group(p_unit.temp_group_id, p_unit.id);
             }
             p_unit.temp_group_id = p_group_id;
@@ -729,7 +772,7 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(p_path);
     if (stats.is_null()) return;
 
-    //    뻺 湩 spawn_unit_by_type ʹ  
+    //    뻄1�7 湄1�7 spawn_unit_by_type ʹ  
     unit_types_cache[p_name] = stats;
 
     //   ȡԭʼָ    Ϊ Key
@@ -739,11 +782,22 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     if (type_renderers.find(stats_ptr) != type_renderers.end()) return;
 
     // ---       Ⱦ   ---
+    // ���뻺�湩 spawn_unit_by_type ʹ��
+    unit_types_cache[p_name] = stats;
+
+    // ��ȡԭʼָ����Ϊ Key
+    UnitStats* stats_ptr = stats.ptr();
+
+    // ����������Ѿ�ע�����Ⱦ����ֱ�ӷ���
+    if (type_renderers.find(stats_ptr) != type_renderers.end()) return;
+
+    // --- ������Ⱦ�� ---
     MultiMeshInstance3D* mmi = memnew(MultiMeshInstance3D);
     mmi->set_name(p_name + "_Renderer");
     add_child(mmi);
 
     //      MultiMesh
+    // ���� MultiMesh
     Ref<MultiMesh> mm;
     mm.instantiate();
     mm->set_transform_format(MultiMesh::TRANSFORM_3D);
@@ -754,6 +808,7 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     qmesh.instantiate();
 
     //                   С
+    // ������������������С
     Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(stats->get_texture_path());
     if (tex.is_valid()) {
         Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
@@ -763,6 +818,7 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     mmi->set_multimesh(mm);
 
     //    ò   
+    // ���ò���
     Ref<ShaderMaterial> mat;
     mat.instantiate();
     if (unit_shader.is_null()) {
@@ -779,6 +835,10 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     type_renderers[stats_ptr] = mmi;
 
     // ---     Ӱ    Ⱦ   ---
+    // ����ӳ��
+    type_renderers[stats_ptr] = mmi;
+
+    // --- ����Ӱ����Ⱦ�� ---
     MultiMeshInstance3D* s_mmi = memnew(MultiMeshInstance3D);
     s_mmi->set_name(p_name + "_Shadows");
     add_child(s_mmi);
@@ -789,6 +849,7 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     s_mm->set_use_custom_data(true);
 
     // Ӱ ӿ   ʹ ø  򵥵  QuadMesh
+    // Ӱ�ӿ���ʹ�ø��򵥵� QuadMesh
     Ref<QuadMesh> s_qmesh;
     s_qmesh.instantiate();
     if (tex.is_valid()) {
@@ -800,6 +861,11 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     s_mmi->set_multimesh(s_mm);
 
     //     Ӱ Ӳ   
+    // ... ���������Є1�7 ...
+    s_mm->set_mesh(s_qmesh);
+    s_mmi->set_multimesh(s_mm);
+
+    // ����Ӱ�Ӳ���
     Ref<ShaderMaterial> s_mat;
     s_mat.instantiate();
     if (shadow_shader.is_null()) {
@@ -812,6 +878,7 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     s_mmi->set_material_override(s_mat);
 
     //      Map
+    // ���� Map
     shadow_renderers[stats_ptr] = s_mmi;
 }
 
@@ -828,6 +895,9 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
     // 1.     ɵ λ  ˫  ӳ  
     for (int old_uid : group_manager->control_groups[p_index]) {
         //֮  д ɺ   
+    // 1. ����ɵ�λ��˫��ӳ�ￄ1�7
+    for (int old_uid : group_manager->control_groups[p_index]) {
+        //֮��д�ɺ���
         int index = -1;
         auto it = id_to_index.find(old_uid);
         if (it != id_to_index.end()) {
@@ -836,6 +906,7 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
 
         UnitData& data = units[index];
         //  ӹ̶        Ƴ     
+        // �ӹ̶��������Ƴ�����
         for (int i = 0; i < data.control_group_count; ++i) {
             if (data.control_group_indices[i] == p_index) {
                 data.control_group_indices[i] = data.control_group_indices[data.control_group_count - 1];
@@ -851,6 +922,12 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
     // 3.      µ λ  ˫  ӳ  
     for (int new_uid : p_unit_ids) {
         //֮  д ɺ   
+    // 2. ���±�����ￄ1�7
+    group_manager->control_groups[p_index] = p_unit_ids;
+
+    // 3. �����µ�λ��˫��ӳ��
+    for (int new_uid : p_unit_ids) {
+        //֮��д�ɺ���
         int index = -1;
         auto it = id_to_index.find(new_uid);
         if (it != id_to_index.end()) {
@@ -859,6 +936,7 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
 
         UnitData& data = units[index];
         if (data.control_group_count < 3) { //          3
+        if (data.control_group_count < 3) { // �������� 3
             data.control_group_indices[data.control_group_count++] = p_index;
         }
     }
@@ -876,6 +954,7 @@ void UnitManager::set_attack_manager(Node* p_node) {
     attack_manager = Object::cast_to<AttackManager>(p_node);
     if (attack_manager) {
         attack_manager->setup(this); // 初始 ?AttackManager
+        attack_manager->setup(this); // 初始ￄ1�7?AttackManager
     }
 }
 
@@ -883,6 +962,7 @@ float UnitManager::get_unit_aggro_range(int p_unit_id) const {
     auto it = id_to_index.find(p_unit_id);
     if (it != id_to_index.end()) {
         // ֱ Ӵӵ λ   stats  ж ȡ   غõ   ʵ    
+        // ֱ�Ӵӵ�λ�� stats �ж�ȡ���غõ���ʵ����
         return units[it->second].stats->get_aggro_range();
     }
     return 0.0f;
@@ -936,6 +1016,8 @@ void UnitManager::_bind_methods() {
 
     //    
     // 1.  Ȱ    з    (Getter/Setter)
+    //����
+    // 1. �Ȱ����з��� (Getter/Setter)
     ClassDB::bind_method(D_METHOD("get_flow_factor"), &UnitManager::get_flow_factor);
     ClassDB::bind_method(D_METHOD("set_flow_factor", "p_val"), &UnitManager::set_flow_factor);
 
@@ -964,6 +1046,7 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_desired_integration", "p_val"), &UnitManager::set_desired_integration);
 
     // 2. ע     Ե  Godot        
+    // 2. ע�����Ե� Godot ������ￄ1�7
 
     ADD_GROUP("Force Settings", "");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "flow_factor"), "set_flow_factor", "get_flow_factor");
