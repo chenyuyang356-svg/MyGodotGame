@@ -20,6 +20,7 @@ splash_radius    = 0.0
 # 枚举可选: Closest, Lowest_hp, Highest_value
 target_priority  = Closest
 can_fire_on_move = true
+
 # --- Movement (移动与碰撞) ---
 move_speed       = 250.0
 acceleration     = 1000.0

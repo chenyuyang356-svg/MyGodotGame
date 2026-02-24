@@ -2,6 +2,7 @@
 #include "attack_manager.h"
 #include "unit_stats.h" 
 #include <godot_cpp/variant/utility_functions.hpp> 
+#include <godot_cpp/classes/engine.hpp>
 
 using namespace godot;
 
@@ -30,9 +31,15 @@ void AttackManager::update_units(double p_delta) {
         case IDLE:      _handle_idle(unit); break;
         case CHASING:   _handle_chasing(unit); break;
         case ATTACKING: _handle_attacking(unit, p_delta); break;
-        case MOVING: break;
+        case MOVING:    _handle_moving(unit); break;
         case PATROLLING: _handle_patrolling(unit); break;
             // 可选：移动攻击 (Attack Move) 逻辑可以在这里加
+        }
+    }
+        // 3. 死亡清理
+    for (int i = unit_manager->units.size() - 1; i >= 0; --i) {
+        if (unit_manager->units[i].current_health <= 0) {
+            unit_manager->despawn_unit(unit_manager->units[i].id);
         }
     }
 }
@@ -115,6 +122,7 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
     if (dist_sq <= range * range) {
         // 【修改】实现边跑边打逻辑
         if (p_unit.stats->get_can_fire_on_move()) {
+            UtilityFunctions::print("单位 ", p_unit.id, " 可以移动攻击！");
             if (p_unit.attack_cooldown <= 0) {
                 _execute_attack(p_unit, target);
                 p_unit.attack_cooldown = p_unit.stats->get_attack_interval();
@@ -124,8 +132,14 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
             p_unit.state = ATTACKING; // 传统定点攻击
         }
     }
+
     else if (dist_sq > p_unit.stats->get_aggro_range() * p_unit.stats->get_aggro_range() * 4.0f) {
         // 追太远了，放弃追击，恢复状态
+        p_unit.target_id = -1;
+        p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE;
+    }
+
+    else if (!p_unit.is_manual_target && dist_sq > p_unit.stats->get_aggro_range() * p_unit.stats->get_aggro_range() * 4.0f) {
         p_unit.target_id = -1;
         p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE;
     }
@@ -191,6 +205,42 @@ void AttackManager::_handle_patrolling(UnitData& p_unit) {
     }
 }
 
+void AttackManager::_handle_moving(UnitData& p_unit) {
+    // 1. Check state and permission (Prints every 60 frames to avoid spam)
+    if (Engine::get_singleton()->get_process_frames() % 60 == 0) {
+        UtilityFunctions::print("[MOVING State] Unit ID: ", p_unit.id, " | can_fire_on_move: ", p_unit.stats->get_can_fire_on_move());
+    }
+
+    if (p_unit.stats->get_can_fire_on_move()) {
+        // 2. Try to find a target
+        if (_try_find_target(p_unit)) {
+            int target_idx = unit_manager->get_unit_index_by_id(p_unit.target_id);
+            if (target_idx != -1) {
+                UnitData& target = unit_manager->units[target_idx];
+                float dist_sq = p_unit.position.distance_squared_to(target.position);
+                float atk_range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target.stats->get_collision_radius();
+
+                // 3. Check distance
+                if (dist_sq <= atk_range * atk_range) {
+                    if (p_unit.attack_cooldown <= 0) {
+                        _execute_attack(p_unit, target);
+                        p_unit.attack_cooldown = p_unit.stats->get_attack_interval();
+
+                        // Action executed!
+                        UtilityFunctions::print("----> SUCCESS: Move-attack executed on Target ID: ", target.id);
+                    }
+                }
+                else {
+                    // Target found, but out of range
+                    if (Engine::get_singleton()->get_process_frames() % 60 == 0) {
+                        UtilityFunctions::print("---- FAILED: Target found but out of range. Current dist_sq: ", dist_sq, " | Required range_sq: ", atk_range * atk_range);
+                    }
+                }
+            }
+        }
+    }
+}
+
 // 索敌逻辑：使用 UnitManager 的网格查询
 bool AttackManager::_try_find_target(UnitData& p_unit) {
     float range = p_unit.stats->get_aggro_range();
@@ -215,6 +265,7 @@ bool AttackManager::_try_find_target(UnitData& p_unit) {
 
     if (best_target != -1) {
         p_unit.target_id = best_target;
+        p_unit.is_manual_target = false;
         return true;
     }
     return false;
@@ -226,7 +277,6 @@ void AttackManager::_execute_attack(UnitData& attacker, UnitData& defender) {
     // 这里可以加减防逻辑: dmg -= defender.stats->get_armor()...
 
     defender.current_health -= dmg;
-    UtilityFunctions::print("单位 ", attacker.id, " 攻击了 ", defender.id, "，造成伤害:", dmg, " 剩余血量:", defender.current_health);
 
     // 简单的反击AI：如果不动且被打，就打回去
     if (defender.state == IDLE && defender.target_id == -1) {

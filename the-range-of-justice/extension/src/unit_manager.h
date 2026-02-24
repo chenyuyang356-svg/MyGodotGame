@@ -99,8 +99,11 @@ namespace godot {
 		// --- 单位生命周期 ---
 		int spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id = 0);
 		void despawn_unit(int p_unit_id);
+
+		// --- 单位攻击逻辑 ---
 		void command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos);
 		void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints);
+		void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_id);
 
 		// --- 空间网格核心操作 ---
 		void update_spatial_grid();

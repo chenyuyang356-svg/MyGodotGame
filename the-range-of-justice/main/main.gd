@@ -57,11 +57,11 @@ func _ready() -> void:
 		for y in range(10):
 			var id1 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
 			var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(3000, 3000), 2)
-			var id3 = unit_manager.spawn_unit_by_type("Tank", -32 * Vector2(x, y), 1)
+			
 			
 			active_unit_ids.append(id1)
 			active_unit_ids.append(id2)
-			active_unit_ids.append(id3)
+			
 			
 	if debug_draw != null:
 		debug_draw.unit_manager = unit_manager

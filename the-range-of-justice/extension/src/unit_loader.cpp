@@ -42,7 +42,8 @@ int UnitLoader::_parse_enum(String p_key, String p_value) {
         if (p_value == "Highest_value") return PRIORITY_HIGHEST_VALUE;
         if (p_value.is_valid_int()) return p_value.to_int();
     }
-    // 默认情况：返回一个标记值（如 -999）或者尝试直接转 int
+    // 默认情况：返回一个标
+    // 记值（如 -999）或者尝试直接转 int
     if (p_value.is_valid_int()) return p_value.to_int();
     return 0; // 默认 fallback
 }
@@ -97,17 +98,27 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, Ref<UnitStats> p_t
         if (key == "unit_tags") {
             stats->set(key, _parse_bitfield(value_str));
         }
+
         else if (key == "armor_type" || key == "attack_type" ||
             key == "move_type" || key == "target_priority") {
             stats->set(key, _parse_enum(key, value_str));
         }
+
+        else if (key == "can_fire_on_move") {
+            String val_str = value_str.strip_edges().to_lower();
+            bool can_fire = val_str.contains("true") || val_str.contains("1");
+            UtilityFunctions::print("[UnitLoader] 修复后，读到字符串: '", val_str, "'，最终判定结果为: ", can_fire);
+            stats->set_can_fire_on_move(can_fire);
+        }
+            
+    
         // 2. [新增/修改]：显式处理字符串类型的 key
         else if (key == "texture_path") {
             stats->set(key, value_str);
         }
-        // 3. [修改]：更严谨地处理数值转换
+
+        // 3. [修改]：更严谨地处理数值转换 (保持不变)
         else {
-            // 只有当字符串确实是数字时才转换，否则按 String 处理
             if (value_str.is_valid_float()) {
                 if (value_str.contains(".")) {
                     stats->set(key, value_str.to_float());
@@ -117,7 +128,6 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, Ref<UnitStats> p_t
                 }
             }
             else {
-                // 如果不是数字（比如路径、名称等），直接存为原始字符串
                 stats->set(key, value_str);
             }
         }

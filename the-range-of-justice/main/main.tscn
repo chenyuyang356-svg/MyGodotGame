@@ -4,7 +4,7 @@
 [ext_resource type="Texture2D" uid="uid://b5homoc2mg5u0" path="res://asset/Tileset.png" id="1_53q0u"]
 [ext_resource type="Script" uid="uid://dctuafq0a0mpn" path="res://main/building_manager.gd" id="3_kfbq2"]
 [ext_resource type="Script" uid="uid://cxdwnig240dls" path="res://main/selection_manager.gd" id="4_3wy1v"]
-[ext_resource type="Script" path="res://main/camera_3d.gd" id="5_3wy1v"]
+[ext_resource type="Script" uid="uid://3bqvng8q6y28" path="res://main/camera_3d.gd" id="5_3wy1v"]
 [ext_resource type="Script" uid="uid://rcx1w1scq2ev" path="res://main/debug_draw.gd" id="6_kfbq2"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_3wy1v"]
