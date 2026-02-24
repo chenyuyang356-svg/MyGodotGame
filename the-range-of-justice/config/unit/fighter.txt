@@ -9,7 +9,6 @@ shield_max       = 0.0
 shield_regen     = 0.0
 # 枚举可选: Light, Heavy, Building, Hero
 armor_type       = Light
-
 # --- Attack (攻击) ---
 attack_damage    = 6.0
 attack_range     = 1500.0
@@ -20,7 +19,7 @@ projectile_speed = 800.0
 splash_radius    = 0.0
 # 枚举可选: Closest, Lowest_hp, Highest_value
 target_priority  = Closest
-
+can_fire_on_move = true
 # --- Movement (移动与碰撞) ---
 move_speed       = 250.0
 acceleration     = 1000.0
