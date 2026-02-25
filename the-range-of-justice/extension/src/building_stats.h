@@ -16,12 +16,19 @@ namespace godot {
         BUILDING_STORAGE      // 仓库/人口
     };
 
+    enum PlacementRequirement {
+        PLACE_LAND = 1,      // 01
+        PLACE_WATER = 2,     // 10
+        PLACE_COAST = 4      // 100 (可选扩展)
+    };
+
     class BuildingStats : public Resource {
         GDCLASS(BuildingStats, Resource)
 
     private:
         // --- 基础属性 ---
         BuildingType building_type = BUILDING_GENERIC;
+        uint32_t placement_requirement = PLACE_LAND;
         String building_name = "New Building";
         int cost = 100;
         float build_time = 5.0f;
@@ -65,6 +72,9 @@ namespace godot {
         // Base
         void set_building_type(BuildingType p_type) { building_type = p_type; }
         BuildingType get_building_type() const { return building_type; }
+
+        void set_placement_requirement(uint32_t p_mask) { placement_requirement = p_mask; }
+        uint32_t get_placement_requirement() const { return placement_requirement; }
 
         void set_building_name(String p_name) { building_name = p_name; }
         String get_building_name() const { return building_name; }
@@ -140,4 +150,5 @@ namespace godot {
 
 }
 
+VARIANT_BITFIELD_CAST(godot::PlacementRequirement);
 VARIANT_ENUM_CAST(godot::BuildingType);

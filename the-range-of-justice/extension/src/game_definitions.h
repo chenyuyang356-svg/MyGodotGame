@@ -41,6 +41,12 @@ namespace godot {
         TAG_HERO = 1 << 3
     };
 
+    enum NavigationType {
+        NAV_LAND = 0,
+        NAV_SEA = 1,
+        NAV_HOVER = 2,
+        NAV_MAX // 用于计数
+    };
 }
 
 // --- 2. 注册转换宏 (必须在 namespace 外面) ---

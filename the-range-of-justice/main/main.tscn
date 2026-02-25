@@ -63,6 +63,9 @@ offset_bottom = 40.0
 
 [node name="SelectionManager" type="SelectionManager" parent="." unique_id=803111584 node_paths=PackedStringArray("building_manager", "camera_3d")]
 script = ExtResource("4_3wy1v")
+double_click_interval_ms = null
+drag_threshold_dist = null
+long_press_threshold_ms = null
 building_manager = NodePath("../BuildingManager")
 camera_3d = NodePath("../Camera3D")
 

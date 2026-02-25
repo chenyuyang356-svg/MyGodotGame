@@ -8,6 +8,8 @@
 building_name=HumanBarrack
 # 建筑类型: Generic, Barracks, Turret, Collector, Storage (对应枚举 BuildingType)
 building_type=Barracks
+# land, sea, coast
+placement = land
 
 [Economy]
 # 建造消耗资源

@@ -9,13 +9,25 @@
 #include <godot_cpp/variant/vector2i.hpp>
 #include <godot_cpp/classes/time.hpp>
 
+#include "game_definitions.h"
+
 namespace godot {
 
-    // 为 Vector2i 提供哈希支持，以便将其用作 unordered_map 的 Key
-    struct Vector2iHasher {
-        size_t operator()(const Vector2i& v) const {
-            // 将两个 32 位整数组合成一个 64 位哈希值
-            return ((uint64_t)v.x << 32) | (uint32_t)v.y;
+    // 复合 Key：用于在哈希表中区分 [目标点 + 移动类型]
+    struct FlowFieldKey {
+        Vector2i target;
+        int nav_type;
+
+        bool operator==(const FlowFieldKey& other) const {
+            return target == other.target && nav_type == other.nav_type;
+        }
+    };
+
+    struct FlowFieldKeyHasher {
+        size_t operator()(const FlowFieldKey& k) const {
+            // 合并坐标和导航类型的哈希
+            size_t h1 = ((uint64_t)k.target.x << 32) | (uint32_t)k.target.y;
+            return h1 ^ (size_t)(k.nav_type * 0x9e3779b9);
         }
     };
 
@@ -25,6 +37,7 @@ namespace godot {
         bool is_computing = false;       //是否已完成计算
         float last_used_time;       //上次被查询的时间
         Vector2i target_position;           // 该流场的目标网格坐标
+        int nav_type;
         std::vector<float> integration_field; // Dijkstra 算法生成的集成场 (值越小离目标越近)
         std::vector<Vector2> flow_directions; // 最终生成的方向向量数组 (单位查询这个)
 
@@ -46,12 +59,14 @@ namespace godot {
         int size;       //总格子数
         Vector2i grid_origin;       //地图的左上角坐标
         Vector2i cell_size; // 每个格子的尺寸
-        std::vector<uint8_t> global_cost_map;      // 障碍物权重 (通常 1 为平地，255 为墙)
+        // 修改为多层代价地图：每个导航类型对应一个 vector
+        std::vector<uint8_t> cost_maps[NAV_MAX];
 
-        // 哈希表存储：Key 为目标点坐标，Value 为对应的完整流场数据
-        std::unordered_map<Vector2i, FlowField, Vector2iHasher> flow_fields;
+        // 修改哈希表 Key 为 FlowFieldKey
+        std::unordered_map<FlowFieldKey, FlowField, FlowFieldKeyHasher> flow_fields;
 
-        std::queue<Vector2i> calculation_queue;
+        // 任务队列也需要包含类型信息
+        std::queue<FlowFieldKey> calculation_queue;
 
         double cleanup_timer = 0.0;      // 累加时间
         const double CLEANUP_INTERVAL = 2.0; // 每 2 秒扫描一次
@@ -78,10 +93,10 @@ namespace godot {
         // --- 流场生命周期管理 ---
 
         // 为指定目标点创建一个新流场（如果已存在则重置）
-        void create_flow_field(Vector2i p_target_grid_pos, bool p_overwrite = true);
+        void create_flow_field(Vector2i p_target_grid_pos, int p_nav_type ,bool p_overwrite = true);
 
         // 删除特定的流场
-        void remove_flow_field(Vector2i p_target_grid_pos);
+        void remove_flow_field(Vector2i p_target_grid_pos, int p_nav_type);
 
         // 清空所有流场数据
         void clear_all_fields();
@@ -91,23 +106,23 @@ namespace godot {
         // --- 数据操作与算法 ---
 
         // 修改特定流场的代价地图（例如动态添加障碍物）
-        void set_cost(Vector2i p_cell_pos, uint8_t p_cost);
+        void set_cost(Vector2i p_cell_pos, uint8_t p_cost, int p_nav_type);
 
         // [核心] 计算指定目标的集成场 (Dijkstra/BFS)
-        void compute_integration_field(Vector2i p_target_grid_pos);
+        void compute_integration_field(FlowFieldKey p_key);
 
         // [核心] 计算指定目标的向量方向场 (Gradient)
-        void compute_flow_directions(Vector2i p_target_grid_pos);
+        void compute_flow_directions(FlowFieldKey p_key);
 
         // --- 查询接口 (供单位调用) ---
 
-        float get_cost(Vector2i p_grid_pos);
+        float get_cost(Vector2i p_grid_pos, int p_nav_type);
 
         // 根据世界坐标和目标坐标，获取该位置与目标的距离
-        float get_integration(Vector2 p_world_pos, Vector2 p_target_world_pos);
+        float get_integration(Vector2 p_world_pos, Vector2 p_target_world_pos, int p_nav_type);
 
         // 根据世界坐标和目标坐标，获取该位置应有的移动方向向量
-        Vector2 get_flow_direction(Vector2 p_world_pos, Vector2 p_target_world_pos);
+        Vector2 get_flow_direction(Vector2 p_world_pos, Vector2 p_target_world_pos, int p_nav_type);
 
         // 将世界坐标转换为格点坐标
         Vector2i world_to_grid(Vector2 p_world_pos);

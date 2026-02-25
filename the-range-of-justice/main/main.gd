@@ -36,20 +36,38 @@ func _ready() -> void:
 	unit_manager.register_unit_type("Fighter", "res://config/unit/fighter.txt")
 	unit_manager.register_unit_type("Battleship", "res://config/unit/battleship.txt")
 	
+	#NAV_LAND
 	for x in range(used_rect.position.x, used_rect.end.x):
 		for y in range(used_rect.position.y, used_rect.end.y):
 			var coords: Vector2i = Vector2i(x, y)
 			var data = tile_map_layer.get_cell_tile_data(coords)
-			if data == null or data.get_custom_data("IsWall"):
-				flow_field_manager.set_cost(coords, 255)
+			if data == null or data.get_custom_data("IsWall") or data.get_custom_data("IsSea"):
+				flow_field_manager.set_cost(coords, 255, 0)
 			else:
-				flow_field_manager.set_cost(coords, 1)
+				flow_field_manager.set_cost(coords, 1, 0)
 				for dx in range(-1, 2):
 					for dy in range(-1, 2):
 						if Vector2i(dx, dy) != Vector2i.ZERO:
 							var neighbor_data = tile_map_layer.get_cell_tile_data(coords + Vector2i(dx, dy))
-							if neighbor_data == null or neighbor_data.get_custom_data("IsWall"):
-								flow_field_manager.set_cost(coords, 30)
+							if neighbor_data == null or neighbor_data.get_custom_data("IsWall") or data.get_custom_data("IsSea"):
+								flow_field_manager.set_cost(coords, 30, 0)
+								continue
+	
+	#NAV_SEA
+	for x in range(used_rect.position.x, used_rect.end.x):
+		for y in range(used_rect.position.y, used_rect.end.y):
+			var coords: Vector2i = Vector2i(x, y)
+			var data = tile_map_layer.get_cell_tile_data(coords)
+			if data == null or (not data.get_custom_data("IsSea")):
+				flow_field_manager.set_cost(coords, 255, 1)
+			else:
+				flow_field_manager.set_cost(coords, 1, 1)
+				for dx in range(-1, 2):
+					for dy in range(-1, 2):
+						if Vector2i(dx, dy) != Vector2i.ZERO:
+							var neighbor_data = tile_map_layer.get_cell_tile_data(coords + Vector2i(dx, dy))
+							if neighbor_data == null or (not data.get_custom_data("IsSea")):
+								flow_field_manager.set_cost(coords, 30, 1)
 								continue
 	
 	var active_unit_ids: Array = []

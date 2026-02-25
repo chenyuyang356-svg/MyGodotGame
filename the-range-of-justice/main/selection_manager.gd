@@ -100,7 +100,7 @@ func _on_left_released():
 
 func _on_right_released():
 	set_mouse_position(camera_3d.get_mouse_world_pos())
-	selecting_target_position()
+	selecting_target()
 
 # --- 具体执行动作 ---
 
