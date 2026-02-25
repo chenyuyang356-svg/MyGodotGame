@@ -941,7 +941,7 @@ int UnitManager::get_unit_index_by_id(int p_id) {
 void UnitManager::set_attack_manager(Node* p_node) {
     attack_manager = Object::cast_to<AttackManager>(p_node);
     if (attack_manager) {
-        attack_manager->setup(this); // 初始 ?AttackManager
+        attack_manager->setup(this); 
     }
 }
 

@@ -1,13 +1,14 @@
 #pragma once
 #include "attack_manager.h"
 #include "unit_stats.h" 
+#include "projectile_manager.h"
 #include <godot_cpp/variant/utility_functions.hpp> 
 #include <godot_cpp/classes/engine.hpp>
 
 using namespace godot;
 
 void AttackManager::_bind_methods() {
-    // 如果不需要在 GDScript 中单独调用，这里可以留空，或者绑定 setup
+        ClassDB::bind_method(D_METHOD("set_projectile_manager", "p_proj_manager"), &AttackManager::set_projectile_manager);
 }
 
 AttackManager::AttackManager() {}
@@ -15,6 +16,10 @@ AttackManager::~AttackManager() {}
 
 void AttackManager::setup(UnitManager* p_manager) {
     unit_manager = p_manager;
+}
+
+void AttackManager::set_projectile_manager(ProjectileManager* p_proj_manager) {
+    projectile_manager = p_proj_manager;
 }
 
 void AttackManager::update_units(double p_delta) {
@@ -122,7 +127,6 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
     if (dist_sq <= range * range) {
         // 【修改】实现边跑边打逻辑
         if (p_unit.stats->get_can_fire_on_move()) {
-            UtilityFunctions::print("单位 ", p_unit.id, " 可以移动攻击！");
             if (p_unit.attack_cooldown <= 0) {
                 _execute_attack(p_unit, target);
                 p_unit.attack_cooldown = p_unit.stats->get_attack_interval();
@@ -208,7 +212,6 @@ void AttackManager::_handle_patrolling(UnitData& p_unit) {
 void AttackManager::_handle_moving(UnitData& p_unit) {
     // 1. Check state and permission (Prints every 60 frames to avoid spam)
     if (Engine::get_singleton()->get_process_frames() % 60 == 0) {
-        UtilityFunctions::print("[MOVING State] Unit ID: ", p_unit.id, " | can_fire_on_move: ", p_unit.stats->get_can_fire_on_move());
     }
 
     if (p_unit.stats->get_can_fire_on_move()) {
@@ -272,16 +275,78 @@ bool AttackManager::_try_find_target(UnitData& p_unit) {
 }
 
 void AttackManager::_execute_attack(UnitData& attacker, UnitData& defender) {
-    // 简单的伤害计算
     float dmg = attacker.stats->get_attack_damage();
-    // 这里可以加减防逻辑: dmg -= defender.stats->get_armor()...
+    float proj_speed = attacker.stats->get_projectile_speed();
+    float splash = attacker.stats->get_splash_radius(); // 读取溅射半径
 
-    defender.current_health -= dmg;
+    if (proj_speed <= 0.0f || proj_speed > 5000.0f) {
+        // 瞬间命中：如果有溅射，直接在目标脚下引爆；否则单体扣血
+        if (splash > 0.0f) {
+            apply_aoe_damage(defender.position, splash, dmg, attacker.id);
+        }
+        else {
+            apply_damage(defender.id, dmg, attacker.id);
+        }
+    }
+    else {
+        // 实体弹道：召唤子弹，把 splash 传进去 (下一步会修改子弹管理器的参数)
+        if (projectile_manager) {
+            projectile_manager->spawn_projectile(
+                attacker.position, defender.id, dmg, proj_speed, attacker.id, splash
+            );
+        }
+    }
+}
 
-    // 简单的反击AI：如果不动且被打，就打回去
-    if (defender.state == IDLE && defender.target_id == -1) {
-        defender.target_id = attacker.id;
+void AttackManager::apply_damage(int target_id, float damage, int attacker_id) {
+    // 检查目标是否存在且存活
+    int target_idx = unit_manager->get_unit_index_by_id(target_id);
+    if (target_idx == -1) return;
+
+    UnitData& defender = unit_manager->units[target_idx];
+    if (defender.current_health <= 0) return;
+
+    // 1. 伤害计算（后续可以修改）
+    defender.current_health -= damage;
+
+    // 2. 保留你原本的反击AI逻辑
+    if (defender.state == IDLE && defender.target_id == -1 && attacker_id != -1) {
+        defender.target_id = attacker_id;
         defender.state = CHASING;
+    }
+}
+
+void AttackManager::apply_aoe_damage(Vector2 p_epicenter, float p_radius, float p_damage, int p_attacker_id) {
+    // 查找攻击者的队伍ID（用于避免误伤友军，如果你的游戏允许友伤，可以去掉这层判断）
+    int attacker_idx = unit_manager->get_unit_index_by_id(p_attacker_id);
+    int attacker_team = -1;
+    if (attacker_idx != -1) {
+        attacker_team = unit_manager->units[attacker_idx].team_id;
+    }
+
+    // 利用空间网格找出爆炸中心附近的所有单位
+    std::vector<int> nearby_units = unit_manager->get_nearby_units(p_epicenter, p_radius);
+
+    for (int target_idx : nearby_units) {
+        UnitData& target = unit_manager->units[target_idx];
+
+        if (target.current_health <= 0) continue; // 不鞭尸
+        if (attacker_team != -1 && target.team_id == attacker_team) continue; // 过滤友军
+
+        // 网格查询可能返回方形区域的单位，需要做精确的圆形距离校验
+        float dist_sq = p_epicenter.distance_squared_to(target.position);
+        float real_radius = p_radius + target.stats->get_collision_radius(); // 把单位体积算进判定里
+
+        if (dist_sq <= real_radius * real_radius) {
+            // 造成伤害
+            target.current_health -= p_damage;
+
+            // 触发受击反击AI
+            if (target.state == IDLE && target.target_id == -1 && p_attacker_id != -1) {
+                target.target_id = p_attacker_id;
+                target.state = CHASING;
+            }
+        }
     }
 }
 
