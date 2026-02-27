@@ -125,7 +125,7 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
     float range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target.stats->get_collision_radius();
 
     if (dist_sq <= range * range) {
-        // 实现边跑边打逻辑
+        // 【修改】实现边跑边打逻辑
         if (p_unit.stats->get_can_fire_on_move()) {
             if (p_unit.attack_cooldown <= 0) {
                 _execute_attack(p_unit, target);
@@ -136,7 +136,13 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
             p_unit.state = ATTACKING; // 传统定点攻击
         }
     }
-        // 放弃追击条件
+
+    else if (dist_sq > p_unit.stats->get_aggro_range() * p_unit.stats->get_aggro_range() * 4.0f) {
+        // 追太远了，放弃追击，恢复状态
+        p_unit.target_id = -1;
+        p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE;
+    }
+
     else if (!p_unit.is_manual_target && dist_sq > p_unit.stats->get_aggro_range() * p_unit.stats->get_aggro_range() * 4.0f) {
         p_unit.target_id = -1;
         p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE;

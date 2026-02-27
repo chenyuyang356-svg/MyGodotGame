@@ -20,7 +20,7 @@ namespace godot {
 			TYPE_SELECTING,
 			BOX_SELECTING,
 			BOX_SELECTION_ENDED,
-			SELECTING_TARGET_POSITION
+			SELECTING_TARGET
 		};
 
 	protected:
@@ -47,7 +47,7 @@ namespace godot {
 
 		void type_selecting();
 
-		void selecting_target_position();
+		void selecting_target();
 
 		void box_selecting();
 

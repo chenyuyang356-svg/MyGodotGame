@@ -41,6 +41,22 @@ namespace godot {
         TAG_HERO = 1 << 3
     };
 
+    enum NavigationType {
+        NAV_LAND = 0,
+        NAV_SEA = 1,
+        NAV_HOVER = 2,
+        NAV_MAX // 用于计数
+    };
+
+    inline Color get_team_color(int p_team_id) {
+        switch (p_team_id) {
+        case 1: return Color(0.2, 1.0, 0.2); // 绿色
+        case 2: return Color(1.0, 0.2, 0.2); // 红色
+        case 3: return Color(1.0, 1.0, 0.2); // 黄色
+        case 4: return Color(0.2, 0.4, 1.0); // 蓝色
+        default: return Color(1, 1, 1);      // 白色
+        }
+    }
 }
 
 // --- 2. 注册转换宏 (必须在 namespace 外面) ---

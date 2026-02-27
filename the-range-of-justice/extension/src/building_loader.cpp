@@ -38,6 +38,22 @@ Ref<BuildingStats> BuildingLoader::load_from_txt(String p_path, Ref<BuildingStat
             else if (v == "storage") stats->set_building_type(BUILDING_STORAGE);
             else stats->set_building_type(BUILDING_GENERIC);
         }
+
+        else if (key == "placement") {
+            uint32_t mask = 0;
+            PackedStringArray requirements = val.to_lower().split(",");
+            for (int i = 0; i < requirements.size(); ++i) {
+                String req = requirements[i].strip_edges();
+                if (req == "land") mask |= PLACE_LAND;
+                else if (req == "water") mask |= PLACE_WATER;
+                else if (req == "coast") mask |= PLACE_COAST;
+            }
+            // 如果是纯数字掩码也能解析
+            if (mask == 0 && val.is_valid_int()) mask = val.to_int();
+
+            stats->set_placement_requirement(mask);
+        }
+
         else if (key == "footprint") stats->set_footprint(parse_v2i(val));
         else if (key == "clearance") stats->set_clearance_size(parse_v2i(val));
         else if (key == "producible_units") {
