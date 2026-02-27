@@ -123,8 +123,7 @@ namespace godot {
 
 		void update_multimesh_buffer(double p_delta);
 
-		void update_selection_state_and_target_position(UnitData& p_unit, int p_group_id, Array& p_units_to_move, Vector2& p_target_pos,
-			Array& p_units_to_attack, int& p_target_id);
+		void update_selection_state_and_target_position(UnitData& p_unit, int p_group_id);
 
 		// 获取数据供 Godot 渲染
 		Vector2 get_unit_position(int p_unit_id) const;

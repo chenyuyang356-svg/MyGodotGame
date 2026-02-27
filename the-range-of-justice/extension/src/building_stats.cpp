@@ -14,18 +14,10 @@ void BuildingStats::_bind_methods() {
     BIND_ENUM_CONSTANT(BUILDING_COLLECTOR);
     BIND_ENUM_CONSTANT(BUILDING_STORAGE);
 
-    BIND_ENUM_CONSTANT(PLACE_LAND);
-    BIND_ENUM_CONSTANT(PLACE_WATER);
-    BIND_ENUM_CONSTANT(PLACE_COAST);
-
     // --- 基础属性绑定 ---
     ClassDB::bind_method(D_METHOD("get_building_type"), &BuildingStats::get_building_type);
     ClassDB::bind_method(D_METHOD("set_building_type", "p_val"), &BuildingStats::set_building_type);
     ADD_PROPERTY(PropertyInfo(Variant::INT, "building_type", PROPERTY_HINT_ENUM, "Generic,Barracks,Turret,Collector,Storage"), "set_building_type", "get_building_type");
-
-    ClassDB::bind_method(D_METHOD("get_placement_requirement"), &BuildingStats::get_placement_requirement);
-    ClassDB::bind_method(D_METHOD("set_placement_requirement", "p_mask"), &BuildingStats::set_placement_requirement);
-    ADD_PROPERTY(PropertyInfo(Variant::INT, "placement_requirement", PROPERTY_HINT_FLAGS, "Land:1,Water:2,Coast:4"), "set_placement_requirement", "get_placement_requirement");
 
     ClassDB::bind_method(D_METHOD("get_building_name"), &BuildingStats::get_building_name);
     ClassDB::bind_method(D_METHOD("set_building_name", "p_val"), &BuildingStats::set_building_name);

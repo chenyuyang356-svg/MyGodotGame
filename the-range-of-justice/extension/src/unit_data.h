@@ -2,7 +2,6 @@
 #include <godot_cpp/variant/vector2.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include "unit_stats.h"
-#include "game_definitions.h"
 
 namespace godot {
     enum UnitState {
@@ -48,12 +47,5 @@ namespace godot {
         int current_waypoint_idx = 0;
 
         UnitData() : id(-1), state(IDLE), current_health(0) {}
-
-        int get_nav_type() {
-            if (stats->move_type == MOVE_GROUND) { return NAV_LAND; }
-            if (stats->move_type == MOVE_SEA) { return NAV_SEA; }
-            if (stats->move_type == MOVE_AIR) { return NAV_MAX; }
-            if (stats->move_type == MOVE_HOVER) { return NAV_HOVER; }
-        }
     };
 }

@@ -1,5 +1,3 @@
-#pragma once
-
 #include "building_manager.h"
 #include <godot_cpp/core/class_db.hpp>
 
@@ -77,13 +75,11 @@ void BuildingManager::update_multimesh_buffer(double p_delta) {
             float duration = (float)frames / s_ptr->get_anim_fps();
             int frame_idx = (int)(Math::fmod(b.anim_time, duration) * s_ptr->get_anim_fps());
 
-            float modulate = 1.0f;
-            
-            Color anim_data = Color((float)frame_idx, (float)row, modulate, 0);
+            Color anim_data = Color((float)frame_idx, (float)row, 0, 0);
             mm->set_instance_custom_data(i, anim_data);
             s_mm->set_instance_custom_data(i, anim_data); // 影子也播放同样动作
 
-            mm->set_instance_color(i, get_team_color(b.team_id));
+            mm->set_instance_color(i, Color(1, 1, 1, 1));
 
             b.anim_time += (float)p_delta;
         }
@@ -169,7 +165,6 @@ bool BuildingManager::is_area_clear(Vector2i p_grid_pos, Ref<BuildingStats> p_st
 
     Vector2i footprint = p_stats->get_footprint();
     Vector2i clearance = p_stats->get_clearance_size();
-    uint32_t req = p_stats->get_placement_requirement();
 
     // 1. 计算 Clearance 检查的起始点
     // 假设 p_grid_pos 是建筑实际占用(footprint)的左上角
@@ -185,15 +180,8 @@ bool BuildingManager::is_area_clear(Vector2i p_grid_pos, Ref<BuildingStats> p_st
 
             if (!flow_field_manager->is_in_grid(current_cell)) return false;
 
-            // 如果要求在陆地：陆地层不能是墙 (255)
-            if (req & PLACE_LAND) {
-                if (flow_field_manager->get_cost(current_cell, NAV_LAND) == 255) { return false; }
-            }
-
-            // 如果要求在水上：检查 NAV_SEA 层
-            if (req & PLACE_WATER) {
-                if (flow_field_manager->get_cost(current_cell, NAV_SEA) == 255) { return false; }
-            }
+            // 只要 Clearance 范围内碰到了 Cost 255，就说明离别的建筑太近了
+            if (flow_field_manager->get_cost(current_cell) == 255) return false;
         }
     }
 
@@ -222,8 +210,6 @@ int BuildingManager::place_building_by_type(String p_type_name, Vector2i p_grid_
     if (!building_types_cache.has(p_type_name)) return -1;
 
     Ref<BuildingStats> stats = building_types_cache[p_type_name];
-    uint32_t req = stats->get_placement_requirement();
-
     if (!is_area_clear(p_grid_pos, stats)) return -1;
 
     // 1. 创建建筑
@@ -240,12 +226,7 @@ int BuildingManager::place_building_by_type(String p_type_name, Vector2i p_grid_
     Vector2i footprint = stats->get_footprint();
     for (int x = 0; x < footprint.x; ++x) {
         for (int y = 0; y < footprint.y; ++y) {
-            if (req & PLACE_LAND) {
-                flow_field_manager->set_cost(p_grid_pos + Vector2i(x, y), 255, NAV_LAND);
-            }
-            if (req & PLACE_WATER) {
-                flow_field_manager->set_cost(p_grid_pos + Vector2i(x, y), 255, NAV_SEA);
-            }
+            flow_field_manager->set_cost(p_grid_pos + Vector2i(x, y), 255);
         }
     }
 
@@ -259,16 +240,10 @@ void BuildingManager::remove_building(int p_building_id) {
 
     BuildingData& b = it->second;
     Vector2i footprint = b.stats->get_footprint();
-    uint32_t req = b.stats->get_placement_requirement();
 
     for (int x = 0; x < footprint.x; ++x) {
         for (int y = 0; y < footprint.y; ++y) {
-            if (req & PLACE_LAND) {
-                flow_field_manager->set_cost(b.grid_pos + Vector2i(x, y), 1, NAV_LAND);
-            }
-            if (req & PLACE_WATER) {
-                flow_field_manager->set_cost(b.grid_pos + Vector2i(x, y), 1, NAV_SEA);
-            }
+            flow_field_manager->set_cost(b.grid_pos + Vector2i(x, y), 1);
         }
     }
 

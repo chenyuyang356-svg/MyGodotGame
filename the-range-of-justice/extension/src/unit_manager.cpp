@@ -83,53 +83,31 @@ void UnitManager::despawn_unit(int p_unit_id) {
 
 void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos) {
     if (!flow_field_manager) return;
-    if (p_unit_ids.is_empty()) return;
 
     Vector2i target_grid_pos = flow_field_manager->world_to_grid(p_target_world_pos);
 
-    // 检查目标点是否在网格内
     if (!(flow_field_manager->is_in_grid(target_grid_pos))) return;
 
-    // 记录这一批指令中已经请求过的导航类型，避免重复调用 create_flow_field
-    // 假设 NavigationType 枚举的最大值为 NAV_MAX
-    bool requested_types[NAV_MAX] = { false };
+    flow_field_manager->create_flow_field(target_grid_pos, false);
 
     for (int i = 0; i < p_unit_ids.size(); i++) {
         int uid = p_unit_ids[i];
         auto it = id_to_index.find(uid);
-
         if (it != id_to_index.end()) {
             UnitData& unit = units[it->second];
-
-            // --- 核心逻辑修改：根据单位自身的导航类型请求流场 ---
-            // 假设 unit.nav_type 存储了该单位的移动类型 (NAV_LAND, NAV_SEA 等)
-            int type = unit.get_nav_type();
-
-            if (type >= 0 && type < NAV_MAX) {
-                if (!requested_types[type]) {
-                    // 为该类型创建/获取流场，p_overwrite 设为 false 表示如果已存在则不重置
-                    flow_field_manager->create_flow_field(target_grid_pos, type, false);
-                    requested_types[type] = true;
-                }
-            }
-
-            // --- 更新单位状态 ---
+            unit.is_patrolling = false;      
             unit.target_grid = target_grid_pos;
-            unit.target_pos = p_target_world_pos;
             unit.state = MOVING;
             unit.target_id = -1;
             unit.is_patrolling = false;
-            unit.is_manual_target = false;
-
-            // 注意：如果单位正在移动中切换了目标，
-            // 它的 get_flow_direction 调用也需要传入 unit.nav_type
+            unit.is_manual_target = false;   
+            unit.target_id = -1;
         }
+        
     }
 }
 
 void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints) {
-    if (p_unit_ids.is_empty()) return;
-    
     std::vector<Vector2> waypoints;
     for (int i = 0; i < p_waypoints.size(); ++i) {
         waypoints.push_back(p_waypoints[i]);
@@ -151,29 +129,6 @@ void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints) {
             unit.target_id = -1;
         }
        
-    }
-}
-
-void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_id) {
-    if (p_unit_ids.is_empty()) return;
-    if (p_target_id == -1) return;
-    
-    for (int i = 0; i < p_unit_ids.size(); i++) {
-        int uid = p_unit_ids[i];
-        auto it = id_to_index.find(uid);
-        if (it != id_to_index.end()) {
-            UnitData& unit = units[it->second];
-
-            // 1.       е  ƶ   Ѳ  ״̬
-            unit.is_patrolling = false;
-
-            // 2.     Ŀ  
-            unit.target_id = p_target_id;
-            unit.is_manual_target = true;
-
-            // 3. ֱ      ׷  ״̬  
-            unit.state = CHASING;
-        }
     }
 }
 
@@ -222,15 +177,6 @@ std::vector<int> UnitManager::get_nearby_units(Vector2 p_world_pos, float p_radi
 void UnitManager::update(double p_delta) {
     if (!is_setup || !flow_field_manager || !selection_manager) { return; }
 
-    //以后下面每项要改成数组，每队一项
-    Array units_to_move;
-    Vector2 target_pos;
-
-    Array units_to_patrol;
-
-    Array units_to_attack;
-    int target_id;
-
     if (attack_manager) {
         attack_manager->update_units(p_delta);
     }
@@ -254,7 +200,7 @@ void UnitManager::update(double p_delta) {
     
 
     int new_gid = -1;
-    if (selection_manager->state == selection_manager->SELECTING_TARGET) {
+    if (selection_manager->state == selection_manager->SELECTING_TARGET_POSITION) {
         new_gid = group_manager->create_temporary_group(selection_manager->mouse_position);
     }
 
@@ -264,19 +210,16 @@ void UnitManager::update(double p_delta) {
     for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
         UnitData& unit = units[unit_idx];
         update_state(unit);
-        update_selection_state_and_target_position(unit, new_gid, units_to_move, target_pos, units_to_attack, target_id);
+        update_selection_state_and_target_position(unit, new_gid);
         update_velocity(unit, p_delta);
         move(unit, p_delta);
     }
     if ((selection_manager->state == selection_manager->SINGLE_SELECTING) ||
         (selection_manager->state == selection_manager->TYPE_SELECTING) ||
         (selection_manager->state == selection_manager->BOX_SELECTION_ENDED) ||
-        (selection_manager->state == selection_manager->SELECTING_TARGET)) {
+        (selection_manager->state == selection_manager->SELECTING_TARGET_POSITION)) {
         selection_manager->state = selection_manager->NOT_SELECTING;
     }
-
-    command_units_to_move(units_to_move, target_pos);
-    command_units_to_attack_target(units_to_attack, target_id);
 
     update_multimesh_buffer(p_delta);
 }
@@ -287,7 +230,7 @@ Vector2 UnitManager::get_flow(UnitData& p_unit) {
         flow = (p_unit.target_pos - p_unit.position).normalized();
         return flow;
     }
-    flow = flow_field_manager->get_flow_direction(p_unit.position, p_unit.target_pos, p_unit.get_nav_type());
+    flow = flow_field_manager->get_flow_direction(p_unit.position, p_unit.target_pos);
     return flow;
 }
 
@@ -362,7 +305,7 @@ void UnitManager::update_state(UnitData& p_unit) {
             }
         }
         else {
-            if (flow_field_manager->get_integration(p_unit.position, p_unit.target_pos, p_unit.get_nav_type()) <= desired_integration) {
+            if (flow_field_manager->get_integration(p_unit.position, p_unit.target_pos) <= desired_integration) {
                 p_unit.state = IDLE;
                 p_unit.velocity = Vector2(0, 0);
                 group_manager->decrement_moving_count(p_unit.temp_group_id);
@@ -500,7 +443,7 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
             Vector2i check_grid(gx, gy);
 
             //     ø     ǽ (Cost == 255)
-            if (flow_field_manager->get_cost(check_grid, p_unit.get_nav_type()) == 255) {
+            if (flow_field_manager->get_cost(check_grid) == 255) {
 
                 //       ӵ         ߽  (AABB)
                 // ע ⣺              ϽǶ    ߼    world_to_grid һ  
@@ -616,29 +559,27 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
             float duration = (float)frames / s_ptr->get_anim_fps();
             int frame_idx = (int)(Math::fmod(unit.anim_time, duration) * s_ptr->get_anim_fps());
 
-            float modulate = 1.0;
+            mm->set_instance_custom_data(i, Color(frame_idx, row, 0, 0));
+
+            //      ɫ
+            Color display_color;
             if (unit.is_selected) {
                 if (unit.is_mouse_on) {
-                    modulate = 1.2;
+                    display_color = Color(1.2, 1.2, 1.2);
                 }
                 else {
-                    modulate = 1.5;
+                    display_color = Color(1.5, 1.5, 1.5);
                 }
             }
             else {
                 if (unit.is_mouse_on) {
-                    modulate = 1.2;
+                    display_color = Color(1.2, 1.2, 1.2);
                 }
                 else {
-                    modulate = 1.0;
+                    display_color = Color(1.0, 1.0, 1.0);
                 }
             }
-
-            mm->set_instance_custom_data(i, Color(frame_idx, row, modulate, 0));
-
-            //      ɫ
-            
-            mm->set_instance_color(i, get_team_color(unit.team_id));
+            mm->set_instance_color(i, display_color);
 
 
             //     Ӱ ӱ任 (XZƽ    ƽ)
@@ -673,8 +614,7 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
     }
 }
 
-void UnitManager::update_selection_state_and_target_position(UnitData& p_unit, int p_group_id, Array& p_units_to_move, Vector2& p_target_pos,
-    Array& p_units_to_attack, int& p_target_id) {
+void UnitManager::update_selection_state_and_target_position(UnitData& p_unit, int p_group_id) {
     if (selection_manager->state != selection_manager->BOX_SELECTING) {
         if (p_unit.id == selection_manager->selected_unit_id) {
             p_unit.is_mouse_on = true;
@@ -732,23 +672,15 @@ void UnitManager::update_selection_state_and_target_position(UnitData& p_unit, i
             p_unit.is_selected = false;
         }
         break;
-    case (selection_manager->SELECTING_TARGET):
-        if (selection_manager->team_id != p_unit.team_id) { return; }
-       
-        if (p_unit.is_selected) {
-            //命令单位攻击鼠标位置的敌方单位
-            //如果鼠标位置是友方单位，什么都不会发生
-            if (selection_manager->selected_unit_id != -1) {
-                if (selection_manager->selected_team_id != p_unit.team_id) {
-                    p_units_to_attack.append(p_unit.id);
-                    p_target_id = (selection_manager->selected_unit_id);
-                }
-                break;
+    case (selection_manager->SELECTING_TARGET_POSITION):
+        if ((p_unit.is_selected) && (selection_manager->team_id == p_unit.team_id)) {
+            Vector2i target_grid_pos = flow_field_manager->world_to_grid(selection_manager->mouse_position);
+            if ((p_unit.stats)->get_move_type() != MOVE_AIR) {
+                flow_field_manager->create_flow_field(target_grid_pos, false);
             }
-
-            //命令单位移动到鼠标位置
-            p_units_to_move.append(p_unit.id);
-            p_target_pos = selection_manager->mouse_position;
+            p_unit.target_pos = selection_manager->mouse_position;
+            p_unit.target_grid = target_grid_pos;
+            p_unit.state = MOVING;
 
             if (p_unit.temp_group_id != -1) {
                 //         ᣺1. Ӿ   ID б  Ƴ  Լ (O(1)) 2.   ֮ǰ   ƶ      پ      
@@ -962,6 +894,26 @@ float UnitManager::get_unit_attack_range(int p_unit_id) const {
         return units[it->second].stats->get_attack_range();
     }
     return 0.0f;
+}
+
+void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_id) {
+    for (int i = 0; i < p_unit_ids.size(); i++) {
+        int uid = p_unit_ids[i];
+        auto it = id_to_index.find(uid);
+        if (it != id_to_index.end()) {
+            UnitData& unit = units[it->second];
+
+            // 1.       е  ƶ   Ѳ  ״̬
+            unit.is_patrolling = false;
+
+            // 2.     Ŀ  
+            unit.target_id = p_target_id;
+            unit.is_manual_target = true;
+
+            // 3. ֱ      ׷  ״̬  
+            unit.state = CHASING;
+        }
+    }
 }
 
 void UnitManager::_bind_methods() {

@@ -32,8 +32,8 @@ void SelectionManager::type_selecting() {
 	state = TYPE_SELECTING;
 }
 
-void SelectionManager::selecting_target() {
-	state = SELECTING_TARGET;
+void SelectionManager::selecting_target_position() {
+	state = SELECTING_TARGET_POSITION;
 }
 
 void SelectionManager::box_selecting() {
@@ -57,7 +57,7 @@ void SelectionManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_mouse_position", "mouse_position"), &SelectionManager::set_mouse_position);
 	ClassDB::bind_method(D_METHOD("single_selecting"), &SelectionManager::single_selecting);
 	ClassDB::bind_method(D_METHOD("type_selecting"), &SelectionManager::type_selecting);
-	ClassDB::bind_method(D_METHOD("selecting_target"), &SelectionManager::selecting_target);
+	ClassDB::bind_method(D_METHOD("selecting_target_position"), &SelectionManager::selecting_target_position);
 	ClassDB::bind_method(D_METHOD("box_selecting"), &SelectionManager::box_selecting);
 	ClassDB::bind_method(D_METHOD("end_box_selecting"), &SelectionManager::end_box_selecting);
 
