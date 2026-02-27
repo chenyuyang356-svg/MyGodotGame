@@ -1,3 +1,5 @@
+#pragma once
+
 #include "building_manager.h"
 #include <godot_cpp/core/class_db.hpp>
 
@@ -75,11 +77,13 @@ void BuildingManager::update_multimesh_buffer(double p_delta) {
             float duration = (float)frames / s_ptr->get_anim_fps();
             int frame_idx = (int)(Math::fmod(b.anim_time, duration) * s_ptr->get_anim_fps());
 
-            Color anim_data = Color((float)frame_idx, (float)row, 0, 0);
+            float modulate = 1.0f;
+            
+            Color anim_data = Color((float)frame_idx, (float)row, modulate, 0);
             mm->set_instance_custom_data(i, anim_data);
             s_mm->set_instance_custom_data(i, anim_data); // 影子也播放同样动作
 
-            mm->set_instance_color(i, Color(1, 1, 1, 1));
+            mm->set_instance_color(i, get_team_color(b.team_id));
 
             b.anim_time += (float)p_delta;
         }

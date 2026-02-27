@@ -60,6 +60,7 @@ namespace godot {
         Vector2i grid_origin;       //地图的左上角坐标
         Vector2i cell_size; // 每个格子的尺寸
         // 修改为多层代价地图：每个导航类型对应一个 vector
+        std::vector<uint8_t> init_cost_maps[NAV_MAX];
         std::vector<uint8_t> cost_maps[NAV_MAX];
 
         // 修改哈希表 Key 为 FlowFieldKey
@@ -107,6 +108,8 @@ namespace godot {
 
         // 修改特定流场的代价地图（例如动态添加障碍物）
         void set_cost(Vector2i p_cell_pos, uint8_t p_cost, int p_nav_type);
+
+        void set_init_cost(Vector2i p_cell_pos, uint8_t p_cost, int p_nav_type);
 
         // [核心] 计算指定目标的集成场 (Dijkstra/BFS)
         void compute_integration_field(FlowFieldKey p_key);

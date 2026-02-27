@@ -616,27 +616,29 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
             float duration = (float)frames / s_ptr->get_anim_fps();
             int frame_idx = (int)(Math::fmod(unit.anim_time, duration) * s_ptr->get_anim_fps());
 
-            mm->set_instance_custom_data(i, Color(frame_idx, row, 0, 0));
-
-            //      ɫ
-            Color display_color;
+            float modulate = 1.0;
             if (unit.is_selected) {
                 if (unit.is_mouse_on) {
-                    display_color = Color(1.2, 1.2, 1.2);
+                    modulate = 1.2;
                 }
                 else {
-                    display_color = Color(1.5, 1.5, 1.5);
+                    modulate = 1.5;
                 }
             }
             else {
                 if (unit.is_mouse_on) {
-                    display_color = Color(1.2, 1.2, 1.2);
+                    modulate = 1.2;
                 }
                 else {
-                    display_color = Color(1.0, 1.0, 1.0);
+                    modulate = 1.0;
                 }
             }
-            mm->set_instance_color(i, display_color);
+
+            mm->set_instance_custom_data(i, Color(frame_idx, row, modulate, 0));
+
+            //      ɫ
+            
+            mm->set_instance_color(i, get_team_color(unit.team_id));
 
 
             //     Ӱ ӱ任 (XZƽ    ƽ)

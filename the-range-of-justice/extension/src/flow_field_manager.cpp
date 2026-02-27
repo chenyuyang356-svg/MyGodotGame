@@ -89,6 +89,7 @@ void FlowFieldManager::setup_grid(int p_width, int p_height, Vector2i p_origin, 
 
     // 初始化全局地图
     for (int i = 0; i < NAV_MAX; i++) {
+        init_cost_maps[i].assign(size, 1);
         cost_maps[i].assign(size, 1);
     }
 }
@@ -157,6 +158,16 @@ void FlowFieldManager::set_cost(Vector2i p_cell_pos, uint8_t p_cost, int p_nav_t
     if (relative.x >= 0 && relative.x < width && relative.y >= 0 && relative.y < height) {
         int index = relative.y * width + relative.x;
         cost_maps[p_nav_type][index] = p_cost;
+    }
+}
+
+void FlowFieldManager::set_init_cost(Vector2i p_cell_pos, uint8_t p_cost, int p_nav_type) {
+    if (p_nav_type < 0 || p_nav_type >= NAV_MAX) return;
+
+    Vector2i relative = p_cell_pos - grid_origin;
+    if (relative.x >= 0 && relative.x < width && relative.y >= 0 && relative.y < height) {
+        int index = relative.y * width + relative.x;
+        init_cost_maps[p_nav_type][index] = p_cost;
     }
 }
 
@@ -415,6 +426,7 @@ void FlowFieldManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("remove_flow_field", "target_grid_position", "nav_type"), &FlowFieldManager::remove_flow_field);
     ClassDB::bind_method(D_METHOD("clear_all_fields"), &FlowFieldManager::clear_all_fields);
     ClassDB::bind_method(D_METHOD("set_cost", "grid_position", "cost", "nav_type"), &FlowFieldManager::set_cost);
+    ClassDB::bind_method(D_METHOD("set_init_cost", "grid_position", "cost", "nav_type"), &FlowFieldManager::set_init_cost);
     ClassDB::bind_method(D_METHOD("get_integration", "world_position", "target_world_position", "nav_type"), &FlowFieldManager::get_integration);
     ClassDB::bind_method(D_METHOD("get_flow_direction", "world_position", "target_world_position", "nav_type"), &FlowFieldManager::get_flow_direction);
     ClassDB::bind_method(D_METHOD("world_to_grid", "world_pos"), &FlowFieldManager::world_to_grid);

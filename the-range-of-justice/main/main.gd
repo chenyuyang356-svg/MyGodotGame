@@ -42,15 +42,15 @@ func _ready() -> void:
 			var coords: Vector2i = Vector2i(x, y)
 			var data = tile_map_layer.get_cell_tile_data(coords)
 			if data == null or data.get_custom_data("IsWall") or data.get_custom_data("IsSea"):
-				flow_field_manager.set_cost(coords, 255, 0)
+				flow_field_manager.init_cost(coords, 255, 0)
 			else:
-				flow_field_manager.set_cost(coords, 1, 0)
+				flow_field_manager.init_cost(coords, 1, 0)
 				for dx in range(-1, 2):
 					for dy in range(-1, 2):
 						if Vector2i(dx, dy) != Vector2i.ZERO:
 							var neighbor_data = tile_map_layer.get_cell_tile_data(coords + Vector2i(dx, dy))
 							if neighbor_data == null or neighbor_data.get_custom_data("IsWall") or data.get_custom_data("IsSea"):
-								flow_field_manager.set_cost(coords, 30, 0)
+								flow_field_manager.init_cost(coords, 30, 0)
 								continue
 	
 	#NAV_SEA
@@ -59,25 +59,28 @@ func _ready() -> void:
 			var coords: Vector2i = Vector2i(x, y)
 			var data = tile_map_layer.get_cell_tile_data(coords)
 			if data == null or (not data.get_custom_data("IsSea")):
-				flow_field_manager.set_cost(coords, 255, 1)
+				flow_field_manager.init_cost(coords, 255, 1)
 			else:
-				flow_field_manager.set_cost(coords, 1, 1)
+				flow_field_manager.init_cost(coords, 1, 1)
 				for dx in range(-1, 2):
 					for dy in range(-1, 2):
 						if Vector2i(dx, dy) != Vector2i.ZERO:
 							var neighbor_data = tile_map_layer.get_cell_tile_data(coords + Vector2i(dx, dy))
 							if neighbor_data == null or (not data.get_custom_data("IsSea")):
-								flow_field_manager.set_cost(coords, 30, 1)
+								flow_field_manager.init_cost(coords, 30, 1)
 								continue
 	
 	var active_unit_ids: Array = []
 	
-	for x in range(10):
-		for y in range(10):
+	for x in range(2):
+		for y in range(2):
 			var id1 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
 			var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(3000, 3000), 2)
 			var id3 = unit_manager.spawn_unit_by_type("Tank", -32 * Vector2(x, y), 1)
-			var id4 = unit_manager.spawn_unit_by_type("Battleship", -32 * Vector2(x, y) + 256 * Vector2(-36, -7), 1)
+			unit_manager.spawn_unit_by_type("Battleship", -32 * Vector2(x, y) + 256 * Vector2(-36, -7), 1)
+			unit_manager.spawn_unit_by_type("Battleship", -32 * Vector2(x, y) + 256 * Vector2(-36, -7), 2)
+			unit_manager.spawn_unit_by_type("Battleship", -32 * Vector2(x, y) + 256 * Vector2(-36, -7), 3)
+			unit_manager.spawn_unit_by_type("Battleship", -32 * Vector2(x, y) + 256 * Vector2(-36, -7), 4)
 			
 			
 			active_unit_ids.append(id1)

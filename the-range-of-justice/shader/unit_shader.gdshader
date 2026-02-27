@@ -22,6 +22,7 @@ void vertex() {
 void fragment() {
     float frame = floor(custom_data.x);
     float row = floor(custom_data.y); 
+	float modulate = custom_data.z;
 
     vec2 frame_size = vec2(1.0 / float(h_frames), 1.0 / float(v_frames));
     
@@ -32,12 +33,27 @@ void fragment() {
 
     vec4 tex = texture(albedo_texture, atlas_uv);
     
-    // 3D 排序核心：Alpha 裁剪
-    // 只有透明度大于 0.5 的像素才会写入深度缓冲并被渲染
-    if (tex.a < 0.5) {
+	if (tex.a < 0.5) {
         discard;
     }
+	
+    vec3 final_rgb = tex.rgb;
 
-    ALBEDO = tex.rgb * instance_color.rgb;
-    // 如果需要半透明效果（如影子），可以将材质设为透明，但通常单位使用 discard 性能最好
+    // 团队染色逻辑 (检查 Alpha 是否接近 254/255)
+    // 使用一个小范围误差 (epsilon) 以防浮点数精度问题
+    // 254.0 / 255.0 = 0.99607843
+    if (tex.a > 0.994 && tex.a < 0.998) {
+        // 使用加权亮度公式（最准确，符合人眼对不同颜色亮度的感知）
+        float brightness = dot(tex.rgb, vec3(0.299, 0.587, 0.114));
+
+        // 将团队颜色乘以亮度
+        // 这样：浅绿色会变浅团队色，深绿色（阴影）会变深团队色
+        final_rgb = instance_color.rgb * brightness;
+    } else {
+        // 如果是普通像素，可以选乘实例颜色（如果你想让整个建筑也带一点色调）
+        // 或者直接使用原色：final_rgb = tex.rgb;
+        final_rgb = tex.rgb; 
+    }
+
+    ALBEDO = final_rgb * modulate;
 }
