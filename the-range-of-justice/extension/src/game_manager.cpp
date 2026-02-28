@@ -38,15 +38,15 @@ void GameManager::_physics_process(double p_delta) {
 		// --- A. 服务器逻辑 ---
 		tick_accumulator += p_delta;
 
+		// 1. 运行单位逻辑 (移动计算、流场应用、状态切换)
+			// 注意：内部会将 position 存入 prev_position，新算的存入 next_position
+		unit_manager->update(p_delta);
+
+		// 2. 运行建筑逻辑 (建造进度增加、生产队列逻辑)
+		building_manager->update(p_delta);
+
 		// 确保逻辑按固定频率运行 (逻辑 Tick)
 		while (tick_accumulator >= logic_tick_rate) {
-
-			// 1. 运行单位逻辑 (移动计算、流场应用、状态切换)
-			// 注意：内部会将 position 存入 prev_position，新算的存入 next_position
-			unit_manager->update(logic_tick_rate);
-
-			// 2. 运行建筑逻辑 (建造进度增加、生产队列逻辑)
-			building_manager->update(logic_tick_rate);
 
 			// 3. 定期广播快照 (可以每 Tick 广播，也可以每 2 个 Tick 广播)
 			broadcast_network_snapshot();
@@ -67,7 +67,7 @@ void GameManager::_process(double p_delta) {
 
 	// 1. 计算插值系数 alpha (0.0 到 1.0)
 	// 它代表当前时间处于两个逻辑 Tick 之间的位置
-	float alpha = UtilityFunctions::clamp(tick_accumulator / logic_tick_rate, 0.0, 1.0);
+	float alpha = UtilityFunctions::clamp(tick_accumulator / logic_tick_rate, 0.0, 1.2);
 
 	// 2. 执行插值渲染 (MultiMesh 绘制)
 	// 这个方法内部会使用 lerp(prev_pos, next_pos, alpha)
@@ -228,11 +228,14 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 			unit.prev_rotation = unit.next_rotation;
 
 			// 设置新的目标
+			unit.position = Vector2(px, py);
 			unit.next_position = Vector2(px, py);
 			unit.next_rotation = rot;
 			unit.state = (UnitState)state;
 		}
 	}
+
+	unit_manager->update_spatial_grid();
 
 	// 重置插值时间轴
 	tick_accumulator = 0.0;
