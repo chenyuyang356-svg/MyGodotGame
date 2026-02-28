@@ -23,12 +23,19 @@ namespace godot {
         Vector2i target_grid;   // 目标的网格坐标（与流场坐标一致，不同于unit_grid中的坐标）
         bool is_manual_target = false;
 
+        Vector2 prev_position;
+        Vector2 next_position;
+
+        float prev_height;
+        float next_height;
+
+        float prev_rotation;
+        float next_rotation;
+
+
         Ref<UnitStats> stats;
 
         UnitState state;        // 状态机		
-        bool is_selected = false;
-        bool is_mouse_on = false;
-        float selection_radius;
         float current_health;
         float height = 0.0f;
 
@@ -54,6 +61,10 @@ namespace godot {
             if (stats->move_type == MOVE_SEA) { return NAV_SEA; }
             if (stats->move_type == MOVE_AIR) { return NAV_MAX; }
             if (stats->move_type == MOVE_HOVER) { return NAV_HOVER; }
+        }
+
+        int get_squared_radius() {
+            return (stats->collision_radius * stats->collision_radius);
         }
     };
 }

@@ -58,13 +58,34 @@ func _unhandled_input(event: InputEvent):
 		# 限制范围
 		_target_zoom = clamp(_target_zoom, min_zoom, max_zoom)
 
-func get_mouse_world_pos() -> Vector2:
-	var mouse_pos = get_viewport().get_mouse_position()
-	var ray_origin = project_ray_origin(mouse_pos)
-	var ray_dir = project_ray_normal(mouse_pos)
+func get_visible_world_rect() -> Rect2:
+	var viewport_rect = get_viewport().get_visible_rect()
+	var size_pixels = viewport_rect.size
 	
-	# 因为相机是正交的且地面在 Y=0
-	# 计算射线与 Y=0 平面的交点：t = -origin.y / dir.y
+	# 获取屏幕四个角的像素位置
+	var tl_world = _project_screen_pos_to_world(Vector2(0, 0))
+	var br_world = _project_screen_pos_to_world(size_pixels)
+	
+	# 注意：如果相机有旋转，计算出的 br 可能比 tl 小，用 min/max 确保 Rect2 正确
+	var pos = Vector2(min(tl_world.x, br_world.x), min(tl_world.y, br_world.y))
+	var end = Vector2(max(tl_world.x, br_world.x), max(tl_world.y, br_world.y))
+	
+	return Rect2(pos, end - pos)
+
+# 提取公用的投影逻辑，减少重复代码
+func _project_screen_pos_to_world(screen_pos: Vector2) -> Vector2:
+	var ray_origin = project_ray_origin(screen_pos)
+	var ray_dir = project_ray_normal(screen_pos)
+	
+	# 计算射线与 Y=0 平面的交点
+	# t = (target_y - origin.y) / dir.y
+	if is_zero_approx(ray_dir.y): # 防止除以0（如果相机完全平行于地面）
+		return Vector2(ray_origin.x, ray_origin.z)
+		
 	var t = -ray_origin.y / ray_dir.y
 	var world_pos = ray_origin + ray_dir * t
 	return Vector2(world_pos.x, world_pos.z)
+
+# 重构原有的函数，使其调用公用逻辑
+func get_mouse_world_pos() -> Vector2:
+	return _project_screen_pos_to_world(get_viewport().get_mouse_position())

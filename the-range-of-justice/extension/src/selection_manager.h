@@ -1,62 +1,53 @@
 #pragma once
-
 #include <vector>
-
+#include <unordered_set>
 #include <godot_cpp/classes/node2d.hpp>
-#include <godot_cpp/variant/vector2.hpp>
-#include <godot_cpp/variant/rect2.hpp>
-
-#include <unit_stats.h>
+#include "unit_manager.h"
+#include "building_manager.h"
 
 namespace godot {
 
-	class SelectionManager : public Node2D {
-		GDCLASS(SelectionManager, Node2D)
+    class SelectionManager : public Node2D {
+        GDCLASS(SelectionManager, Node2D)
 
-	public:
-		enum SelectionState {
-			NOT_SELECTING,
-			SINGLE_SELECTING,
-			TYPE_SELECTING,
-			BOX_SELECTING,
-			BOX_SELECTION_ENDED,
-			SELECTING_TARGET
-		};
+    public:
+        enum SelectionType { NONE, UNIT, BUILDING };
 
-	protected:
-		static void _bind_methods();
+    private:
+        SelectionType current_selection_type = NONE;
+        std::unordered_set<int> selected_unit_ids;
+        std::unordered_set<int> selected_building_ids;
 
-	public:
-		SelectionManager();
-		~SelectionManager();
+        // 仅用于视觉高亮的“鼠标悬停”
+        int hovered_unit_id = -1;
+        int hovered_building_id = -1;
+        int team_id = 1;
 
-		SelectionState state = NOT_SELECTING;
-		Vector2 mouse_position;
-		Vector2 selecting_start_point;
-		Vector2 selecting_end_point;
-		Rect2 selecting_box;
-		int selected_unit_id = -1;
-		Ref<UnitStats> selected_unit_stats;
+    public:
+        // 执行选择逻辑：由 GDScript 在点击或框选结束时调用
+        void do_single_select(Vector2 p_mouse_pos, Node* p_um, Node* p_bm);
+        void do_type_select(Vector2 p_mouse_pos, Rect2 p_screen_rect, Node* p_um, Node* p_bm);
+        void do_box_select(Rect2 p_box, Node* p_um, Node* p_bm);
+        void clear_selection();
 
-		int team_id = 1;
-		int selected_team_id = -1;
+        void update_hover(Vector2 p_mouse_pos, Node* p_um, Node* p_bm);
 
-		void set_mouse_position(Vector2 p_mouse_position);
+        void handle_right_click(Vector2 p_mouse_pos, Node* p_um, Node* p_bm);
 
-		void single_selecting();
+        // 供渲染器查询接口
+        bool is_unit_selected(int p_id) const { return selected_unit_ids.count(p_id); }
+        bool is_unit_hovered(int p_id) const { return hovered_unit_id == p_id; }
+        bool is_building_selected(int p_id) const { return selected_building_ids.count(p_id); }
 
-		void type_selecting();
+        // 获取数据给 UI
+        SelectionType get_selection_type() const { return current_selection_type; }
+        PackedInt32Array get_selected_unit_ids() const;
+        PackedInt32Array get_selected_building_ids() const;
 
-		void selecting_target();
+        int get_team_id() { return team_id; }
+        void set_team_id(int p_id) { team_id = p_id; }
 
-		void box_selecting();
-
-		void end_box_selecting();
-
-		void set_team_id(int p_id) { team_id = p_id; }
-		int get_team_id() const { return team_id; }
-
-		void set_selected_unit_id(int p_id) { selected_unit_id = p_id; }
-		int get_selected_unit_id() const { return selected_unit_id; }
-	};
+    protected:
+        static void _bind_methods();
+    };
 }

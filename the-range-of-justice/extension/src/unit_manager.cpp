@@ -1,5 +1,6 @@
 #include "unit_manager.h"
 #include "attack_manager.h"
+#include "selection_manager.h"
 
 #include <queue>
 
@@ -41,6 +42,8 @@ int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_t
     UnitData new_unit;
     new_unit.id = next_unit_id++;
     new_unit.position = p_world_pos;
+    new_unit.prev_position = p_world_pos;
+    new_unit.next_position = p_world_pos;
     new_unit.height = p_stats->base_height;
     new_unit.stats = p_stats; //         
 
@@ -219,43 +222,87 @@ std::vector<int> UnitManager::get_nearby_units(Vector2 p_world_pos, float p_radi
     return nearby_indices;
 }
 
-void UnitManager::update(double p_delta) {
-    if (!is_setup || !flow_field_manager || !selection_manager) { return; }
+int UnitManager::get_unit_at_position(Vector2 p_world_pos) {
+    int best_id = -1;
+    float max_height = -100.0f;
+    Vector2i rel_pos = flow_field_manager->world_to_relative(p_world_pos);
+    int ux = rel_pos.x / 2;
+    int uy = rel_pos.y / 2;
 
-    //以后下面每项要改成数组，每队一项
-    Array units_to_move;
-    Vector2 target_pos;
-
-    Array units_to_patrol;
-
-    Array units_to_attack;
-    int target_id;
-
-    if (attack_manager) {
-        attack_manager->update_units(p_delta);
-    }
-
-    selection_manager->selected_unit_id = -1;
-    float selected_unit_height = -100.0f;
-    for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
-        UnitData& unit = units[unit_idx];
-        float selection_radius = (unit.stats)->get_collision_radius();
-        if (((selection_manager->mouse_position).distance_squared_to(unit.position) <
-            (selection_radius) * (selection_radius)) &&
-            (selection_manager->state != selection_manager->BOX_SELECTING) &&
-            (unit.height > selected_unit_height)) {
-            selection_manager->selected_unit_id = unit.id;
-            selection_manager->selected_unit_stats = unit.stats;
-            selection_manager->selected_team_id = unit.team_id;
-            selected_unit_height = unit.height;
+    //加入大型单位后需要单独处理
+    for (int nx = ux - 1; nx <= ux + 1; ++nx) {
+        for (int ny = uy - 1; ny <= uy + 1; ++ny) {
+            if (nx >= 0 && nx < unit_grid_width && ny >= 0 && ny < unit_grid_height) {
+                int grid_idx = ny * unit_grid_width + nx;
+                const auto& cell = unit_grid[grid_idx];
+                for (int unit_idx : cell) {
+                    UnitData& unit = units[unit_idx];
+                    if (p_world_pos.distance_squared_to(unit.position) < unit.get_squared_radius()) {
+                        if (unit.height > max_height) {
+                            max_height = unit.height;
+                            best_id = unit.id;
+                        }
+                    }
+                }
+            }
         }
     }
 
-    
+    return best_id;
+}
 
-    int new_gid = -1;
-    if (selection_manager->state == selection_manager->SELECTING_TARGET) {
-        new_gid = group_manager->create_temporary_group(selection_manager->mouse_position);
+std::vector<int> UnitManager::get_units_of_type_in_area(Ref<UnitStats> p_stats, Rect2 p_rect, int p_team_id) {
+    std::vector<int> result;
+    Vector2i unit_grid_rect_pos = flow_field_manager->world_to_relative(p_rect.position) / 2;
+    Vector2i unit_grid_rect_end = flow_field_manager->world_to_relative(p_rect.get_end()) / 2 + Vector2i(1, 1);
+    
+    for (int nx = unit_grid_rect_pos.x; nx <= unit_grid_rect_end.x; ++nx) {
+        for (int ny = unit_grid_rect_pos.y; ny <= unit_grid_rect_end.y; ++ny) {
+            int grid_idx = ny * unit_grid_width + nx;
+            const auto& cell = unit_grid[grid_idx];
+            for (int unit_idx : cell) {
+                UnitData& unit = units[unit_idx];
+                if (p_rect.has_point(unit.position)) {
+                    if (unit.stats == p_stats && unit.team_id == p_team_id) {
+                        result.push_back(unit.id);
+                    }
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+std::vector<int> UnitManager::get_units_in_box(Rect2 p_box, int p_team_id) {
+    std::vector<int> result;
+    Vector2i unit_grid_rect_pos = flow_field_manager->world_to_relative(p_box.position) / 2;
+    Vector2i unit_grid_rect_end = flow_field_manager->world_to_relative(p_box.get_end()) / 2 + Vector2i(1, 1);
+
+    for (int nx = unit_grid_rect_pos.x; nx <= unit_grid_rect_end.x; ++nx) {
+        for (int ny = unit_grid_rect_pos.y; ny <= unit_grid_rect_end.y; ++ny) {
+            int grid_idx = ny * unit_grid_width + nx;
+            const auto& cell = unit_grid[grid_idx];
+            for (int unit_idx : cell) {
+                UnitData& unit = units[unit_idx];
+                if (p_box.has_point(unit.position)) {
+                    if (unit.team_id == p_team_id) {
+                        result.push_back(unit.id);
+                    }
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+void UnitManager::update(double p_delta) {
+
+    if (!is_setup || !flow_field_manager) { return; }
+
+    if (attack_manager) {
+        attack_manager->update_units(p_delta);
     }
 
     update_spatial_grid();
@@ -263,22 +310,19 @@ void UnitManager::update(double p_delta) {
 
     for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
         UnitData& unit = units[unit_idx];
+
+        unit.prev_position = unit.position;
+        unit.prev_height = unit.height;
+        unit.prev_rotation = unit.rotation;
+
         update_state(unit);
-        update_selection_state_and_target_position(unit, new_gid, units_to_move, target_pos, units_to_attack, target_id);
         update_velocity(unit, p_delta);
         move(unit, p_delta);
-    }
-    if ((selection_manager->state == selection_manager->SINGLE_SELECTING) ||
-        (selection_manager->state == selection_manager->TYPE_SELECTING) ||
-        (selection_manager->state == selection_manager->BOX_SELECTION_ENDED) ||
-        (selection_manager->state == selection_manager->SELECTING_TARGET)) {
-        selection_manager->state = selection_manager->NOT_SELECTING;
-    }
 
-    command_units_to_move(units_to_move, target_pos);
-    command_units_to_attack_target(units_to_attack, target_id);
-
-    update_multimesh_buffer(p_delta);
+        unit.next_position = unit.position;
+        unit.next_height = unit.height;
+        unit.next_rotation = unit.rotation;
+    }
 }
 
 Vector2 UnitManager::get_flow(UnitData& p_unit) {
@@ -442,7 +486,6 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
 
 void UnitManager::move(UnitData& p_unit, double p_delta) {
     if (!flow_field_manager) return;
-
     //     Ԥ  λ  
     Vector2 next_pos = p_unit.position + p_unit.velocity * p_delta;
     float radius = (p_unit.stats)->get_collision_radius();
@@ -554,7 +597,7 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
     p_unit.position = next_pos;
 }
 
-void UnitManager::update_multimesh_buffer(double p_delta) {
+void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, SelectionManager* p_selection_manager) {
     if (type_renderers.empty()) return;
 
     // 1.      һ֡ ķ   
@@ -598,15 +641,19 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
             // 2D X -> 3D X
             // 2D Y -> 3D Z (  ȣ      GPU  Զ  Y-Sort)
             // 2D Height -> 3D Y ( Ӿ  ߶ )
-            float fake_depth_offset = unit.position.y * 0.0001f;
-            Vector3 pos_3d = Vector3(unit.position.x, unit.height + fake_depth_offset, unit.position.y - unit.height);
+            Vector2 visual_position = UtilityFunctions::lerp(unit.prev_position, unit.next_position, p_alpha);
+            float visual_height = UtilityFunctions::lerp(unit.prev_height, unit.next_height, p_alpha);
+            float visual_rotation = UtilityFunctions::lerp_angle(unit.prev_rotation, unit.next_rotation, p_alpha);
+
+            float fake_depth_offset = visual_position.y * 0.0001f;
+            Vector3 pos_3d = Vector3(visual_position.x, visual_height + fake_depth_offset, visual_position.y - visual_height);
             xform.origin = pos_3d;
 
             //   ת     QuadMesh         QuadMesh Ĭ     XY ƽ 棬      Ҫ       XZ ƽ   ϣ 
             //          Ǹ  ӵģ       Ҫ   X     ת -90   
             xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
 
-            xform.basis = (xform.basis).rotated(Vector3(0, -1, 0), (unit.rotation + Math_PI / 2.0f));
+            xform.basis = (xform.basis).rotated(Vector3(0, -1, 0), (visual_rotation + Math_PI / 2.0f));
 
             mm->set_instance_transform(i, xform);
 
@@ -617,21 +664,11 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
             int frame_idx = (int)(Math::fmod(unit.anim_time, duration) * s_ptr->get_anim_fps());
 
             float modulate = 1.0;
-            if (unit.is_selected) {
-                if (unit.is_mouse_on) {
-                    modulate = 1.2;
-                }
-                else {
-                    modulate = 1.5;
-                }
+            if (p_selection_manager->is_unit_selected(unit.id)) {
+                modulate = 1.5f;
             }
-            else {
-                if (unit.is_mouse_on) {
-                    modulate = 1.2;
-                }
-                else {
-                    modulate = 1.0;
-                }
+            else if (p_selection_manager->is_unit_hovered(unit.id)) {
+                modulate = 1.2f;
             }
 
             mm->set_instance_custom_data(i, Color(frame_idx, row, modulate, 0));
@@ -651,14 +688,14 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
 
             // Ӱ ӷ  ڵ   ߶ȣ   һ    С  ƫ   (0.001)   ֹ      Z-Fighting
             // ע ⣺Ӱ ӵ  origin.y      unit.height  仯      Զ ڵ   
-            shadow_xform.origin = Vector3(unit.position.x + shadow_offset_x,
-                unit.height + fake_depth_offset - 0.1f,
-                unit.position.y + shadow_offset_z);
+            shadow_xform.origin = Vector3(visual_position.x + shadow_offset_x,
+                visual_height + fake_depth_offset - 0.1f,
+                visual_position.y + shadow_offset_z);
 
             // Ӱ       ŵ 
             shadow_xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
 
-            shadow_xform.basis = (shadow_xform.basis).rotated(Vector3(0, -1, 0), (unit.rotation + Math_PI / 2.0f));
+            shadow_xform.basis = (shadow_xform.basis).rotated(Vector3(0, -1, 0), (visual_rotation + Math_PI / 2.0f));
 
             //      ϣ  Ӱ    б      У                  
             // shadow_xform.basis = shadow_xform.basis.scaled(Vector3(1.0, 1.5, 1.0));
@@ -670,94 +707,6 @@ void UnitManager::update_multimesh_buffer(double p_delta) {
 
             unit.anim_time += p_delta;
         }
-    }
-}
-
-void UnitManager::update_selection_state_and_target_position(UnitData& p_unit, int p_group_id, Array& p_units_to_move, Vector2& p_target_pos,
-    Array& p_units_to_attack, int& p_target_id) {
-    if (selection_manager->state != selection_manager->BOX_SELECTING) {
-        if (p_unit.id == selection_manager->selected_unit_id) {
-            p_unit.is_mouse_on = true;
-        }
-        else {
-            p_unit.is_mouse_on = false;
-        }
-    }
-
-    switch (selection_manager->state) {
-    case (selection_manager->NOT_SELECTING):
-        break;
-    case (selection_manager->SINGLE_SELECTING):
-        if (selection_manager->selected_unit_id == -1) {
-            break;
-        }
-        else {
-            if (selection_manager->selected_unit_id == p_unit.id) {
-                p_unit.is_selected = !p_unit.is_selected;
-            }
-            else {
-                p_unit.is_selected = false;
-            }
-        }
-        break;
-    case (selection_manager->TYPE_SELECTING):
-        if (selection_manager->selected_unit_id == -1) {
-            break;
-        }
-        else {
-            if ((p_unit.stats == selection_manager->selected_unit_stats) &&
-                (p_unit.team_id == selection_manager->selected_team_id) && 
-                (p_unit.team_id == selection_manager->team_id)) {
-                p_unit.is_selected = true;
-            }
-            else {
-                p_unit.is_selected = false;
-            }
-        }
-        break;
-    case (selection_manager->BOX_SELECTING):
-        if ((selection_manager->selecting_box).has_point(p_unit.position)) {
-            p_unit.is_mouse_on = true;
-        }
-        else {
-            p_unit.is_mouse_on = false;
-        }
-        break;
-    case (selection_manager->BOX_SELECTION_ENDED):
-        if ((selection_manager->selecting_box).has_point(p_unit.position) && 
-            (selection_manager->team_id == p_unit.team_id)) {
-            p_unit.is_selected = true;
-        }
-        else {
-            p_unit.is_selected = false;
-        }
-        break;
-    case (selection_manager->SELECTING_TARGET):
-        if (selection_manager->team_id != p_unit.team_id) { return; }
-       
-        if (p_unit.is_selected) {
-            //命令单位攻击鼠标位置的敌方单位
-            //如果鼠标位置是友方单位，什么都不会发生
-            if (selection_manager->selected_unit_id != -1) {
-                if (selection_manager->selected_team_id != p_unit.team_id) {
-                    p_units_to_attack.append(p_unit.id);
-                    p_target_id = (selection_manager->selected_unit_id);
-                }
-                break;
-            }
-
-            //命令单位移动到鼠标位置
-            p_units_to_move.append(p_unit.id);
-            p_target_pos = selection_manager->mouse_position;
-
-            if (p_unit.temp_group_id != -1) {
-                //         ᣺1. Ӿ   ID б  Ƴ  Լ (O(1)) 2.   ֮ǰ   ƶ      پ      
-                group_manager->remove_unit_from_temp_group(p_unit.temp_group_id, p_unit.id);
-            }
-            p_unit.temp_group_id = p_group_id;
-            group_manager->add_unit_to_temp_group(p_group_id, p_unit.id);
-        }
-        break;
     }
 }
 
@@ -783,10 +732,6 @@ int UnitManager::get_unit_state(int p_unit_id) const {
 
 void UnitManager::set_flow_field_manager(Node* p_node) {
     flow_field_manager = Object::cast_to<FlowFieldManager>(p_node);
-}
-
-void UnitManager::set_selection_manager(Node* p_node) {
-    selection_manager = Object::cast_to<SelectionManager>(p_node);
 }
 
 void UnitManager::set_group_manager(Node* p_node) {
@@ -974,7 +919,6 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_unit_position", "unit_id"), &UnitManager::get_unit_position);
     ClassDB::bind_method(D_METHOD("get_unit_state", "unit_id"), &UnitManager::get_unit_state);
     ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &UnitManager::set_flow_field_manager);
-    ClassDB::bind_method(D_METHOD("set_selection_manager", "node"), &UnitManager::set_selection_manager);
     ClassDB::bind_method(D_METHOD("set_group_manager", "node"), &UnitManager::set_group_manager);
     ClassDB::bind_method(D_METHOD("set_attack_manager", "node"), &UnitManager::set_attack_manager);
     ClassDB::bind_method(D_METHOD("register_unit_type", "name", "path"), &UnitManager::register_unit_type);

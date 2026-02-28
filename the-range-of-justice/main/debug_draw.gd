@@ -9,6 +9,7 @@ var unit_ids_to_draw: Array = []
 
 func _process(_delta: float) -> void:
 	if Engine.get_process_frames() % 60 == 0:
+		return
 		print("=== DebugDraw 诊断信息 ===")
 		print("1. unit_manager 收到没: ", "没收到(null)" if unit_manager == null else "正常")
 		print("2. camera 收到没: ", "没收到(null)" if camera == null else "正常")

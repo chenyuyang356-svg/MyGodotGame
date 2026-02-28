@@ -7,6 +7,7 @@
 #include <godot_cpp/classes/node2d.hpp>
 #include <godot_cpp/variant/vector2.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
+#include <godot_cpp/variant/rect2.hpp>
 #include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/classes/multi_mesh.hpp>
 #include <godot_cpp/classes/quad_mesh.hpp>
@@ -24,13 +25,13 @@
 #include <godot_cpp/core/memory.hpp>   
 
 #include "flow_field_manager.h"
-#include "selection_manager.h"
 #include "group_manager.h"
 #include "unit_loader.h"
 #include "unit_data.h"
 
 namespace godot {
-	class AttackManager; // 1. 前向声明
+	class AttackManager; // 前向声明
+	class SelectionManager;
 
 	class UnitManager : public Node3D {
 		GDCLASS(UnitManager, Node3D)
@@ -41,7 +42,6 @@ namespace godot {
 	private:
 		AttackManager* attack_manager = nullptr; 
 		FlowFieldManager *flow_field_manager;
-		SelectionManager *selection_manager;
 		GroupManager* group_manager;
 		std::unordered_map<int, size_t> id_to_index;
 		int next_unit_id = 0;
@@ -109,6 +109,13 @@ namespace godot {
 		void update_spatial_grid();
 		std::vector<int> get_nearby_units(Vector2 p_world_pos, float p_radius);
 
+		// 供SelectionManager调用
+		int get_unit_at_position(Vector2 p_world_pos);
+		std::vector<int> get_units_of_type_in_area(Ref<UnitStats> p_stats, Rect2 p_rect, int p_team_id);
+		std::vector<int> get_units_in_box(Rect2 p_box, int p_team_id);
+		Ref<UnitStats> get_unit_stats(int p_id) { return units[get_unit_index_by_id(p_id)].stats; }
+		int get_unit_team_id(int p_id) { return units[get_unit_index_by_id(p_id)].team_id; }
+
 		// --- 核心循环 ---
 		void update(double p_delta);
 
@@ -121,10 +128,7 @@ namespace godot {
 		void update_velocity(UnitData& p_unit, double p_delta);
 		void move(UnitData& p_unit, double p_delta);
 
-		void update_multimesh_buffer(double p_delta);
-
-		void update_selection_state_and_target_position(UnitData& p_unit, int p_group_id, Array& p_units_to_move, Vector2& p_target_pos,
-			Array& p_units_to_attack, int& p_target_id);
+		void update_multimesh_buffer(double p_delta, float p_alpha, SelectionManager* p_selection_manager);
 
 		// 获取数据供 Godot 渲染
 		Vector2 get_unit_position(int p_unit_id) const;
@@ -132,7 +136,6 @@ namespace godot {
 		float get_unit_attack_range(int p_unit_id) const;
 		int get_unit_state(int p_unit_id) const;
 		void set_flow_field_manager(Node* p_node);
-		void set_selection_manager(Node* p_node);
 		void set_group_manager(Node* p_node);
 
 		void register_unit_type(String p_name, String p_path);

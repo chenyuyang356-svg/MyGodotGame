@@ -45,9 +45,9 @@ build_time       = 12.5
 unit_tags        = Biological
 
 # 渲染基础
-texture_path = res://asset/地面单位02 (2).png
-h_frames = 1
-v_frames = 2
+texture_path = res://asset/中型坦克.png
+h_frames = 2
+v_frames = 3
 
 # 状态机动画定义
 idle_row = 0

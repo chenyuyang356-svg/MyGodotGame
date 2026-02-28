@@ -1,6 +1,7 @@
 #pragma once
 
 #include "building_manager.h"
+#include "selection_manager.h"
 #include <godot_cpp/core/class_db.hpp>
 
 using namespace godot;
@@ -17,10 +18,10 @@ void BuildingManager::set_unit_manager(Node* p_node) {
 }
 
 void BuildingManager::update(double p_delta) {
-    update_multimesh_buffer(p_delta);
+
 }
 
-void BuildingManager::update_multimesh_buffer(double p_delta) {
+void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, SelectionManager* p_selection_manager) {
     if (type_renderers.empty()) return;
 
     // 1. 分组
@@ -78,6 +79,9 @@ void BuildingManager::update_multimesh_buffer(double p_delta) {
             int frame_idx = (int)(Math::fmod(b.anim_time, duration) * s_ptr->get_anim_fps());
 
             float modulate = 1.0f;
+            if (p_selection_manager->is_building_selected(b.id)) {
+                modulate = 1.5f;
+            }
             
             Color anim_data = Color((float)frame_idx, (float)row, modulate, 0);
             mm->set_instance_custom_data(i, anim_data);
@@ -218,6 +222,60 @@ bool BuildingManager::is_area_clear(Vector2i p_grid_pos, Ref<BuildingStats> p_st
     return true;
 }
 
+int BuildingManager::get_building_at_position(Vector2 p_world_pos) {
+    if (!flow_field_manager) return -1;
+    Vector2i grid_pos = flow_field_manager->world_to_grid(p_world_pos);
+
+    // 遍历当前建筑列表
+    for (const auto& pair : buildings) {
+        const BuildingData& b = pair.second;
+        Vector2i fp = b.stats->get_footprint();
+        if (grid_pos.x >= b.grid_pos.x && grid_pos.x < b.grid_pos.x + fp.x &&
+            grid_pos.y >= b.grid_pos.y && grid_pos.y < b.grid_pos.y + fp.y) {
+            return b.id;
+        }
+    }
+    return -1;
+}
+
+std::vector<int> BuildingManager::get_buildings_of_type_in_area(Ref<BuildingStats> p_stats, Rect2 p_rect, int p_team_id) {
+    std::vector<int> result;
+    Vector2i grid_rect_pos = flow_field_manager->world_to_grid(p_rect.position);
+    Vector2i grid_rect_end = flow_field_manager->world_to_grid(p_rect.get_end())+ Vector2i(1, 1);
+
+    for (const auto& pair : buildings) {
+        const BuildingData& b = pair.second;
+        Vector2i fp = b.stats->get_footprint();
+        if (grid_rect_pos.x < b.grid_pos.x && grid_rect_end.x > b.grid_pos.x + fp.x &&
+            grid_rect_pos.y < b.grid_pos.y && grid_rect_end.y > b.grid_pos.y + fp.y) {
+            if (b.stats == p_stats && b.team_id == p_team_id) {
+                result.push_back(b.id);
+            }
+        }
+    }
+
+    return result;
+}
+
+std::vector<int> BuildingManager::get_buildings_in_box(Rect2 p_box, int p_team_id) {
+    std::vector<int> result;
+    Vector2i grid_rect_pos = flow_field_manager->world_to_grid(p_box.position);
+    Vector2i grid_rect_end = flow_field_manager->world_to_grid(p_box.get_end()) + Vector2i(1, 1);
+
+    for (const auto& pair : buildings) {
+        const BuildingData& b = pair.second;
+        Vector2i fp = b.stats->get_footprint();
+        if (grid_rect_pos.x < b.grid_pos.x && grid_rect_end.x > b.grid_pos.x + fp.x &&
+            grid_rect_pos.y < b.grid_pos.y && grid_rect_end.y > b.grid_pos.y + fp.y) {
+            if (b.team_id == p_team_id) {
+                result.push_back(b.id);
+            }
+        }
+    }
+
+    return result;
+}
+
 int BuildingManager::place_building_by_type(String p_type_name, Vector2i p_grid_pos, int p_team_id) {
     if (!building_types_cache.has(p_type_name)) return -1;
 
@@ -274,6 +332,12 @@ void BuildingManager::remove_building(int p_building_id) {
 
     buildings.erase(it);
     flow_field_manager->make_all_dirty();
+}
+
+int BuildingManager::get_building_team_id(int p_building_id) const {
+    auto it = buildings.find(p_building_id);
+    if (it != buildings.end()) return it->second.team_id;
+    return -1;
 }
 
 Vector2i BuildingManager::get_building_grid_pos(int p_building_id) const {

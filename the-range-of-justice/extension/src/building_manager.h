@@ -17,6 +17,7 @@
 #include "building_data.h"
 
 namespace godot {
+    class SelectionManager;
 
     class BuildingManager : public Node3D {
         GDCLASS(BuildingManager, Node3D)
@@ -53,7 +54,7 @@ namespace godot {
         // --- 核心功能 ---
 
         void update(double p_delta);
-        void update_multimesh_buffer(double p_delta);
+        void update_multimesh_buffer(double p_delta, float p_alpha, SelectionManager* p_selection_manager);
 
         // 注册建筑：从 txt 加载配置并缓存
         void register_building_type(String p_name, String p_path);
@@ -61,12 +62,18 @@ namespace godot {
         // 检查某个区域是否可以放置该种类的建筑 (含双重范围逻辑)
         bool is_area_clear(Vector2i p_grid_pos, Ref<BuildingStats> p_stats);
 
+        // 供SelectionManager调用
+        int get_building_at_position(Vector2 p_world_pos);
+        std::vector<int> get_buildings_of_type_in_area(Ref<BuildingStats> p_stats, Rect2 p_rect, int p_team_id);
+        std::vector<int> get_buildings_in_box(Rect2 p_box, int p_team_id);
+
         // 通过类型名称放置建筑
         int place_building_by_type(String p_type_name, Vector2i p_grid_pos, int p_team_id);
 
         void remove_building(int p_building_id);
 
         // 根据 ID 获取数据
+        int get_building_team_id(int p_building_id) const;
         Vector2i get_building_grid_pos(int p_building_id) const;
         Ref<BuildingStats> get_building_stats(int p_building_id) const;
 

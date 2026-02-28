@@ -1,30 +1,35 @@
 extends SelectionManager
 
+# --- 节点引用 (在编辑器中指定) ---
+@export_group("Dependencies")
+@export var unit_manager: Node3D
+@export var building_manager: Node3D
+@export var camera_3d: Node3D # 需具备 get_mouse_world_pos() 和 get_visible_world_rect() 方法
+
 # --- 配置参数 ---
 @export_group("Settings")
-@export var double_click_interval_ms: int = 300   # 双击判定间隔（毫秒）
-@export var drag_threshold_dist: float = 10.0      # 移动超过多少像素判定为框选（而非单击）
-@export var long_press_threshold_ms: int = 500    # 虽然 RTS 通常按距离判定框选，但这里预留时间判定
-@export var building_manager: Node2D
-@export var camera_3d: Camera3D
+@export var double_click_interval_ms: int = 300
+@export var drag_threshold_pixels: float = 10.0 # 屏幕像素距离，判定为开始拖拽
 
-# 输入状态跟踪
+# --- 内部变量 ---
 var is_left_down: bool = false
-var press_start_pos: Vector2 = Vector2.ZERO
-var press_start_screen_pos: Vector2 = Vector2.ZERO
-var press_start_time: int = 0
+var press_start_screen_pos: Vector2 = Vector2.ZERO # 屏幕坐标：用于绘制 UI 和判定拖拽
+var press_start_world_pos: Vector2 = Vector2.ZERO  # 世界坐标：用于传给 C++ 逻辑
+var is_actual_drag: bool = false
 var last_left_click_time: int = 0
-var is_actual_drag: bool = false # 是否达到了框选的触发门槛
+
+func _process(_delta):
+	# 每帧更新悬停检测 (C++ 实现)
+	# 这会让单位/建筑在鼠标划过时产生即时的高亮渲染反馈
+	var mouse_world = camera_3d.get_mouse_world_pos()
+	update_hover(mouse_world, unit_manager, building_manager)
 
 func _unhandled_input(event: InputEvent):
+	# 如果处于建筑放置模式（由建筑管理器控制），拦截并清理选择行为
 	if building_manager and building_manager.is_building_mode:
-		# 重置选择状态，防止框选框残留
-		if is_left_down:
-			is_left_down = false
-			is_actual_drag = false
-			queue_redraw()
+		_reset_ui_state()
 		return
-	
+
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
@@ -32,106 +37,97 @@ func _unhandled_input(event: InputEvent):
 			else:
 				_on_left_released()
 		
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			if not event.pressed: # 右键也遵循松开触发
-				_on_right_released()
+		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+			_on_right_pressed()
 
 	elif event is InputEventMouseMotion:
 		if is_left_down:
 			_on_left_drag_motion()
-		else:
-			set_mouse_position(camera_3d.get_mouse_world_pos())
-
+	
 	elif event is InputEventKey and event.pressed and not event.echo:
-		match event.keycode:
-			KEY_1: set_team_id(1)
-			KEY_2: set_team_id(2)
-			KEY_3: set_team_id(3)
-			KEY_4: set_team_id(4)
-			KEY_5: set_team_id(5)
-			KEY_6: set_team_id(6)
-			KEY_7: set_team_id(7)
-			KEY_8: set_team_id(8)
-			KEY_9: set_team_id(9)
+		var keycode = event.keycode
+		match keycode:
+			KEY_1:
+				team_id = 1
+			KEY_2:
+				team_id = 2
+			KEY_3:
+				team_id = 3
+			KEY_4:
+				team_id = 4
+			KEY_5:
+				team_id = 5
+	
 
-# --- 鼠标逻辑处理 ---
+# --- 鼠标左键逻辑 ---
 
 func _on_left_pressed():
 	is_left_down = true
-	press_start_pos = camera_3d.get_mouse_world_pos()
 	press_start_screen_pos = get_global_mouse_position()
-	press_start_time = Time.get_ticks_msec()
+	press_start_world_pos = camera_3d.get_mouse_world_pos()
 	is_actual_drag = false
 
 func _on_left_drag_motion():
-	# 检查是否满足移动距离门槛，满足则开启框选视觉
 	if not is_actual_drag:
-		if camera_3d.get_mouse_world_pos().distance_to(press_start_pos) > drag_threshold_dist:
+		# 判定是否超过像素阈值，开启框选视觉
+		if get_global_mouse_position().distance_to(press_start_screen_pos) > drag_threshold_pixels:
 			is_actual_drag = true
 	
 	if is_actual_drag:
-		set_mouse_position(camera_3d.get_mouse_world_pos())
-		box_selecting()
-		queue_redraw() # 更新框选框绘制
+		queue_redraw() # 触发 _draw()
 
 func _on_left_released():
-	var release_pos = camera_3d.get_mouse_world_pos()
+	var release_world_pos = camera_3d.get_mouse_world_pos()
 	var current_time = Time.get_ticks_msec()
-	var duration = current_time - press_start_time
 	
-	# 1. 判定是否为框选 (根据距离或时长判定)
-	if is_actual_drag or duration > long_press_threshold_ms:
-		_handle_box_selection(press_start_pos, release_pos)
+	if is_actual_drag:
+		# 1. 执行框选 (C++ 接口：使用空间网格筛选单位 ID)
+		var box = _get_world_rect(press_start_world_pos, release_world_pos)
+		do_box_select(box, unit_manager, building_manager)
 	
-	# 2. 判定是否为双击
 	elif current_time - last_left_click_time < double_click_interval_ms:
-		_handle_double_click(release_pos)
-		last_left_click_time = 0 # 重置，防止三连击触发两次双击
+		# 2. 执行双击 (C++ 接口：选取屏幕内所有同类单位)
+		var view_rect = camera_3d.get_visible_world_rect()
+		do_type_select(release_world_pos, view_rect, unit_manager, building_manager)
+		last_left_click_time = 0
 	
-	# 3. 判定为普通单击
 	else:
-		_handle_single_click(release_pos)
+		# 3. 执行单选 (C++ 接口：优先检测单位，后检测建筑)
+		do_single_select(release_world_pos, unit_manager, building_manager)
 		last_left_click_time = current_time
 	
-	# 重置状态
+	_reset_ui_state()
+
+# --- 鼠标右键逻辑 ---
+
+func _on_right_pressed():
+	var mouse_world_pos = camera_3d.get_mouse_world_pos()
+	# 调用 C++ 接口，内部会执行：
+	# 1. 判定点击了地面、单位还是建筑
+	# 2. 自动 emit_signal("command_issued", ...) 信号给 GameManager
+	handle_right_click(mouse_world_pos, unit_manager, building_manager)
+
+# --- 视觉反馈与辅助 ---
+
+func _reset_ui_state():
 	is_left_down = false
 	is_actual_drag = false
 	queue_redraw()
 
-func _on_right_released():
-	set_mouse_position(camera_3d.get_mouse_world_pos())
-	selecting_target()
-
-# --- 具体执行动作 ---
-
-# 单击：选择单个单位
-func _handle_single_click(pos: Vector2):
-	set_mouse_position(pos)
-	single_selecting()
-
-# 双击：通常逻辑是选择屏幕内同类型的单位
-func _handle_double_click(pos: Vector2):
-	set_mouse_position(pos)
-	type_selecting()
-
-# 框选
-func _handle_box_selection(start: Vector2, end: Vector2):
-	set_mouse_position(end)
-	end_box_selecting()
-
-# --- 辅助功能 ---
-
-func _get_rect(p1: Vector2, p2: Vector2) -> Rect2:
-	return Rect2(
-		p1.min(p2),
-		(p1 - p2).abs()
-	)
+func _get_world_rect(p1: Vector2, p2: Vector2) -> Rect2:
+	return Rect2(p1.min(p2), (p1 - p2).abs())
 
 func _draw():
+	# 仅在实际拖拽时绘制绿框
 	if is_left_down and is_actual_drag:
-		var current_mouse_screen_pos = get_global_mouse_position()
-		var rect = _get_rect(press_start_screen_pos, current_mouse_screen_pos)
+		var current_screen_pos = get_global_mouse_position()
 		
-		# 绘制空心矩形和半透明填充
-		draw_rect(rect, Color(0, 1, 0, 0.1), true)
+		# 将屏幕坐标转换为本地 Canvas 坐标（处理 UI 缩放适配）
+		var local_start = make_canvas_position_local(press_start_screen_pos)
+		var local_end = make_canvas_position_local(current_screen_pos)
+		
+		var rect = Rect2(local_start.min(local_end), (local_start - local_end).abs())
+		
+		# 绘制半透明填充和描边
+		draw_rect(rect, Color(0, 1, 0, 0.15), true)
 		draw_rect(rect, Color(0, 1, 0, 0.5), false, 1.0)
