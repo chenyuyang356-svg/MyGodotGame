@@ -53,7 +53,7 @@ working_row=1
 
 [Barracks]
 # 可生产的单位列表 (字符串数组，用逗号分隔，名称需与 register_unit_type 对应)
-producible_units=Tank, Fighter
+producible_units=Tank,Fighter
 # 生产速度倍率 (1.0为标准)
 production_speed=1.0
 

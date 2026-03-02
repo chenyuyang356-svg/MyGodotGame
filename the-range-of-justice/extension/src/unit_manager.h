@@ -97,8 +97,8 @@ namespace godot {
 		void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
 
 		// --- 单位生命周期 ---
-		int spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id = 0);
-		void despawn_unit(int p_unit_id);
+		int spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id = 0, int p_forced_id = -1);
+		void despawn_unit(int p_unit_id, SelectionManager* p_selection_manager);
 
 		// --- 单位攻击逻辑 ---
 		void command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos);
@@ -135,11 +135,13 @@ namespace godot {
 		float get_unit_aggro_range(int p_unit_id) const;
 		float get_unit_attack_range(int p_unit_id) const;
 		int get_unit_state(int p_unit_id) const;
+		Ref<UnitStats> get_unit_stats_by_type(String p_type_name);
+
 		void set_flow_field_manager(Node* p_node);
 		void set_group_manager(Node* p_node);
 
 		void register_unit_type(String p_name, String p_path);
-		int spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_team_id);
+		int spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_team_id, int p_forced_id = -1);
 
 		void set_control_group(int p_index, const std::vector<int>& p_unit_ids);
 

@@ -73,10 +73,32 @@ namespace godot {
 		// 客户端接收：更新本地单位的插值目标
 		void rpc_client_receive_snapshot(const PackedByteArray& p_raw_data);
 
+		// 客户端调用：请求产生单位
+		void rpc_server_request_spawn_unit(String p_type, Vector2 p_pos, int p_team);
+		// 服务器调用：通知所有客户端产生单位（包含服务器分配的唯一ID）
+		void rpc_client_spawn_unit(int p_id, String p_type, Vector2 p_pos, int p_team);
+		// 服务器调用：通知所有客户端销毁单位
+		void rpc_client_despawn_unit(int p_id);
+
+		// --- 建筑同步 ---
+		// 客户端调用：请求放置建筑
+		void rpc_server_request_place_building(String p_type, Vector2i p_grid_pos, int p_team);
+		// 服务器调用：同步建筑生成及 ID
+		void rpc_client_spawn_building(int p_id, String p_type, Vector2i p_grid_pos, int p_team);
+		// 服务器调用：同步移除建筑
+		void rpc_client_remove_building(int p_id);
+
+		void rpc_server_request_produce_unit(int p_building_id, String p_unit_type);
+
 		// 信号回调函数
 		void _on_move_requested(PackedInt32Array p_ids, Vector2 p_pos);
 		void _on_attack_unit_requested(PackedInt32Array p_ids, int p_target_id);
 		void _on_attack_building_requested(PackedInt32Array p_ids, int p_target_id);
+
+		void _on_placement_requested(String p_type_name, Vector2i p_grid_pos, int p_team_id);
+		void _on_spawn_unit_requested(String p_type_name, Vector2 p_pos, int p_team_id);
+
+		void _on_unit_production_requested(int p_bid, String p_type);
 
 		double get_logic_tick_rate() { return logic_tick_rate; }
 		void set_logic_tick_rate(double p_value) { logic_tick_rate = p_value; }

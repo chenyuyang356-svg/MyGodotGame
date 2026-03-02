@@ -68,9 +68,13 @@ namespace godot {
         std::vector<int> get_buildings_in_box(Rect2 p_box, int p_team_id);
 
         // 通过类型名称放置建筑
-        int place_building_by_type(String p_type_name, Vector2i p_grid_pos, int p_team_id);
+        int place_building_by_type(String p_type_name, Vector2i p_grid_pos, int p_team_id, int p_forced_id = -1);
 
-        void remove_building(int p_building_id);
+        void remove_building(int p_building_id, SelectionManager* p_selection_manager);
+
+        void add_unit_to_production_queue(int p_building_id, String p_unit_type);
+
+        void request_spawn_unit(String p_unit_type, Vector2 p_pos, int p_team_id);
 
         // 根据 ID 获取数据
         int get_building_team_id(int p_building_id) const;

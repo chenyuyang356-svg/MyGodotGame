@@ -79,8 +79,7 @@ func _on_build_button_pressed(type_name: String):
 
 func _try_place():
 	if can_place and current_stats != null:
-		var b_id = place_building_by_type(current_type_name, ghost_grid_pos, selection_manager.team_id)
-		if b_id != -1: print("Placed ", current_type_name)
+		emit_signal("placement_requested", current_type_name, ghost_grid_pos, selection_manager.team_id)
 
 func _exit_building_mode():
 	is_building_mode = false

@@ -18,7 +18,88 @@ void BuildingManager::set_unit_manager(Node* p_node) {
 }
 
 void BuildingManager::update(double p_delta) {
+    for (auto& pair : buildings) {
+        BuildingData& b = pair.second;
 
+        // 逻辑 A：处理建筑自身的建造过程
+        if (b.state == BuildingState::BUILDING) {
+            // 累加建造时间
+            b.build_timer += (float)p_delta;
+
+            // 检查是否建造完成
+            float required_time = b.stats->get_build_time();
+
+            if (b.build_timer >= required_time) {
+                b.state = BuildingState::IDLE;
+                b.build_timer = 0.0f;
+
+                // 建造完成时可以触发一些逻辑，比如血量补满或发出信号
+                b.current_health = b.stats->get_health_max();
+
+                // UtilityFunctions::print("Building ", b.id, " constructed!");
+            }
+        }
+
+        // 这里可以继续添加 WORKING 状态的逻辑（如资源产生进度等）
+
+        // 逻辑 B：处理兵营单位生产 (仅限 BARRACKS 类型)
+        if (b.stats->get_building_type() == BUILDING_BARRACKS) {
+            if (!b.production_queue.empty()) {
+                // 1. 进入工作状态（触发 WORKING 动画）
+                b.state = BuildingState::WORKING;
+
+                // 2. 获取当前正在生产的单位类型
+                String unit_type = b.production_queue.front();
+
+                // 3. 获取该单位的 Stats 以读取其所需的 build_time
+                // 这里需要通过 unit_manager 预存的 cache 或者 UnitLoader 获取
+                Ref<UnitStats> u_stats = unit_manager->get_unit_stats_by_type(unit_type);
+
+                if (u_stats.is_valid()) {
+                    // 计算进度：考虑兵营的生产速度加成
+                    // 实际时间 = 单位基础建造时间 / 兵营生产效率
+                    float production_speed = b.stats->get_production_speed();
+                    if (production_speed <= 0.0f) production_speed = 1.0f; // 防止除以0
+
+                    b.unit_production_timer += (float)p_delta * production_speed;
+
+                    // 4. 检查是否生产完成
+                    if (b.unit_production_timer >= u_stats->get_build_time()) {
+                        // --- 生产完成：执行生成 ---
+
+                        // 计算生成位置：建筑中心点下方偏移一点（或出口点）
+                        Vector2 cell_sz = Vector2(flow_field_manager->get_cell_size());
+                        Vector2 fp_size = Vector2(b.stats->get_footprint()) * cell_sz;
+                        Vector2 spawn_pos = Vector2(b.grid_pos) * cell_sz + fp_size * 0.5f;
+                        spawn_pos.y += fp_size.y * 0.6f; // 向下偏离中心，防止重叠
+
+                        // 注意：这里由服务器直接调用 spawn。
+                        // 在联机版中，GameManager 会负责随后将此 ID 广播给所有客户端。
+                        request_spawn_unit(unit_type, spawn_pos, b.team_id);
+
+                        // 5. 清理队列
+                        b.production_queue.erase(b.production_queue.begin());
+                        b.unit_production_timer = 0.0f;
+
+                        // 如果队列空了，回到 IDLE 状态
+                        if (b.production_queue.empty()) {
+                            b.state = BuildingState::IDLE;
+                        }
+                    }
+                }
+                else {
+                    // 如果单位 Stats 无效，直接跳过该任务
+                    b.production_queue.erase(b.production_queue.begin());
+                }
+            }
+            else {
+                // 队列为空时，如果当前是 WORKING 状态则切回 IDLE
+                if (b.state == BuildingState::WORKING) {
+                    b.state = BuildingState::IDLE;
+                }
+            }
+        }
+    }
 }
 
 void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, SelectionManager* p_selection_manager) {
@@ -276,7 +357,7 @@ std::vector<int> BuildingManager::get_buildings_in_box(Rect2 p_box, int p_team_i
     return result;
 }
 
-int BuildingManager::place_building_by_type(String p_type_name, Vector2i p_grid_pos, int p_team_id) {
+int BuildingManager::place_building_by_type(String p_type_name, Vector2i p_grid_pos, int p_team_id, int p_forced_id) {
     if (!building_types_cache.has(p_type_name)) return -1;
 
     Ref<BuildingStats> stats = building_types_cache[p_type_name];
@@ -285,12 +366,16 @@ int BuildingManager::place_building_by_type(String p_type_name, Vector2i p_grid_
     if (!is_area_clear(p_grid_pos, stats)) return -1;
 
     // 1. 创建建筑
-    int b_id = next_building_id++;
+    int b_id = p_forced_id;
+    if (b_id == -1) b_id = next_building_id++;
+    else if (b_id >= next_building_id) next_building_id = b_id + 1;
+
     BuildingData b;
     b.id = b_id;
     b.grid_pos = p_grid_pos;
     b.stats = stats;
     b.team_id = p_team_id;
+    b.state = BuildingState::BUILDING;
     b.current_health = stats->get_health_max();
     buildings[b_id] = b;
 
@@ -311,7 +396,7 @@ int BuildingManager::place_building_by_type(String p_type_name, Vector2i p_grid_
     return b_id;
 }
 
-void BuildingManager::remove_building(int p_building_id) {
+void BuildingManager::remove_building(int p_building_id, SelectionManager* p_selection_manager) {
     auto it = buildings.find(p_building_id);
     if (it == buildings.end()) return;
 
@@ -332,6 +417,33 @@ void BuildingManager::remove_building(int p_building_id) {
 
     buildings.erase(it);
     flow_field_manager->make_all_dirty();
+    p_selection_manager->on_building_removed(p_building_id);
+}
+
+void BuildingManager::add_unit_to_production_queue(int p_building_id, String p_unit_type) {
+    auto it = buildings.find(p_building_id);
+    if (it == buildings.end()) return;
+
+    BuildingData& b = it->second;
+
+    // 验证：该单位是否在兵营的可生产列表中？
+    PackedStringArray producible = b.stats->get_producible_units();
+    bool can_produce = false;
+    for (int i = 0; i < producible.size(); ++i) {
+        if (producible[i] == p_unit_type) {
+            can_produce = true;
+            break;
+        }
+    }
+
+    if (can_produce) {
+        b.production_queue.push_back(p_unit_type);
+        // 如果是从空队列开始，状态切换到 WORKING 已经在之前的 update 逻辑中处理了
+    }
+}
+
+void godot::BuildingManager::request_spawn_unit(String p_unit_type, Vector2 p_pos, int p_team_id){
+    emit_signal("spawn_unit_requested", p_unit_type, p_pos, p_team_id);
 }
 
 int BuildingManager::get_building_team_id(int p_building_id) const {
@@ -372,6 +484,14 @@ void BuildingManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_building_grid_pos", "building_id"), &BuildingManager::get_building_grid_pos);
     ClassDB::bind_method(D_METHOD("get_building_stats", "building_id"), &BuildingManager::get_building_stats);
 
+    ClassDB::bind_method(D_METHOD("request_spawn_unit", "unit_type", "spawn_pos", "team_id"), &BuildingManager::request_spawn_unit);
+
     ClassDB::bind_method(D_METHOD("get_registered_building_types"), &BuildingManager::get_registered_building_types);
     ClassDB::bind_method(D_METHOD("get_building_stats_by_type", "type_name"), &BuildingManager::get_building_stats_by_type);
+
+    // 参数：类型名称, 网格坐标, 队伍ID
+    ADD_SIGNAL(MethodInfo("placement_requested", PropertyInfo(Variant::STRING, "type_name"), PropertyInfo(Variant::VECTOR2I, "grid_pos"), 
+        PropertyInfo(Variant::INT, "team_id")));
+    ADD_SIGNAL(MethodInfo("spawn_unit_requested", PropertyInfo(Variant::STRING, "type_name"), PropertyInfo(Variant::VECTOR2, "spawn_pos"),
+        PropertyInfo(Variant::INT, "team_id")));
 }

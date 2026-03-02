@@ -30,7 +30,7 @@ Ref<BuildingStats> BuildingLoader::load_from_txt(String p_path, Ref<BuildingStat
         String key = line.substr(0, split_idx).strip_edges();
         String val = line.substr(split_idx + 1).strip_edges();
 
-        if (key == "type") {
+        if (key == "building_type") {
             String v = val.to_lower();
             if (v == "barracks") stats->set_building_type(BUILDING_BARRACKS);
             else if (v == "turret") stats->set_building_type(BUILDING_TURRET);

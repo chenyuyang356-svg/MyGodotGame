@@ -31,7 +31,6 @@ sources/1 = SubResource("TileSetAtlasSource_3wy1v")
 script = ExtResource("1_3wy1v")
 
 [node name="GameManager" type="GameManager" parent="." unique_id=1740388468]
-logic_tick_rate = 0.02
 
 [node name="GroupManager" type="GroupManager" parent="." unique_id=2096338072]
 
@@ -53,11 +52,23 @@ friction_factor = 15.0
 force_threshold_squared = 0.0
 desired_integration = 1.0
 
-[node name="SelectionManager" type="SelectionManager" parent="." unique_id=803111584 node_paths=PackedStringArray("unit_manager", "building_manager", "camera_3d")]
+[node name="SelectionManager" type="SelectionManager" parent="." unique_id=803111584 node_paths=PackedStringArray("unit_manager", "building_manager", "game_manager", "camera_3d", "production_panel")]
 script = ExtResource("4_3wy1v")
 unit_manager = NodePath("../UnitManager")
 building_manager = NodePath("../BuildingManager")
+game_manager = NodePath("../GameManager")
 camera_3d = NodePath("../Camera3D")
+production_panel = NodePath("CanvasLayer/ProductionPanel")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="SelectionManager" unique_id=1806641996]
+
+[node name="ProductionPanel" type="VBoxContainer" parent="SelectionManager/CanvasLayer" unique_id=46532710]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -40.0
+offset_bottom = 40.0
+grow_horizontal = 0
 
 [node name="BuildingManager" type="BuildingManager" parent="." unique_id=2078401615 node_paths=PackedStringArray("camera", "flow_field_manager", "selection_manager", "build_menu_container")]
 script = ExtResource("3_kfbq2")
@@ -68,7 +79,7 @@ build_menu_container = NodePath("CanvasLayer/BuildingMenu")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="BuildingManager" unique_id=817356954]
 
-[node name="BuildingMenu" type="PanelContainer" parent="BuildingManager/CanvasLayer" unique_id=644269358]
+[node name="BuildingMenu" type="VBoxContainer" parent="BuildingManager/CanvasLayer" unique_id=1512739518]
 offset_right = 40.0
 offset_bottom = 40.0
 

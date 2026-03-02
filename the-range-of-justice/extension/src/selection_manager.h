@@ -34,6 +34,11 @@ namespace godot {
 
         void handle_right_click(Vector2 p_mouse_pos, Node* p_um, Node* p_bm);
 
+        void request_unit_production(int p_building_id, String p_unit_type);
+
+        void on_unit_despawned(int p_id);
+        void on_building_removed(int p_id);
+
         // 供渲染器查询接口
         bool is_unit_selected(int p_id) const { return selected_unit_ids.count(p_id); }
         bool is_unit_hovered(int p_id) const { return hovered_unit_id == p_id; }

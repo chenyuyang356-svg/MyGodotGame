@@ -17,7 +17,12 @@ namespace godot {
         int team_id;
         float current_health;
         float anim_time = 0.0f;
+
+        float build_timer = 0.0f;
         BuildingState state = BuildingState::BUILDING;
+
+        std::vector<String> production_queue; // 待生产单位类型列表
+        float unit_production_timer = 0.0f;    // 当前单位的生产计时
     };
 
 }

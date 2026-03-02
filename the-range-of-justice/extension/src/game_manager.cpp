@@ -7,6 +7,27 @@
 using namespace godot;
 
 GameManager::GameManager() {
+	// --- 通用 RPC 配置模板 ---
+	Dictionary req_config; // 客户端发送请求给服务器：ANY_PEER, RELIABLE
+	req_config["rpc_mode"] = MultiplayerAPI::RPC_MODE_ANY_PEER;
+	req_config["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
+	req_config["call_local"] = false;
+
+	Dictionary sync_config; // 服务器同步给客户端：AUTHORITY, RELIABLE
+	sync_config["rpc_mode"] = MultiplayerAPI::RPC_MODE_AUTHORITY;
+	sync_config["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
+	sync_config["call_local"] = false;
+
+	// 绑定单位相关
+	rpc_config("rpc_server_request_spawn_unit", req_config);
+	rpc_config("rpc_client_spawn_unit", sync_config);
+	rpc_config("rpc_client_despawn_unit", sync_config);
+
+	// 绑定建筑相关
+	rpc_config("rpc_server_request_place_building", req_config);
+	rpc_config("rpc_client_spawn_building", sync_config);
+	rpc_config("rpc_client_remove_building", sync_config);
+
 	// 移动指令配置
 	Dictionary move_config;
 	move_config["rpc_mode"] = MultiplayerAPI::RPC_MODE_ANY_PEER;
@@ -26,6 +47,12 @@ GameManager::GameManager() {
 	snapshot_config["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_UNRELIABLE_ORDERED;
 	snapshot_config["call_local"] = false;
 	rpc_config("rpc_client_receive_snapshot", snapshot_config);
+
+	Dictionary produce_config;
+	produce_config["rpc_mode"] = MultiplayerAPI::RPC_MODE_ANY_PEER;
+	produce_config["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
+	produce_config["call_local"] = false;
+	rpc_config("rpc_server_request_produce_unit", produce_config);
 }
 
 GameManager::~GameManager() {}
@@ -109,6 +136,11 @@ void GameManager::set_unit_manager(Node* p_node) {
 
 void GameManager::set_building_manager(Node* p_node) {
 	building_manager = Object::cast_to<BuildingManager>(p_node);
+
+	if (building_manager) {
+		building_manager->connect("placement_requested", Callable(this, "_on_placement_requested"));
+		building_manager->connect("spawn_unit_requested", Callable(this, "_on_spawn_unit_requested"));
+	}
 }
 
 void GameManager::set_flow_field_manager(Node* p_node) {
@@ -123,6 +155,7 @@ void GameManager::set_selection_manager(Node* p_node) {
 		selection_manager->connect("move_requested", Callable(this, "_on_move_requested"));
 		selection_manager->connect("attack_unit_requested", Callable(this, "_on_attack_unit_requested"));
 		selection_manager->connect("attack_building_requested", Callable(this, "_on_attack_building_requested"));
+		selection_manager->connect("unit_production_requested", Callable(this, "_on_unit_production_requested"));
 	}
 }
 
@@ -177,14 +210,21 @@ void GameManager::rpc_server_receive_move(PackedInt32Array p_ids, Vector2 p_pos)
 	}
 }
 
+void GameManager::rpc_server_receive_attack_unit(PackedInt32Array p_ids, int p_target_id) {
+	if (!get_multiplayer()->is_server()) return;
+	if (unit_manager) {
+		unit_manager->command_units_to_attack_target(p_ids, p_target_id);
+	}
+}
+
 void GameManager::broadcast_network_snapshot() {
 	if (!unit_manager || unit_manager->units.empty()) return;
 
 	PackedByteArray data;
 	int unit_count = (int)unit_manager->units.size();
 
-	// 预分配空间：4字节(计数) + 每个单位17字节
-	data.resize(4 + unit_count * 17);
+	// 预分配空间：4字节(计数) + 每个单位字节
+	data.resize(4 + unit_count * 21);
 
 	// 写入单位数量
 	data.encode_s32(0, unit_count);
@@ -195,8 +235,9 @@ void GameManager::broadcast_network_snapshot() {
 		data.encode_float(offset + 4, unit.position.x); // 4 bytes
 		data.encode_float(offset + 8, unit.position.y); // 4 bytes
 		data.encode_float(offset + 12, unit.rotation);  // 4 bytes
-		data.set(offset + 16, (uint8_t)unit.state);     // 1 byte
-		offset += 17;
+		data.encode_float(offset + 16, unit.height);  // 4 bytes
+		data.set(offset + 20, (uint8_t)unit.state);     // 1 byte
+		offset += 21;
 	}
 
 	// 广播二进制流
@@ -210,14 +251,15 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 	int offset = 4;
 
 	for (int i = 0; i < unit_count; i++) {
-		if (offset + 17 > p_raw_data.size()) break;
+		if (offset + 21 > p_raw_data.size()) break;
 
 		int id = p_raw_data.decode_s32(offset);
 		float px = p_raw_data.decode_float(offset + 4);
 		float py = p_raw_data.decode_float(offset + 8);
 		float rot = p_raw_data.decode_float(offset + 12);
-		uint8_t state = p_raw_data.get(offset + 16);
-		offset += 17;
+		float height = p_raw_data.decode_float(offset + 16);
+		uint8_t state = p_raw_data.get(offset + 20);
+		offset += 21;
 
 		int idx = unit_manager->get_unit_index_by_id(id);
 		if (idx != -1) {
@@ -226,11 +268,13 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 			// 更新插值历史
 			unit.prev_position = unit.next_position;
 			unit.prev_rotation = unit.next_rotation;
+			unit.prev_height = unit.next_height;
 
 			// 设置新的目标
 			unit.position = Vector2(px, py);
 			unit.next_position = Vector2(px, py);
 			unit.next_rotation = rot;
+			unit.next_height = height;
 			unit.state = (UnitState)state;
 		}
 	}
@@ -241,11 +285,60 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 	tick_accumulator = 0.0;
 }
 
-void GameManager::rpc_server_receive_attack_unit(PackedInt32Array p_ids, int p_target_id) {
-	if (!get_multiplayer()->is_server()) return;
-	if (unit_manager) {
-		unit_manager->command_units_to_attack_target(p_ids, p_target_id);
+// 1. 单位生成
+void GameManager::rpc_server_request_spawn_unit(String p_type, Vector2 p_pos, int p_team) {
+	if (!is_server_authority()) return;
+	// 服务器生成单位，获取 ID
+	int new_id = unit_manager->spawn_unit_by_type(p_type, p_pos, p_team);
+	if (new_id != -1) {
+		// 广播给所有人（包括发起者）
+		rpc("rpc_client_spawn_unit", new_id, p_type, p_pos, p_team);
 	}
+}
+
+void GameManager::rpc_client_spawn_unit(int p_id, String p_type, Vector2 p_pos, int p_team) {
+	if (is_server_authority()) return; // 服务器已经在本地生成过了，跳过
+	// 客户端使用服务器指定的 ID 生成单位
+	unit_manager->spawn_unit_by_type(p_type, p_pos, p_team, p_id);
+}
+
+// 2. 建筑生成
+void GameManager::rpc_server_request_place_building(String p_type, Vector2i p_grid_pos, int p_team) {
+	if (!is_server_authority()) return;
+
+	// 服务器验证：钱够不够？位置是否被占用？
+	int new_id = building_manager->place_building_by_type(p_type, p_grid_pos, p_team);
+	if (new_id != -1) {
+		// 广播同步
+		rpc("rpc_client_spawn_building", new_id, p_type, p_grid_pos, p_team);
+	}
+}
+
+void GameManager::rpc_client_spawn_building(int p_id, String p_type, Vector2i p_grid_pos, int p_team) {
+	if (is_server_authority()) return;
+	// 客户端放置建筑，并强制使用 ID，同时内部会自动更新本地 FlowField
+	building_manager->place_building_by_type(p_type, p_grid_pos, p_team, p_id);
+}
+
+// 3. 销毁逻辑
+void GameManager::rpc_client_despawn_unit(int p_id) {
+	unit_manager->despawn_unit(p_id, selection_manager);
+}
+
+void GameManager::rpc_client_remove_building(int p_id) {
+	building_manager->remove_building(p_id, selection_manager);
+}
+
+void GameManager::rpc_server_request_produce_unit(int p_building_id, String p_unit_type) {
+	if (!get_multiplayer()->is_server()) return;
+
+	// 1. 验证：该玩家是否拥有该建筑？(这里可以通过 get_remote_sender_id 校验)
+	if (building_manager->get_building_team_id(p_building_id) != selection_manager->get_team_id()) {
+		return;
+	}
+
+	// 2. 调用 BuildingManager 将单位加入队列
+	building_manager->add_unit_to_production_queue(p_building_id, p_unit_type);
 }
 
 // 信号的具体实现
@@ -276,6 +369,39 @@ void GameManager::_on_attack_building_requested(PackedInt32Array p_ids, int p_ta
 	}
 }
 
+void GameManager::_on_placement_requested(String p_type_name, Vector2i p_grid_pos, int p_team_id) {
+	if (get_multiplayer()->is_server()) {
+		// 如果是服务器（比如单机测试或主机），直接进入处理逻辑
+		rpc_server_request_place_building(p_type_name, p_grid_pos, p_team_id);
+	}
+	else {
+		// 如果是客户端，发送 RPC 给服务器 (ID 为 1)
+		rpc_id(1, "rpc_server_request_place_building", p_type_name, p_grid_pos, p_team_id);
+	}
+}
+
+void godot::GameManager::_on_spawn_unit_requested(String p_type_name, Vector2 p_pos, int p_team_id) {
+	if (get_multiplayer()->is_server()) {
+		// 如果是服务器（比如单机测试或主机），直接进入处理逻辑
+		rpc_server_request_spawn_unit(p_type_name, p_pos, p_team_id);
+	}
+	else {
+		// 如果是客户端，发送 RPC 给服务器 (ID 为 1)
+		rpc_id(1, "rpc_server_request_place_building", p_type_name, p_pos, p_team_id);
+	}
+}
+
+void GameManager::_on_unit_production_requested(int p_bid, String p_type) {
+	if (get_multiplayer()->is_server()) {
+		// 如果是服务器，直接进入逻辑
+		rpc_server_request_produce_unit(p_bid, p_type);
+	}
+	else {
+		// 如果是客户端，通过 RPC 发送给服务器
+		rpc_id(1, "rpc_server_request_produce_unit", p_bid, p_type);
+	}
+}
+
 void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_unit_manager", "node"), &GameManager::set_unit_manager);
 	ClassDB::bind_method(D_METHOD("set_building_manager", "node"), &GameManager::set_building_manager);
@@ -292,9 +418,30 @@ void GameManager::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("rpc_client_receive_snapshot", "data"), &GameManager::rpc_client_receive_snapshot);
 
+	ClassDB::bind_method(D_METHOD("rpc_server_request_spawn_unit", "type", "pos", "team"),
+		&GameManager::rpc_server_request_spawn_unit);
+	ClassDB::bind_method(D_METHOD("rpc_client_spawn_unit", "id", "type", "pos", "team"),
+		&GameManager::rpc_client_spawn_unit);
+	ClassDB::bind_method(D_METHOD("rpc_client_despawn_unit", "id"),
+		&GameManager::rpc_client_despawn_unit);
+
+
+	ClassDB::bind_method(D_METHOD("rpc_server_request_place_building", "type", "grid_pos", "team"),
+		&GameManager::rpc_server_request_place_building);
+	ClassDB::bind_method(D_METHOD("rpc_client_spawn_building", "id", "type", "grid_pos", "team"),
+		&GameManager::rpc_client_spawn_building);
+	ClassDB::bind_method(D_METHOD("rpc_client_remove_building", "id"),
+		&GameManager::rpc_client_remove_building);
+
+	ClassDB::bind_method(D_METHOD("rpc_server_request_produce_unit", "id", "unit_type"),
+		&GameManager::rpc_server_request_produce_unit);
+
 	ClassDB::bind_method(D_METHOD("_on_move_requested", "ids", "pos"), &GameManager::_on_move_requested);
 	ClassDB::bind_method(D_METHOD("_on_attack_unit_requested", "ids", "target_id"), &GameManager::_on_attack_unit_requested);
 	ClassDB::bind_method(D_METHOD("_on_attack_building_requested", "ids", "target_id"), &GameManager::_on_attack_building_requested);
+	ClassDB::bind_method(D_METHOD("_on_unit_production_requested", "id", "type"), &GameManager::_on_unit_production_requested);
+	ClassDB::bind_method(D_METHOD("_on_placement_requested", "ids", "grid_pos", "team_id"), &GameManager::_on_placement_requested);
+	ClassDB::bind_method(D_METHOD("_on_spawn_unit_requested", "ids", "pos", "team_id"), &GameManager::_on_spawn_unit_requested);
 
 	ClassDB::bind_method(D_METHOD("get_logic_tick_rate"), &GameManager::get_logic_tick_rate);
 	ClassDB::bind_method(D_METHOD("set_logic_tick_rate", "logic_tick_rate"), &GameManager::set_logic_tick_rate);
