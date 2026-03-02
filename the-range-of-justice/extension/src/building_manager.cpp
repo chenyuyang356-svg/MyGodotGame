@@ -17,6 +17,10 @@ void BuildingManager::set_unit_manager(Node* p_node) {
     unit_manager = Object::cast_to<UnitManager>(p_node);
 }
 
+void BuildingManager::set_economy_manager(Node* p_node) {
+    economy_manager = Object::cast_to<EconomyManager>(p_node);
+}
+
 void BuildingManager::update(double p_delta) {
     for (auto& pair : buildings) {
         BuildingData& b = pair.second;
@@ -98,6 +102,18 @@ void BuildingManager::update(double p_delta) {
                     b.state = BuildingState::IDLE;
                 }
             }
+        }
+
+        // 处理采集器逻辑
+        if (b.stats->get_building_type() == BUILDING_COLLECTOR) {
+            // 每秒产生的资源 = 采集率 * delta
+            double income = b.stats->get_collection_rate() * p_delta;
+
+            // 直接加到经济管理器中
+            economy_manager->add_resources(b.team_id, income);
+
+            // 注意：采集频率很高，不需要每帧同步 RPC。
+            // 建议在 GameManager 中每隔 0.5 秒或 1.0 秒同步一次余额。
         }
     }
 }

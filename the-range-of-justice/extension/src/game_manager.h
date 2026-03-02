@@ -12,6 +12,7 @@
 #include "selection_manager.h"
 #include "group_manager.h"
 #include "unit_loader.h"
+#include "economy_manager.h"
 
 namespace godot {
 
@@ -24,6 +25,7 @@ namespace godot {
 		FlowFieldManager* flow_field_manager = nullptr;
 		SelectionManager* selection_manager = nullptr;
 		GroupManager* group_manager = nullptr;
+		EconomyManager* economy_manager = nullptr;
 
 		bool is_setup = false;
 
@@ -56,6 +58,7 @@ namespace godot {
 		void set_flow_field_manager(Node* p_node);
 		void set_selection_manager(Node* p_node);
 		void set_group_manager(Node* p_node);
+		void set_economy_manager(Node* p_node);
 		void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
 
 		// --- 网络管理接口 ---
@@ -89,6 +92,9 @@ namespace godot {
 		void rpc_client_remove_building(int p_id);
 
 		void rpc_server_request_produce_unit(int p_building_id, String p_unit_type);
+
+		void rpc_client_sync_resources(int p_team_id, double p_amount); // 仅同步给对应的客户端
+		void sync_resources_to_client(int p_team_id);
 
 		// 信号回调函数
 		void _on_move_requested(PackedInt32Array p_ids, Vector2 p_pos);

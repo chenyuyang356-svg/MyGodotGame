@@ -48,11 +48,9 @@ GameManager::GameManager() {
 	snapshot_config["call_local"] = false;
 	rpc_config("rpc_client_receive_snapshot", snapshot_config);
 
-	Dictionary produce_config;
-	produce_config["rpc_mode"] = MultiplayerAPI::RPC_MODE_ANY_PEER;
-	produce_config["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
-	produce_config["call_local"] = false;
-	rpc_config("rpc_server_request_produce_unit", produce_config);
+	rpc_config("rpc_server_request_produce_unit", req_config);
+
+	rpc_config("rpc_client_sync_resources", sync_config);
 }
 
 GameManager::~GameManager() {}
@@ -77,6 +75,11 @@ void GameManager::_physics_process(double p_delta) {
 
 			// 3. 定期广播快照 (可以每 Tick 广播，也可以每 2 个 Tick 广播)
 			broadcast_network_snapshot();
+
+			// 以后改成根据队伍数量的循环
+			for (int team_id = 1; team_id < 10; ++team_id) {
+				sync_resources_to_client(team_id);
+			}
 
 			tick_accumulator -= logic_tick_rate;
 		}
@@ -163,12 +166,17 @@ void GameManager::set_group_manager(Node* p_node) {
 	group_manager = Object::cast_to<GroupManager>(p_node);
 }
 
+void godot::GameManager::set_economy_manager(Node* p_node) {
+	economy_manager = Object::cast_to<EconomyManager>(p_node);
+}
+
 
 void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin) {
 	unit_manager->set_flow_field_manager(flow_field_manager);
 	unit_manager->set_group_manager(group_manager);
 	building_manager->set_flow_field_manager(flow_field_manager);
 	building_manager->set_unit_manager(unit_manager);
+	building_manager->set_economy_manager(economy_manager);
 	unit_manager->setup_system(p_width, p_height, p_cell_size, p_origin);
 	is_setup = true;
 }
@@ -306,12 +314,22 @@ void GameManager::rpc_client_spawn_unit(int p_id, String p_type, Vector2 p_pos, 
 void GameManager::rpc_server_request_place_building(String p_type, Vector2i p_grid_pos, int p_team) {
 	if (!is_server_authority()) return;
 
-	// 服务器验证：钱够不够？位置是否被占用？
-	int new_id = building_manager->place_building_by_type(p_type, p_grid_pos, p_team);
-	if (new_id != -1) {
-		// 广播同步
-		rpc("rpc_client_spawn_building", new_id, p_type, p_grid_pos, p_team);
+	Ref<BuildingStats> stats = building_manager->get_building_stats_by_type(p_type);
+	if (stats.is_null()) return;
+
+	// 1. 先检查钱够不够并扣费
+	if (economy_manager->try_spend(p_team, stats->get_cost())) {
+		// 2. 扣费成功再执行放置
+		int new_id = building_manager->place_building_by_type(p_type, p_grid_pos, p_team);
+		if (new_id != -1) {
+			rpc("rpc_client_spawn_building", new_id, p_type, p_grid_pos, p_team);
+			sync_resources_to_client(p_team); // 同步新余额
+		}
 	}
+	else {
+		// 3. (可选) 如果钱不够，可以给客户端发一个“金钱不足”的提示 RPC
+	}
+
 }
 
 void GameManager::rpc_client_spawn_building(int p_id, String p_type, Vector2i p_grid_pos, int p_team) {
@@ -337,8 +355,36 @@ void GameManager::rpc_server_request_produce_unit(int p_building_id, String p_un
 		return;
 	}
 
-	// 2. 调用 BuildingManager 将单位加入队列
-	building_manager->add_unit_to_production_queue(p_building_id, p_unit_type);
+	int team_id = building_manager->get_building_team_id(p_building_id);
+	Ref<UnitStats> u_stats = unit_manager->get_unit_stats_by_type(p_unit_type);
+
+	// 验证钱是否足够
+	if (economy_manager->try_spend(team_id, u_stats->get_cost())) {
+		building_manager->add_unit_to_production_queue(p_building_id, p_unit_type);
+		sync_resources_to_client(team_id);
+	}
+}
+
+void GameManager::rpc_client_sync_resources(int p_team_id, double p_amount) {
+	// 只有当同步的是玩家自己的队伍时才更新本地缓存
+	if (p_team_id == selection_manager->get_team_id()) {
+		// 更新本地 EconomyManager 副本（用于 UI 显示）
+		economy_manager->set_balance(p_team_id, p_amount);
+
+		// 发信号给 GDScript UI
+		// emit_signal("resources_updated", p_amount);
+	}
+}
+
+void GameManager::sync_resources_to_client(int p_team_id) {
+	if (!get_multiplayer()->is_server()) return;
+
+	double current_gold = economy_manager->get_balance(p_team_id);
+
+	// 假设你定义了 rpc_client_sync_resources (AUTHORITY, RELIABLE)
+	// 在实际多玩家环境中，你需要根据 team_id 找到对应的 PeerID 发送
+	// 这里简单演示：全员广播（客户端会根据自己的 team_id 过滤或服务器按需发送）
+	rpc("rpc_client_sync_resources", p_team_id, current_gold);
 }
 
 // 信号的具体实现
@@ -408,6 +454,7 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &GameManager::set_flow_field_manager);
 	ClassDB::bind_method(D_METHOD("set_selection_manager", "node"), &GameManager::set_selection_manager);
 	ClassDB::bind_method(D_METHOD("set_group_manager", "node"), &GameManager::set_group_manager);
+	ClassDB::bind_method(D_METHOD("set_economy_manager", "node"), &GameManager::set_economy_manager);
 	ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &GameManager::setup_system);
 
 	ClassDB::bind_method(D_METHOD("host_game", "port"), &GameManager::host_game);
@@ -435,6 +482,9 @@ void GameManager::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("rpc_server_request_produce_unit", "id", "unit_type"),
 		&GameManager::rpc_server_request_produce_unit);
+
+	ClassDB::bind_method(D_METHOD("rpc_client_sync_resources", "team_id", "amount"),
+		&GameManager::rpc_client_sync_resources);
 
 	ClassDB::bind_method(D_METHOD("_on_move_requested", "ids", "pos"), &GameManager::_on_move_requested);
 	ClassDB::bind_method(D_METHOD("_on_attack_unit_requested", "ids", "target_id"), &GameManager::_on_attack_unit_requested);
