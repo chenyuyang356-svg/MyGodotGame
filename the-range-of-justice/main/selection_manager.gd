@@ -4,7 +4,9 @@ extends SelectionManager
 @export_group("Dependencies")
 @export var unit_manager: Node3D
 @export var building_manager: Node3D
+@export var game_manager: Node2D
 @export var camera_3d: Node3D # 需具备 get_mouse_world_pos() 和 get_visible_world_rect() 方法
+@export var production_panel: VBoxContainer
 
 # --- 配置参数 ---
 @export_group("Settings")
@@ -17,6 +19,12 @@ var press_start_screen_pos: Vector2 = Vector2.ZERO # 屏幕坐标：用于绘制
 var press_start_world_pos: Vector2 = Vector2.ZERO  # 世界坐标：用于传给 C++ 逻辑
 var is_actual_drag: bool = false
 var last_left_click_time: int = 0
+
+func _ready() -> void:
+	connect("selection_changed", _on_selection_changed)
+	
+	if production_panel:
+		production_panel.hide()
 
 func _process(_delta):
 	# 每帧更新悬停检测 (C++ 实现)
@@ -58,6 +66,23 @@ func _unhandled_input(event: InputEvent):
 			KEY_5:
 				team_id = 5
 	
+
+func _on_selection_changed():
+	# 清空旧按钮
+	for child in production_panel.get_children():
+		child.queue_free()
+	production_panel.hide()
+	
+	# 获取选中的建筑 ID
+	var selected_bids = get_selected_building_ids()
+	
+	# 逻辑：只有选中【一个】建筑，且它是【兵营】时显示按钮
+	if selected_bids.size() == 1:
+		var b_id = selected_bids[0]
+		var stats = building_manager.get_building_stats(b_id)
+		
+		if stats and stats.building_type == BuildingStats.BUILDING_BARRACKS:
+			_show_production_buttons(b_id, stats)
 
 # --- 鼠标左键逻辑 ---
 
@@ -106,6 +131,21 @@ func _on_right_pressed():
 	# 1. 判定点击了地面、单位还是建筑
 	# 2. 自动 emit_signal("command_issued", ...) 信号给 GameManager
 	handle_right_click(mouse_world_pos, unit_manager, building_manager)
+
+# --- 选中建筑 ---
+
+
+func _show_production_buttons(building_id: int, stats: BuildingStats):
+	production_panel.show()
+	var units = stats.producible_units
+	for unit_type in units:
+		var btn = Button.new()
+		btn.text = "Produce " + unit_type
+		btn.custom_minimum_size = Vector2(100, 40)
+		# 绑定点击事件，发送 RPC 请求给服务器
+		btn.pressed.connect(func(): request_unit_production(building_id, unit_type))
+		production_panel.add_child(btn)
+
 
 # --- 视觉反馈与辅助 ---
 

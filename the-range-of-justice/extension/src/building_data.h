@@ -12,17 +12,21 @@ namespace godot {
 
     struct BuildingData {
         int id;
-        Vector2i grid_pos;   // Footprint å·¦ä¸Šè§’åæ ‡
+        Vector2i grid_pos;   // Footprint ×óÉÏ½Ç×ø±ê
         Ref<BuildingStats> stats;
         int team_id;
         float current_health;
         float anim_time = 0.0f;
+
+        float build_timer = 0.0f;
         BuildingState state = BuildingState::BUILDING;
 
-        // å»ºç­‘çš„æ”»å‡»å†·å´å’Œç›®æ ‡ä¿¡æ¯
+        // ½¨ÖşµÄ¹¥»÷ÀäÈ´ºÍÄ¿±êĞÅÏ¢
         int target_id = -1;
         bool target_is_building = false;
         float attack_cooldown = 0.0f;
+        std::vector<String> production_queue; // ´ıÉú²úµ¥Î»ÀàĞÍÁĞ±í
+        float unit_production_timer = 0.0f;    // µ±Ç°µ¥Î»µÄÉú²ú¼ÆÊ±
     };
 
 }

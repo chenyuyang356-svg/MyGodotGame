@@ -14,6 +14,7 @@ void SelectionManager::do_single_select(Vector2 p_mouse_pos, Node* p_um, Node* p
         clear_selection();
         selected_unit_ids.insert(u_id);
         current_selection_type = UNIT;
+        emit_signal("selection_changed");
         return;
     }
 
@@ -25,6 +26,8 @@ void SelectionManager::do_single_select(Vector2 p_mouse_pos, Node* p_um, Node* p
         selected_building_ids.insert(b_id);
         current_selection_type = BUILDING;
     }
+
+    emit_signal("selection_changed");
 }
 
 void godot::SelectionManager::do_type_select(Vector2 p_mouse_pos, Rect2 p_screen_rect, Node* p_um, Node* p_bm){
@@ -43,6 +46,7 @@ void godot::SelectionManager::do_type_select(Vector2 p_mouse_pos, Rect2 p_screen
             selected_unit_ids.insert(uid);
         }
         current_selection_type = UNIT;
+        emit_signal("selection_changed");
         return;
     }
 
@@ -59,6 +63,8 @@ void godot::SelectionManager::do_type_select(Vector2 p_mouse_pos, Rect2 p_screen
         }
         current_selection_type = BUILDING;
     }
+
+    emit_signal("selection_changed");
 }
 
 void SelectionManager::do_box_select(Rect2 p_box, Node* p_um, Node* p_bm) {
@@ -76,6 +82,7 @@ void SelectionManager::do_box_select(Rect2 p_box, Node* p_um, Node* p_bm) {
 
     if (!selected_unit_ids.empty()) {
         current_selection_type = UNIT;
+        emit_signal("selection_changed");
         return;
     }
 
@@ -88,7 +95,10 @@ void SelectionManager::do_box_select(Rect2 p_box, Node* p_um, Node* p_bm) {
 
     if (!selected_building_ids.empty()) {
         current_selection_type = BUILDING;
+        
     }
+
+    emit_signal("selection_changed");
 }
 
 void SelectionManager::clear_selection() {
@@ -105,10 +115,6 @@ void SelectionManager::clear_selection() {
     // 如果你希望在清除选择时，也清除鼠标当前的悬停高亮
     hovered_unit_id = -1;
     hovered_building_id = -1;
-
-    // 5. 发出信号通知 UI (GDScript 侧)
-    // 这样你的 UI 脚本可以隐藏底部的单位面板或建造列表
-    //emit_signal("selection_changed");
 }
 
 void SelectionManager::update_hover(Vector2 p_mouse_pos, Node* p_um, Node* p_bm) {
@@ -170,6 +176,40 @@ void SelectionManager::handle_right_click(Vector2 p_mouse_pos, Node* p_um, Node*
     emit_signal("move_requested", ids, p_mouse_pos);
 }
 
+void SelectionManager::request_unit_production(int p_building_id, String p_unit_type) {
+    // 简单的本地校验：确保建筑确实在选中列表中（防止非法 UI 操作）
+    if (selected_building_ids.count(p_building_id)) {
+        emit_signal("unit_production_requested", p_building_id, p_unit_type);
+    }
+}
+
+void SelectionManager::on_unit_despawned(int p_id) {
+    // 如果该单位在选中列表中，移除它
+    if (selected_unit_ids.erase(p_id) > 0) {
+        // 如果移除后集合空了，且当前选择类型是单位，重置状态
+        if (selected_unit_ids.empty() && current_selection_type == UNIT) {
+            current_selection_type = NONE;
+        }
+        // 这里可以 emit_signal("selection_changed") 通知 UI 更新
+    }
+
+    // 如果该单位正处于悬停状态，重置悬停
+    if (hovered_unit_id == p_id) {
+        hovered_unit_id = -1;
+    }
+}
+
+void SelectionManager::on_building_removed(int p_id) {
+    if (selected_building_ids.erase(p_id) > 0) {
+        if (selected_building_ids.empty() && current_selection_type == BUILDING) {
+            current_selection_type = NONE;
+        }
+    }
+
+    if (hovered_building_id == p_id) {
+        hovered_building_id = -1;
+    }
+}
 
 PackedInt32Array SelectionManager::get_selected_unit_ids() const {
     PackedInt32Array result;
@@ -196,6 +236,10 @@ void SelectionManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("do_type_select", "mouse_position", "screen_rect", "unit_manager", "building_manager"), &SelectionManager::do_type_select);
 	ClassDB::bind_method(D_METHOD("do_box_select", "box", "unit_manager", "building_manager"), &SelectionManager::do_box_select);
 
+    ClassDB::bind_method(D_METHOD("request_unit_production", "building_id", "unit_type"), &SelectionManager::request_unit_production);
+
+    ClassDB::bind_method(D_METHOD("get_selected_building_ids"), &SelectionManager::get_selected_building_ids);
+
 	ClassDB::bind_method(D_METHOD("get_team_id"), &SelectionManager::get_team_id);
 	ClassDB::bind_method(D_METHOD("set_team_id", "p_id"), &SelectionManager::set_team_id);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "team_id"), "set_team_id", "get_team_id");
@@ -203,4 +247,7 @@ void SelectionManager::_bind_methods() {
     ADD_SIGNAL(MethodInfo("move_requested", PropertyInfo(Variant::PACKED_INT32_ARRAY, "unit_ids"), PropertyInfo(Variant::VECTOR2, "target_pos")));
     ADD_SIGNAL(MethodInfo("attack_unit_requested", PropertyInfo(Variant::PACKED_INT32_ARRAY, "unit_ids"), PropertyInfo(Variant::INT, "target_id")));
     ADD_SIGNAL(MethodInfo("attack_building_requested", PropertyInfo(Variant::PACKED_INT32_ARRAY, "unit_ids"), PropertyInfo(Variant::INT, "target_id")));
+    ADD_SIGNAL(MethodInfo("unit_production_requested", PropertyInfo(Variant::INT, "building_id"), PropertyInfo(Variant::STRING, "unit_type")));
+    
+    ADD_SIGNAL(MethodInfo("selection_changed"));
 }

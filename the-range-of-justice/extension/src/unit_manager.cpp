@@ -36,11 +36,20 @@ void UnitManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
     is_setup = true;
 }
 
-int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id) {
+int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id, int p_forced_id) {
     if (p_stats.is_null()) return -1;
 
     UnitData new_unit;
-    new_unit.id = next_unit_id++;
+    // 如果传入了有效的 forced_id (客户端模式)，则使用它；否则使用自增 ID (服务器模式)
+    if (p_forced_id != -1) {
+        new_unit.id = p_forced_id;
+        // 更新 next_unit_id 以防冲突（可选，但安全）
+        if (p_forced_id >= next_unit_id) next_unit_id = p_forced_id + 1;
+    }
+    else {
+        new_unit.id = next_unit_id++;
+    }
+
     new_unit.position = p_world_pos;
     new_unit.prev_position = p_world_pos;
     new_unit.next_position = p_world_pos;
@@ -58,7 +67,7 @@ int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_t
     return new_unit.id;
 }
 
-void UnitManager::despawn_unit(int p_unit_id) {
+void UnitManager::despawn_unit(int p_unit_id, SelectionManager* p_selection_manager) {
     auto it = id_to_index.find(p_unit_id);
     if (it == id_to_index.end()) return;
 
@@ -82,6 +91,7 @@ void UnitManager::despawn_unit(int p_unit_id) {
    
     units.pop_back();
     id_to_index.erase(p_unit_id);
+    p_selection_manager->on_unit_despawned(p_unit_id);
 }
 
 void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos) {
@@ -730,6 +740,14 @@ int UnitManager::get_unit_state(int p_unit_id) const {
     return (int)(IDLE);
 }
 
+Ref<UnitStats> godot::UnitManager::get_unit_stats_by_type(String p_type_name)
+{
+    if (unit_types_cache.has(p_type_name)) {
+        return unit_types_cache[p_type_name];
+    }
+    return nullptr;
+}
+
 void UnitManager::set_flow_field_manager(Node* p_node) {
     flow_field_manager = Object::cast_to<FlowFieldManager>(p_node);
 }
@@ -828,9 +846,9 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     shadow_renderers[stats_ptr] = s_mmi;
 }
 
-int UnitManager::spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_team_id) {
+int UnitManager::spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_team_id, int p_forced_id) {
     if (unit_types_cache.has(p_type_name)) {
-        return spawn_unit(p_pos, unit_types_cache[p_type_name], p_team_id);
+        return spawn_unit(p_pos, unit_types_cache[p_type_name], p_team_id, p_forced_id);
     }
     return -1;
 }
@@ -912,7 +930,10 @@ float UnitManager::get_unit_attack_range(int p_unit_id) const {
 void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &UnitManager::setup_system);
     ClassDB::bind_method(D_METHOD("spawn_unit", "world_position", "type", "team_id"), &UnitManager::spawn_unit);
-    ClassDB::bind_method(D_METHOD("spawn_unit_by_type", "type_name", "pos", "team_id"), &UnitManager::spawn_unit_by_type);
+    ClassDB::bind_method(D_METHOD("spawn_unit_by_type", "type_name", "pos", "team_id", "force_id"), &UnitManager::spawn_unit_by_type,
+        DEFVAL(0),  // 对应 p_team_id 的默认值
+        DEFVAL(-1)  // 对应 p_forced_id 的默认值
+    );
     ClassDB::bind_method(D_METHOD("command_units_to_move", "unit_ids", "target_world_pos"), &UnitManager::command_units_to_move);
     ClassDB::bind_method(D_METHOD("command_units_to_patrol", "unit_ids", "waypoints"), &UnitManager::command_units_to_patrol);
     ClassDB::bind_method(D_METHOD("command_units_to_attack_target", "unit_ids", "target_id"), &UnitManager::command_units_to_attack_target);

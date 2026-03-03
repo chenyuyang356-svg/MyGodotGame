@@ -11,6 +11,7 @@
 #include "building_stats.h"
 #include "building_loader.h"
 #include "projectile_manager.h"
+#include "economy_manager.h"
 
 #include <gdextension_interface.h>
 #include <godot_cpp/core/defs.hpp>
@@ -35,6 +36,7 @@ void initialize_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(BuildingLoader);
 	GDREGISTER_CLASS(ProjectileManager);
 	GDREGISTER_CLASS(ProjectileStats);
+	GDREGISTER_CLASS(EconomyManager);
 }
 
 void uninitialize_module(ModuleInitializationLevel p_level) {
