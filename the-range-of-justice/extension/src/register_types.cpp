@@ -10,6 +10,7 @@
 #include "map_manager.h"
 #include "building_stats.h"
 #include "building_loader.h"
+#include "projectile_manager.h"
 
 #include <gdextension_interface.h>
 #include <godot_cpp/core/defs.hpp>
@@ -32,6 +33,8 @@ void initialize_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(MapManager);
 	GDREGISTER_CLASS(BuildingStats);
 	GDREGISTER_CLASS(BuildingLoader);
+	GDREGISTER_CLASS(ProjectileManager);
+	GDREGISTER_CLASS(ProjectileStats);
 }
 
 void uninitialize_module(ModuleInitializationLevel p_level) {

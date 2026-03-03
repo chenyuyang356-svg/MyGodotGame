@@ -18,9 +18,13 @@
 
 namespace godot {
     class SelectionManager;
+    class AttackManager;
 
     class BuildingManager : public Node3D {
         GDCLASS(BuildingManager, Node3D)
+
+        friend class AttackManager;
+        friend class ProjectileManager;
 
     private:
         FlowFieldManager* flow_field_manager = nullptr;

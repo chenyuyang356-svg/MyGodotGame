@@ -13,6 +13,8 @@ armor_type       = Light
 attack_damage    = 6.0
 attack_range     = 1500.0
 attack_interval  = 0.86
+projectile_type=Bullet
+
 # 枚举可选: Physical, Magic, Siege
 attack_type      = Physical
 projectile_speed = 800.0

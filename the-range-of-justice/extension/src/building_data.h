@@ -18,6 +18,11 @@ namespace godot {
         float current_health;
         float anim_time = 0.0f;
         BuildingState state = BuildingState::BUILDING;
+
+        // 建筑的攻击冷却和目标信息
+        int target_id = -1;
+        bool target_is_building = false;
+        float attack_cooldown = 0.0f;
     };
 
 }

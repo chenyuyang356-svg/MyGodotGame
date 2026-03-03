@@ -51,6 +51,10 @@ void BuildingStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_clearance_size", "p_val"), &BuildingStats::set_clearance_size);
     ADD_PROPERTY(PropertyInfo(Variant::VECTOR2I, "clearance_size"), "set_clearance_size", "get_clearance_size");
 
+    ClassDB::bind_method(D_METHOD("get_base_height"), &BuildingStats::get_base_height);
+    ClassDB::bind_method(D_METHOD("set_base_height", "p_val"), &BuildingStats::set_base_height);
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "base_height"), "set_base_height", "get_base_height");
+
     // --- 兵营属性绑定 ---
     ADD_GROUP("Barracks", "production_");
     ClassDB::bind_method(D_METHOD("get_producible_units"), &BuildingStats::get_producible_units);
@@ -74,6 +78,14 @@ void BuildingStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_attack_interval"), &BuildingStats::get_attack_interval);
     ClassDB::bind_method(D_METHOD("set_attack_interval", "p_val"), &BuildingStats::set_attack_interval);
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "attack_interval"), "set_attack_interval", "get_attack_interval");
+
+    ClassDB::bind_method(D_METHOD("get_projectile_speed"), &BuildingStats::get_projectile_speed);
+    ClassDB::bind_method(D_METHOD("set_projectile_speed", "p_val"), &BuildingStats::set_projectile_speed);
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "projectile_speed"), "set_projectile_speed", "get_projectile_speed");
+
+    ClassDB::bind_method(D_METHOD("get_splash_radius"), &BuildingStats::get_splash_radius);
+    ClassDB::bind_method(D_METHOD("set_splash_radius", "p_val"), &BuildingStats::set_splash_radius);
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "splash_radius"), "set_splash_radius", "get_splash_radius");
 
     // --- 采集属性绑定 ---
     ADD_GROUP("Collector", "collection_");

@@ -9,6 +9,8 @@ using namespace godot;
 
 void AttackManager::_bind_methods() {
         ClassDB::bind_method(D_METHOD("set_projectile_manager", "p_proj_manager"), &AttackManager::set_projectile_manager);
+        ClassDB::bind_method(D_METHOD("set_building_manager", "p_bmanager"), &AttackManager::set_building_manager);
+        ClassDB::bind_method(D_METHOD("setup", "p_manager"), &AttackManager::setup);
 }
 
 AttackManager::AttackManager() {}
@@ -20,6 +22,35 @@ void AttackManager::setup(UnitManager* p_manager) {
 
 void AttackManager::set_projectile_manager(ProjectileManager* p_proj_manager) {
     projectile_manager = p_proj_manager;
+}
+
+void AttackManager::set_building_manager(BuildingManager* p_bmanager) {
+    building_manager = p_bmanager;
+}
+
+bool AttackManager::_get_target_info(int p_target_id, bool p_is_building, Vector2& out_pos, float& out_radius) {
+    if (p_is_building) {
+        if (!building_manager) return false;
+        auto it = building_manager->buildings.find(p_target_id);
+        if (it == building_manager->buildings.end()) return false;
+
+        BuildingData& b = it->second;
+        Vector2 cell_sz = Vector2(256.0f, 256.0f);
+        if (building_manager->flow_field_manager) cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
+        Vector2 fp_size = Vector2(b.stats->get_footprint()) * cell_sz;
+
+        out_pos = Vector2(b.grid_pos) * cell_sz + fp_size * 0.5f;
+        out_radius = std::max(fp_size.x, fp_size.y) * 0.5f;
+        return true;
+    }
+    else {
+        int idx = unit_manager->get_unit_index_by_id(p_target_id);
+        if (idx == -1) return false;
+        UnitData& u = unit_manager->units[idx];
+        out_pos = u.position;
+        out_radius = u.stats->get_collision_radius();
+        return true;
+    }
 }
 
 void AttackManager::update_units(double p_delta) {
@@ -49,6 +80,54 @@ void AttackManager::update_units(double p_delta) {
     }
 }
 
+void AttackManager::update_buildings(double p_delta) {
+    if (!building_manager) return;
+
+    for (auto& pair : building_manager->buildings) {
+        BuildingData& b = pair.second;
+
+        // 如果建筑没建好，或已经死亡，或者没有攻击力，则跳过
+        if (b.state == BuildingState::BUILDING || b.current_health <= 0) continue;
+        if (b.stats->get_attack_damage() <= 0 || b.stats->get_attack_range() <= 0) continue;
+
+        if (b.attack_cooldown > 0) b.attack_cooldown -= p_delta;
+
+        if (b.target_id != -1) {
+            if (!_is_target_valid(b.target_id, b.target_is_building)) {
+                b.target_id = -1;
+            }
+            else {
+                Vector2 target_pos;
+                float target_radius;
+                _get_target_info(b.target_id, b.target_is_building, target_pos, target_radius);
+
+                // 计算建筑中心点
+                Vector2 cell_sz = Vector2(256.0f, 256.0f);
+                if (building_manager->flow_field_manager) cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
+                Vector2 fp_size = Vector2(b.stats->get_footprint()) * cell_sz;
+                Vector2 b_center = Vector2(b.grid_pos) * cell_sz + fp_size * 0.5f;
+
+                float dist_sq = b_center.distance_squared_to(target_pos);
+                float b_radius = std::max(fp_size.x, fp_size.y) * 0.5f; // 建筑等效半径
+                float atk_range = b.stats->get_attack_range() + b_radius + target_radius;
+
+                if (dist_sq > atk_range * atk_range) {
+                    b.target_id = -1; // 跑出范围，丢失目标
+                }
+                else if (b.attack_cooldown <= 0) {
+                    _execute_building_attack(b, b.target_id, b.target_is_building);
+                    b.attack_cooldown = b.stats->get_attack_interval();
+                }
+            }
+        }
+
+        // 如果没有目标，尝试索敌
+        if (b.target_id == -1) {
+            _try_find_target_for_building(b);
+        }
+    }
+}
+
 bool AttackManager::try_get_combat_force(UnitData& p_unit, Vector2& out_force) {
     // 如果单位在追逐，应用“寻敌移动”力
     if (p_unit.state == CHASING || p_unit.state == PATROLLING) {
@@ -67,82 +146,81 @@ bool AttackManager::try_get_combat_force(UnitData& p_unit, Vector2& out_force) {
 }
 
 // 检查目标是否存在且活着
-bool AttackManager::_is_target_valid(int p_target_id) {
-    int idx = unit_manager->get_unit_index_by_id(p_target_id); // 调用 UnitManager 的通用查找
-    if (idx == -1) return false;
-
-    // 检查血量
-    if (unit_manager->units[idx].current_health <= 0) return false;
-
-    return true;
+bool AttackManager::_is_target_valid(int p_target_id, bool p_is_building) {
+    if (p_is_building) {
+        if (!building_manager) return false;
+        auto it = building_manager->buildings.find(p_target_id);
+        if (it == building_manager->buildings.end()) return false;
+        return it->second.current_health > 0 && it->second.state != BuildingState::BUILDING;
+    }
+    else {
+        int idx = unit_manager->get_unit_index_by_id(p_target_id);
+        if (idx == -1) return false;
+        return unit_manager->units[idx].current_health > 0;
+    }
 }
 
 void AttackManager::_handle_idle(UnitData& p_unit) {
-    // 空闲时尝试索敌（获取警戒范围内的最近目标）
-    float range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius();
+    // 空闲时尝试索敌（_try_find_target 会寻找 aggro_range 范围内的最近目标）
     if (_try_find_target(p_unit)) {
-        p_unit.state = ATTACKING; // 直接开火，不进入CHASING
-    }
 
-        int target_idx = unit_manager->get_unit_index_by_id(p_unit.target_id);
-        if (target_idx != -1) {
-            UnitData& target = unit_manager->units[target_idx];
-            float dist_sq = p_unit.position.distance_squared_to(target.position);
+        Vector2 target_pos;
+        float target_radius;
 
+        // 使用通用的 _get_target_info，完美兼容目标是建筑还是单位
+        if (_get_target_info(p_unit.target_id, p_unit.target_is_building, target_pos, target_radius)) {
+
+            float dist_sq = p_unit.position.distance_squared_to(target_pos);
             // 计算实际的攻击距离（基础攻击距离 + 双方碰撞体积）
-            float atk_range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target.stats->get_collision_radius();
+            float atk_range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target_radius;
 
             if (dist_sq <= atk_range * atk_range) {
-                // 如果最近的敌人在攻击范围内，直接进入攻击状态
+                // 如果敌人在攻击范围内，直接进入攻击状态
                 p_unit.state = ATTACKING;
+                UtilityFunctions::print("[Debug Attack] unit ", p_unit.id, " into attack range,changing ATTACKING。目标 ID: ", p_unit.target_id);
             }
             else {
                 // 如果虽然在警戒范围内，但超出了攻击范围
-                // 因为是 IDLE 状态“不会主动追击”，所以当做没看见，清除目标
+                // 因为是 IDLE 状态“不会主动追击”，所以当做没看见，清除目标并保持 IDLE
+                // （如果你希望单位主动追击，这里可以改成 p_unit.state = CHASING;）
                 p_unit.target_id = -1;
+                p_unit.state = IDLE;
             }
         }
         else {
+            // 获取目标信息失败（可能目标刚死亡）
             p_unit.target_id = -1;
+            p_unit.state = IDLE;
         }
+    }
 }
 
 void AttackManager::_handle_chasing(UnitData& p_unit) {
-    if (!_is_target_valid(p_unit.target_id)) {
+    if (!_is_target_valid(p_unit.target_id, p_unit.target_is_building)) {
         p_unit.target_id = -1;
-        p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE; // 回退状态
+        p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE;
         return;
     }
 
-    int target_idx = unit_manager->get_unit_index_by_id(p_unit.target_id);
-    UnitData& target = unit_manager->units[target_idx];
+    Vector2 target_pos;
+    float target_radius;
+    _get_target_info(p_unit.target_id, p_unit.target_is_building, target_pos, target_radius);
 
-    // 更新目标位置，供 update_velocity 使用
-    p_unit.target_pos = target.position;
+    p_unit.target_pos = target_pos;
+    float dist_sq = p_unit.position.distance_squared_to(target_pos);
+    float atk_range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target_radius;
 
-    // 距离判断
-    float dist_sq = p_unit.position.distance_squared_to(target.position);
-    float range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target.stats->get_collision_radius();
-
-    if (dist_sq <= range * range) {
-        // 【修改】实现边跑边打逻辑
+    if (dist_sq <= atk_range * atk_range) {
         if (p_unit.stats->get_can_fire_on_move()) {
             if (p_unit.attack_cooldown <= 0) {
-                _execute_attack(p_unit, target);
+                _execute_attack(p_unit, p_unit.target_id, p_unit.target_is_building);
                 p_unit.attack_cooldown = p_unit.stats->get_attack_interval();
             }
         }
         else {
-            p_unit.state = ATTACKING; // 传统定点攻击
+            p_unit.state = ATTACKING;
         }
     }
-
-    else if (dist_sq > p_unit.stats->get_aggro_range() * p_unit.stats->get_aggro_range() * 4.0f) {
-        // 追太远了，放弃追击，恢复状态
-        p_unit.target_id = -1;
-        p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE;
-    }
-
     else if (!p_unit.is_manual_target && dist_sq > p_unit.stats->get_aggro_range() * p_unit.stats->get_aggro_range() * 4.0f) {
         p_unit.target_id = -1;
         p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE;
@@ -150,37 +228,31 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
 }
 
 void AttackManager::_handle_attacking(UnitData& p_unit, double p_delta) {
-    if (!_is_target_valid(p_unit.target_id)) {
-        p_unit.target_id = -1;
-        p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE; // 目标死亡恢复状态
-        return;
+    if (p_unit.attack_cooldown > 0) {
+        p_unit.attack_cooldown -= p_delta;
     }
 
-    int target_idx = unit_manager->get_unit_index_by_id(p_unit.target_id);
-    UnitData& target = unit_manager->units[target_idx];
-
-    // 如果目标跑出攻击范围，转回追击
-    float dist_sq = p_unit.position.distance_squared_to(target.position);
-    float range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target.stats->get_collision_radius();
-
-    // 给一点容错空间 (buffer)，防止在临界点反复抽搐
-    float buffer = 10.0f;
-    if (dist_sq > (range + buffer) * (range + buffer)) {
-        p_unit.state = CHASING;
-
-    // 当目标无效（死亡或消失）时
-    if (!_is_target_valid(p_unit.target_id)) {
+    if (!_is_target_valid(p_unit.target_id, p_unit.target_is_building)) {
         p_unit.target_id = -1;
-   // 如果身上带有巡逻标记，就回去继续巡逻，否则回退到 IDLE
         p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE;
         return;
-        }
-    return;
     }
 
-    // 执行攻击
+    Vector2 target_pos;
+    float target_radius;
+    _get_target_info(p_unit.target_id, p_unit.target_is_building, target_pos, target_radius);
+
+    float dist_sq = p_unit.position.distance_squared_to(target_pos);
+    float atk_range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target_radius;
+
+    float buffer = 10.0f;
+    if (dist_sq > (atk_range + buffer) * (atk_range + buffer)) {
+        p_unit.state = CHASING;
+        return;
+    }
+
     if (p_unit.attack_cooldown <= 0) {
-        _execute_attack(p_unit, target);
+        _execute_attack(p_unit, p_unit.target_id, p_unit.target_is_building);
         p_unit.attack_cooldown = p_unit.stats->get_attack_interval();
     }
 }
@@ -210,33 +282,18 @@ void AttackManager::_handle_patrolling(UnitData& p_unit) {
 }
 
 void AttackManager::_handle_moving(UnitData& p_unit) {
-    // 1. Check state and permission (Prints every 60 frames to avoid spam)
-    if (Engine::get_singleton()->get_process_frames() % 60 == 0) {
-    }
-
     if (p_unit.stats->get_can_fire_on_move()) {
-        // 2. Try to find a target
         if (_try_find_target(p_unit)) {
-            int target_idx = unit_manager->get_unit_index_by_id(p_unit.target_id);
-            if (target_idx != -1) {
-                UnitData& target = unit_manager->units[target_idx];
-                float dist_sq = p_unit.position.distance_squared_to(target.position);
-                float atk_range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target.stats->get_collision_radius();
+            Vector2 target_pos;
+            float target_radius;
+            if (_get_target_info(p_unit.target_id, p_unit.target_is_building, target_pos, target_radius)) {
+                float dist_sq = p_unit.position.distance_squared_to(target_pos);
+                float atk_range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target_radius;
 
-                // 3. Check distance
                 if (dist_sq <= atk_range * atk_range) {
                     if (p_unit.attack_cooldown <= 0) {
-                        _execute_attack(p_unit, target);
+                        _execute_attack(p_unit, p_unit.target_id, p_unit.target_is_building);
                         p_unit.attack_cooldown = p_unit.stats->get_attack_interval();
-
-                        // Action executed!
-                        UtilityFunctions::print("----> SUCCESS: Move-attack executed on Target ID: ", target.id);
-                    }
-                }
-                else {
-                    // Target found, but out of range
-                    if (Engine::get_singleton()->get_process_frames() % 60 == 0) {
-                        UtilityFunctions::print("---- FAILED: Target found but out of range. Current dist_sq: ", dist_sq, " | Required range_sq: ", atk_range * atk_range);
                     }
                 }
             }
@@ -247,104 +304,306 @@ void AttackManager::_handle_moving(UnitData& p_unit) {
 // 索敌逻辑：使用 UnitManager 的网格查询
 bool AttackManager::_try_find_target(UnitData& p_unit) {
     float range = p_unit.stats->get_aggro_range();
-    std::vector<int> nearby = unit_manager->get_nearby_units(p_unit.position, range);
-
-    int best_target = -1;
     float min_dist_sq = range * range;
+    int best_target_id = -1;
+    bool best_is_building = false;
 
-    for (int idx : nearby) {
+    // 1. 查找敌方单位
+    std::vector<int> nearby_units = unit_manager->get_nearby_units(p_unit.position, range);
+    for (int idx : nearby_units) {
         UnitData& other = unit_manager->units[idx];
-
-        if (other.id == p_unit.id) continue;          // 不是自己
-        if (other.team_id == p_unit.team_id) continue; // 不是友军
-        if (other.current_health <= 0) continue;       // 不是死人
+        if (other.id == p_unit.id || other.team_id == p_unit.team_id || other.current_health <= 0) continue;
 
         float d = p_unit.position.distance_squared_to(other.position);
         if (d < min_dist_sq) {
             min_dist_sq = d;
-            best_target = other.id;
+            best_target_id = other.id;
+            best_is_building = false;
         }
     }
 
-    if (best_target != -1) {
-        p_unit.target_id = best_target;
+    // 2. 查找敌方建筑 
+    if (building_manager) {
+        Vector2 cell_sz = Vector2(256.0f, 256.0f);
+        if (building_manager->flow_field_manager) cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
+
+        for (auto& pair : building_manager->buildings) {
+            BuildingData& b = pair.second;
+            if (b.team_id == p_unit.team_id || b.current_health <= 0 || b.state == BuildingState::BUILDING) continue;
+
+            Vector2 fp_size = Vector2(b.stats->get_footprint()) * cell_sz;
+            Vector2 b_center = Vector2(b.grid_pos) * cell_sz + fp_size * 0.5f;
+
+            float d = p_unit.position.distance_squared_to(b_center);
+            if (d < min_dist_sq) { // 优先攻击更近的建筑
+                min_dist_sq = d;
+                best_target_id = b.id;
+                best_is_building = true;
+            }
+        }
+    }
+
+    if (best_target_id != -1) {
+        p_unit.target_id = best_target_id;
+        p_unit.target_is_building = best_is_building;
         p_unit.is_manual_target = false;
         return true;
     }
     return false;
 }
 
-void AttackManager::_execute_attack(UnitData& attacker, UnitData& defender) {
+bool AttackManager::_try_find_target_for_building(BuildingData& p_building) {
+    float range = p_building.stats->get_attack_range();
+    float min_dist_sq = range * range;
+    int best_target_id = -1;
+
+    Vector2 cell_sz = Vector2(256.0f, 256.0f);;
+    if (building_manager->flow_field_manager) cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
+    Vector2 fp_size = Vector2(p_building.stats->get_footprint()) * cell_sz;
+    Vector2 b_center = Vector2(p_building.grid_pos) * cell_sz + fp_size * 0.5f;
+
+    // 防御塔目前一般只索敌单位
+    std::vector<int> nearby_units = unit_manager->get_nearby_units(b_center, range);
+    for (int idx : nearby_units) {
+        UnitData& other = unit_manager->units[idx];
+        if (other.team_id == p_building.team_id || other.current_health <= 0) continue;
+
+        float d = b_center.distance_squared_to(other.position);
+        if (d < min_dist_sq) {
+            min_dist_sq = d;
+            best_target_id = other.id;
+        }
+    }
+
+    if (best_target_id != -1) {
+        p_building.target_id = best_target_id;
+        p_building.target_is_building = false; // 塔优先打单位
+        return true;
+    }
+    return false;
+}
+
+void AttackManager::_execute_attack(UnitData& attacker, int target_id, bool target_is_building) {
     float dmg = attacker.stats->get_attack_damage();
     float proj_speed = attacker.stats->get_projectile_speed();
-    float splash = attacker.stats->get_splash_radius(); // 读取溅射半径
+    float splash = attacker.stats->get_splash_radius();
+
+    Vector2 target_pos;
+    float target_radius;
+    _get_target_info(target_id, target_is_building, target_pos, target_radius);
 
     if (proj_speed <= 0.0f || proj_speed > 5000.0f) {
-        // 瞬间命中：如果有溅射，直接在目标脚下引爆；否则单体扣血
         if (splash > 0.0f) {
-            apply_aoe_damage(defender.position, splash, dmg, attacker.id);
+            apply_aoe_damage(target_pos, splash, dmg, attacker.id, false);
         }
         else {
-            apply_damage(defender.id, dmg, attacker.id);
+            apply_damage(target_id, target_is_building, dmg, attacker.id, false);
         }
     }
     else {
-        // 实体弹道：召唤子弹，把 splash 传进去 (下一步会修改子弹管理器的参数)
         if (projectile_manager) {
+            // 1. 动态计算攻击者的发射高度 (地形高度 + 炮口相对高度)
+            float start_height = attacker.height + attacker.stats->get_base_height();
+            float target_height = 0.0f;
+
+            // 2. 动态获取目标的受击高度
+            if (target_is_building) {
+                if (building_manager) {
+                    auto b_it = building_manager->buildings.find(target_id);
+                    if (b_it != building_manager->buildings.end()) {
+                        // 获取建筑真实的受击高度 (通常是模型高度的一半)
+                        target_height = b_it->second.stats->get_base_height() * 0.5f;
+                    }
+                }
+            }
+            else {
+                int t_idx = unit_manager->get_unit_index_by_id(target_id);
+                if (t_idx != -1) {
+                    UnitData& tu = unit_manager->units[t_idx];
+                    // 瞄准敌方单位的半身位置 (地形高度 + 身高的一半)
+                    target_height = tu.height + (tu.stats->get_base_height() * 0.5f);
+                }
+            }
+
             projectile_manager->spawn_projectile(
-                attacker.position, defender.id, dmg, proj_speed, attacker.id, splash
+                attacker.position, start_height,
+                target_id, target_is_building, target_height,
+                dmg, proj_speed,
+                attacker.id, false,
+                splash,
+                0,    // 对应 p_type
+                0.0f, // 对应 p_arc_height 
+                0.0f  // 对应 p_acceleration 
+            );
+            UtilityFunctions::print("fire! target:", target_id);
+        }
+    }
+}
+
+void AttackManager::_execute_building_attack(BuildingData& attacker, int target_id, bool target_is_building) {
+    float dmg = attacker.stats->get_attack_damage();
+    float proj_speed = attacker.stats->get_projectile_speed(); // 获取建筑的投射物速度
+    float splash = attacker.stats->get_splash_radius();        // 获取建筑的溅射范围
+
+    Vector2 target_pos;
+    float target_radius;
+    _get_target_info(target_id, target_is_building, target_pos, target_radius);
+
+    if (proj_speed <= 0.0f || proj_speed > 5000.0f) {
+        // 瞬间命中
+        if (splash > 0.0f) {
+            apply_aoe_damage(target_pos, splash, dmg, attacker.id, true);
+        }
+        else {
+            apply_damage(target_id, target_is_building, dmg, attacker.id, true);
+        }
+    }
+    else {
+        // 建筑发射投射物
+        if (projectile_manager) {
+            // 炮塔发射点高度设为建筑的 base_height（例如塔顶）
+            float start_height = attacker.stats->get_base_height();
+            float target_height = 0.0f;
+
+            if (target_is_building) {
+                auto b_it = building_manager->buildings.find(target_id);
+                if (b_it != building_manager->buildings.end()) {
+                    target_height = b_it->second.stats->get_base_height() * 0.5f;
+                }
+            }
+            else {
+                int t_idx = unit_manager->get_unit_index_by_id(target_id);
+                if (t_idx != -1) {
+                    UnitData& tu = unit_manager->units[t_idx];
+                    target_height = tu.height + (tu.stats->get_base_height() * 0.5f);
+                }
+            }
+
+            // --- 动态计算 256x256 网格下的发射坐标 ---
+            Vector2 cell_sz = Vector2(256.0f, 256.0f);
+
+            // 如果你有 FlowFieldManager，最好动态获取以防以后再改网格大小：
+            if (building_manager && building_manager->flow_field_manager) {
+                cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
+            }
+
+            // 获取建筑的占地网格数 (例如 1x1, 2x2)
+            Vector2 fp_size = Vector2(attacker.stats->get_footprint()) * cell_sz;
+
+            // 发射中心点 = 起点 + 宽高的一半
+            Vector2 spawn_pos = Vector2(attacker.grid_pos) * cell_sz + fp_size * 0.5f;
+            // ----------------------------------------
+
+            projectile_manager->spawn_projectile(
+                spawn_pos, // <--- 使用计算好的中心点
+                start_height,
+                target_id, target_is_building, target_height,
+                dmg, proj_speed,
+                attacker.id, true,
+                splash,
+                0,
+                0.0f, 0.0f
             );
         }
     }
 }
 
-void AttackManager::apply_damage(int target_id, float damage, int attacker_id) {
-    // 检查目标是否存在且存活
-    int target_idx = unit_manager->get_unit_index_by_id(target_id);
-    if (target_idx == -1) return;
+void AttackManager::apply_damage(int target_id, bool is_building, float damage, int attacker_id, bool attacker_is_building) {
+    // Check if the function is successfully called
+    godot::UtilityFunctions::print(">>> [Apply Damage] Triggered! Attacker ID: ", attacker_id, " Target ID: ", target_id, " Damage: ", damage, " Is Building: ", is_building);
 
-    UnitData& defender = unit_manager->units[target_idx];
-    if (defender.current_health <= 0) return;
+    if (is_building) {
+        // 1. Target is a building
+        if (!building_manager) {
+            godot::UtilityFunctions::printerr(">>> [Apply Damage Failed] FATAL: building_manager is null! (Check setup/bind_methods)");
+            return;
+        }
 
-    // 1. 伤害计算（后续可以修改）
-    defender.current_health -= damage;
+        auto it = building_manager->buildings.find(target_id);
+        if (it != building_manager->buildings.end()) {
+            float old_health = it->second.current_health;
+            it->second.current_health -= damage;
+            godot::UtilityFunctions::print(">>> [Apply Damage Success] Building hit! ID: ", target_id, " Health: ", old_health, " -> ", it->second.current_health);
+        }
+        else {
+            godot::UtilityFunctions::printerr(">>> [Apply Damage Failed] Cannot find building ID: ", target_id);
+        }
+    }
+    else {
+        // 2. Target is a unit
+        if (!unit_manager) {
+            godot::UtilityFunctions::printerr(">>> [Apply Damage Failed] FATAL: unit_manager is null! (Check setup/bind_methods)");
+            return;
+        }
 
-    // 2. 保留你原本的反击AI逻辑
-    if (defender.state == IDLE && defender.target_id == -1 && attacker_id != -1) {
-        defender.target_id = attacker_id;
-        defender.state = CHASING;
+        int target_idx = unit_manager->get_unit_index_by_id(target_id);
+        if (target_idx == -1) {
+            godot::UtilityFunctions::printerr(">>> [Apply Damage Failed] Cannot find unit ID: ", target_id, " (Might be dead and cleared)");
+            return;
+        }
+
+        UnitData& defender = unit_manager->units[target_idx];
+        if (defender.current_health <= 0) {
+            godot::UtilityFunctions::print(">>> [Apply Damage Invalid] Target unit is already dead. ID: ", target_id);
+            return;
+        }
+
+        float old_health = defender.current_health;
+        defender.current_health -= damage;
+        godot::UtilityFunctions::print(">>> [Apply Damage Success] Unit hit! ID: ", target_id, " Health: ", old_health, " -> ", defender.current_health);
     }
 }
 
-void AttackManager::apply_aoe_damage(Vector2 p_epicenter, float p_radius, float p_damage, int p_attacker_id) {
-    // 查找攻击者的队伍ID（用于避免误伤友军，如果你的游戏允许友伤，可以去掉这层判断）
-    int attacker_idx = unit_manager->get_unit_index_by_id(p_attacker_id);
+void AttackManager::apply_aoe_damage(Vector2 p_epicenter, float p_radius, float p_damage, int p_attacker_id, bool attacker_is_building) {
+    // 这里以查找攻击者队伍ID避免误伤为例
     int attacker_team = -1;
-    if (attacker_idx != -1) {
-        attacker_team = unit_manager->units[attacker_idx].team_id;
+    if (attacker_is_building && building_manager) {
+        auto it = building_manager->buildings.find(p_attacker_id);
+        if (it != building_manager->buildings.end()) attacker_team = it->second.team_id;
+    }
+    else {
+        int attacker_idx = unit_manager->get_unit_index_by_id(p_attacker_id);
+        if (attacker_idx != -1) attacker_team = unit_manager->units[attacker_idx].team_id;
     }
 
-    // 利用空间网格找出爆炸中心附近的所有单位
+    // 1. 对范围内单位造成伤害
     std::vector<int> nearby_units = unit_manager->get_nearby_units(p_epicenter, p_radius);
-
     for (int target_idx : nearby_units) {
         UnitData& target = unit_manager->units[target_idx];
+        if (target.current_health <= 0) continue;
+        if (attacker_team != -1 && target.team_id == attacker_team) continue;
 
-        if (target.current_health <= 0) continue; // 不鞭尸
-        if (attacker_team != -1 && target.team_id == attacker_team) continue; // 过滤友军
-
-        // 网格查询可能返回方形区域的单位，需要做精确的圆形距离校验
         float dist_sq = p_epicenter.distance_squared_to(target.position);
-        float real_radius = p_radius + target.stats->get_collision_radius(); // 把单位体积算进判定里
+        float real_radius = p_radius + target.stats->get_collision_radius();
 
         if (dist_sq <= real_radius * real_radius) {
-            // 造成伤害
             target.current_health -= p_damage;
-
-            // 触发受击反击AI
             if (target.state == IDLE && target.target_id == -1 && p_attacker_id != -1) {
                 target.target_id = p_attacker_id;
+                target.target_is_building = attacker_is_building;
                 target.state = CHASING;
+            }
+        }
+    }
+
+    // 2. 对范围内建筑造成伤害
+    if (building_manager) {
+        Vector2 cell_sz = Vector2(256.0f, 256.0f);
+        if (building_manager->flow_field_manager) cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
+
+        for (auto& pair : building_manager->buildings) {
+            BuildingData& b = pair.second;
+            if (b.current_health <= 0 || (attacker_team != -1 && b.team_id == attacker_team)) continue;
+
+            Vector2 fp_size = Vector2(b.stats->get_footprint()) * cell_sz;
+            Vector2 b_center = Vector2(b.grid_pos) * cell_sz + fp_size * 0.5f;
+            float b_radius = std::max(fp_size.x, fp_size.y) * 0.5f;
+
+            float dist_sq = p_epicenter.distance_squared_to(b_center);
+            float real_radius = p_radius + b_radius;
+
+            if (dist_sq <= real_radius * real_radius) {
+                b.current_health -= p_damage;
             }
         }
     }

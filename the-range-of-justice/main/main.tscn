@@ -38,6 +38,8 @@ logic_tick_rate = 0.02
 [node name="FlowFieldManager" type="FlowFieldManager" parent="." unique_id=1905490724]
 script = ExtResource("2_4dugh")
 
+[node name="ProjectileManager" type="ProjectileManager" parent="." unique_id=1838151014]
+
 [node name="AttackManager" type="AttackManager" parent="." unique_id=906319522]
 
 [node name="TileMapLayer" type="TileMapLayer" parent="." unique_id=374535378]
@@ -76,7 +78,6 @@ offset_bottom = 40.0
 
 [node name="DebugDraw" type="Node2D" parent="DebugCanvas" unique_id=1412301083]
 script = ExtResource("6_kfbq2")
-show_debug = false
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=217203825]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 1000, 0)

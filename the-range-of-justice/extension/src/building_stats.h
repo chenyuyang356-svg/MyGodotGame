@@ -33,6 +33,7 @@ namespace godot {
         int cost = 100;
         float build_time = 5.0f;
         float health_max = 500.0f;
+        float base_height = 2.0f;
         Vector2i footprint = Vector2i(1, 1);
         Vector2i clearance_size = Vector2i(1, 1);
         
@@ -54,6 +55,8 @@ namespace godot {
         float attack_range = 300.0f;
         float attack_interval = 1.0f;
         int attack_target_mask = 0; // 0:地面, 1:空中, 2:全部
+        float projectile_speed = 0.0f; // <--- 新增：投射物速度 (0代表瞬间命中)
+        float splash_radius = 0.0f;    // <--- 新增：溅射半径 (0代表单体伤害)
 
         // --- 采集类属性 ---
         String resource_type = "Gold";
@@ -94,6 +97,9 @@ namespace godot {
         void set_clearance_size(Vector2i p_size) { clearance_size = p_size; }
         Vector2i get_clearance_size() const { return clearance_size; }
 
+        void set_base_height(float p_height) { base_height = p_height; }
+        float get_base_height() const { return base_height; }
+
         // Barracks
         void set_producible_units(PackedStringArray p_units) { producible_units = p_units; }
         PackedStringArray get_producible_units() const { return producible_units; }
@@ -110,6 +116,12 @@ namespace godot {
 
         void set_attack_interval(float p_interval) { attack_interval = p_interval; }
         float get_attack_interval() const { return attack_interval; }
+
+        void set_projectile_speed(float p_speed) { projectile_speed = p_speed; }
+        float get_projectile_speed() const { return projectile_speed; }
+
+        void set_splash_radius(float p_radius) { splash_radius = p_radius; }
+        float get_splash_radius() const { return splash_radius; }
 
         // Collector
         void set_resource_type(String p_type) { resource_type = p_type; }

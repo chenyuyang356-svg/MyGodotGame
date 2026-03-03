@@ -9,7 +9,7 @@ func _ready() -> void:
 	var selection_manager: SelectionManager = $SelectionManager
 	var group_manager: GroupManager = $GroupManager
 	var game_manager: GameManager = $GameManager
-	var attack_maanger: AttackManager = $AttackManager
+	var projectile_manager: ProjectileManager = $ProjectileManager
 	
 	var cell_size: Vector2i = tile_map_layer.tile_set.tile_size
 	var used_rect: Rect2i = tile_map_layer.get_used_rect()
@@ -20,6 +20,7 @@ func _ready() -> void:
 	var debug_draw: Node2D = $DebugCanvas/DebugDraw
 	var main_camera: Camera3D = $Camera3D
 	
+	$ProjectileManager.setup($UnitManager, $AttackManager)
 	map_manager.load_from_tilemap(tile_map_layer)
 	tile_map_layer.hide()
 	
@@ -28,14 +29,18 @@ func _ready() -> void:
 	game_manager.set_flow_field_manager(flow_field_manager)
 	game_manager.set_selection_manager(selection_manager)
 	game_manager.set_group_manager(group_manager)
-	unit_manager.set_attack_manager(attack_maanger)
+	unit_manager.set_attack_manager(attack_manager)
 	
 	game_manager.setup_system(width, height, cell_size, grid_origin)
+	
+	attack_manager.set_projectile_manager(projectile_manager)
+	attack_manager.set_building_manager(building_manager)
 	
 	unit_manager.register_unit_type("Tank", "res://config/unit/tank.txt")
 	unit_manager.register_unit_type("Fighter", "res://config/unit/fighter.txt")
 	unit_manager.register_unit_type("Battleship", "res://config/unit/battleship.txt")
 	
+	projectile_manager.register_projectile_type("Bullet", "res://config/projectile/bullet.txt")
 	#NAV_LAND
 	for x in range(used_rect.position.x, used_rect.end.x):
 		for y in range(used_rect.position.y, used_rect.end.y):
@@ -76,15 +81,6 @@ func _ready() -> void:
 		for y in range(2):
 			var id1 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
 			var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(3000, 3000), 2)
-			var id3 = unit_manager.spawn_unit_by_type("Tank", -32 * Vector2(x, y), 1)
-			unit_manager.spawn_unit_by_type("Tank", -32 * Vector2(x, y), 2)
-			unit_manager.spawn_unit_by_type("Tank", -32 * Vector2(x, y), 3)
-			unit_manager.spawn_unit_by_type("Tank", -32 * Vector2(x, y), 4)
-			unit_manager.spawn_unit_by_type("Battleship", -32 * Vector2(x, y) + 256 * Vector2(-36, -7), 1)
-			unit_manager.spawn_unit_by_type("Battleship", -32 * Vector2(x, y) + 256 * Vector2(-36, -7), 2)
-			unit_manager.spawn_unit_by_type("Battleship", -32 * Vector2(x, y) + 256 * Vector2(-36, -7), 3)
-			unit_manager.spawn_unit_by_type("Battleship", -32 * Vector2(x, y) + 256 * Vector2(-36, -7), 4)
-			
 			
 			active_unit_ids.append(id1)
 			active_unit_ids.append(id2)

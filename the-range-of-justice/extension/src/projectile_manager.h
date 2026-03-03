@@ -4,6 +4,9 @@
 #include <godot_cpp/classes/multi_mesh_instance3d.hpp>
 #include <godot_cpp/classes/multi_mesh.hpp>
 #include <vector>
+#include "projectile_stats.h"
+#include "building_manager.h" 
+#include <unordered_map>
 
 namespace godot {
 
@@ -11,26 +14,46 @@ namespace godot {
     class UnitManager;
     class AttackManager;
 
-    // 最新的子弹数据结构
     struct ProjectileData {
-        Vector2 position;       // 子弹当前位置
-        Vector2 target_pos;     // 目标位置（旧版叫 last_known_target_position）
-        int target_id;          // 目标ID（旧版叫 target_unit_id）
-        int source_id;          // 发射者ID
-        float speed;            // 速度
-        float damage;           // 伤害
-        float splash_radius;    // 溅射半径
+        Vector2 position;       // 当前的 2D 逻辑坐标
+        Vector2 target_pos;     // 目标的 2D 坐标
+        Vector2 start_pos;      // 发射时的 2D 起点坐标
+
+        // --- 高度与3D表现相关 ---
+        float start_height;     // 发射时的初始高度 (单位/炮口高度)
+        float target_height;    // 目标的受击高度 (默认为0或读取目标半高)
+        float current_height;   // 当前飞行高度 (Z/Y轴)
+        float arc_height;       // 抛物线的最高点附加高度
+
+        // --- 逻辑相关 ---
+        int type;               // 投射物类型 (ProjectileType)
+        int target_id;
+        bool target_is_building; // 目标是否是建筑
+        int source_id;
+        bool source_is_building; // 发射源是否是建筑
+        float speed;            // 当前速度 
+        float acceleration;     // 导弹的加速度
+        float damage;
+        float splash_radius;
+    };
+
+    struct GodotStringHasher {
+        std::size_t operator()(const String& k) const {
+            return k.hash(); // 直接调用 Godot String 内部的哈希函数
+        }
     };
 
     class ProjectileManager : public Node3D {
         GDCLASS(ProjectileManager, Node3D)
 
     private:
-        // 存储所有子弹的数组（旧版叫 active_projectiles，现在统一叫 projectiles）
+        // 存储所有子弹的数组
         std::vector<ProjectileData> projectiles;
+        std::unordered_map<String, Ref<ProjectileStats>, GodotStringHasher> projectile_templates;
 
         // 依赖的管理器
         UnitManager* unit_manager = nullptr;
+        BuildingManager* building_manager = nullptr; // 建筑管理器指针
         AttackManager* attack_manager = nullptr;
 
         // 渲染组件
@@ -45,11 +68,17 @@ namespace godot {
         ~ProjectileManager();
 
         void setup(UnitManager* p_um, AttackManager* p_am);
+        void set_building_manager(BuildingManager* p_bm); // 设置建筑管理器
 
-        // 注意这里的参数也要和 cpp 里的一致
-        void spawn_projectile(Vector2 p_start_pos, int p_target_id, float p_damage, float p_speed, int p_source_id, float p_splash_radius);
-
+        void spawn_projectile(
+            Vector2 p_start_pos, float p_start_height,
+            int p_target_id, bool p_target_is_building, float p_target_height,
+            float p_damage, float p_speed,
+            int p_source_id, bool p_source_is_building, float p_splash_radius,
+            int p_type, float p_arc_height, float p_acceleration
+        );
         virtual void _physics_process(double p_delta) override;
         void update_render_buffer();
+        void register_projectile_type(const String& p_type_name, const String& p_config_path);
     };
 }
