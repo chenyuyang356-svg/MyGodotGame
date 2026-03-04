@@ -10,7 +10,7 @@ func _ready() -> void:
 	var group_manager: GroupManager = $GroupManager
 	var game_manager: GameManager = $GameManager
 	var projectile_manager: ProjectileManager = $ProjectileManager
-	var attack_maanger: AttackManager = $AttackManager
+	var attack_manager: AttackManager = $AttackManager
 	var economy_manager: EconomyManager = $EconomyManager
 	
 	var cell_size: Vector2i = tile_map_layer.tile_set.tile_size
@@ -30,7 +30,7 @@ func _ready() -> void:
 	game_manager.set_flow_field_manager(flow_field_manager)
 	game_manager.set_selection_manager(selection_manager)
 	game_manager.set_group_manager(group_manager)
-	unit_manager.set_attack_manager(attack_maanger)
+	unit_manager.set_attack_manager(attack_manager)
 	game_manager.set_economy_manager(economy_manager)
 	
 	game_manager.setup_system(width, height, cell_size, grid_origin)
@@ -79,10 +79,11 @@ func _ready() -> void:
 	
 	var active_unit_ids: Array = []
 	
-	for x in range(2):
-		for y in range(2):
+	for x in range(5):
+		for y in range(5):
 			var id1 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
-			var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(3000, 3000), 2)
+			var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(2000, 2000), 2)
+			unit_manager.spawn_unit_by_type("Tank", -32 * Vector2(x, y), 1)
 			
 			active_unit_ids.append(id1)
 			active_unit_ids.append(id2)

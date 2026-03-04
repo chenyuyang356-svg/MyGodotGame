@@ -68,6 +68,8 @@ int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_t
 }
 
 void UnitManager::despawn_unit(int p_unit_id, SelectionManager* p_selection_manager) {
+    p_selection_manager->on_unit_despawned(p_unit_id);
+    
     auto it = id_to_index.find(p_unit_id);
     if (it == id_to_index.end()) return;
 
@@ -91,7 +93,19 @@ void UnitManager::despawn_unit(int p_unit_id, SelectionManager* p_selection_mana
    
     units.pop_back();
     id_to_index.erase(p_unit_id);
-    p_selection_manager->on_unit_despawned(p_unit_id);
+}
+
+void UnitManager::handle_dead_unit(double p_delta) {
+    for (int unit_idx = units.size() - 1; unit_idx >= 0; --unit_idx) {
+        UnitData& unit = units[unit_idx];
+        if (unit.current_health <= 0) {
+            unit.state = DYING;
+            unit.current_dying_time += p_delta;
+            if (unit.current_dying_time >= unit.stats->dying_time) {
+                emit_signal("despawn_unit_requested", unit.id);
+            }
+        }
+    }
 }
 
 void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos) {
@@ -307,7 +321,7 @@ std::vector<int> UnitManager::get_units_in_box(Rect2 p_box, int p_team_id) {
     return result;
 }
 
-void UnitManager::update(double p_delta) {
+void UnitManager::physics_update(double p_delta) {
 
     if (!is_setup || !flow_field_manager) { return; }
 
@@ -315,7 +329,6 @@ void UnitManager::update(double p_delta) {
         attack_manager->update_units(p_delta);
     }
 
-    update_spatial_grid();
     flow_field_manager->update(p_delta);
 
     for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
@@ -333,6 +346,13 @@ void UnitManager::update(double p_delta) {
         unit.next_height = unit.height;
         unit.next_rotation = unit.rotation;
     }
+}
+
+void UnitManager::update(double p_delta) {
+    if (!is_setup || !flow_field_manager) { return; }
+
+    handle_dead_unit(p_delta);
+    update_spatial_grid();
 }
 
 Vector2 UnitManager::get_flow(UnitData& p_unit) {
@@ -496,6 +516,11 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
 
 void UnitManager::move(UnitData& p_unit, double p_delta) {
     if (!flow_field_manager) return;
+
+    if (p_unit.state == DYING) {
+        p_unit.height = UtilityFunctions::max(p_unit.height - 50.0 * p_delta, 0.0f);
+        return;
+    }
     //     Ԥ  λ  
     Vector2 next_pos = p_unit.position + p_unit.velocity * p_delta;
     float radius = (p_unit.stats)->get_collision_radius();
@@ -990,6 +1015,8 @@ void UnitManager::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "force_threshold_squared"), "set_force_threshold_squared", "get_force_threshold_squared");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "velocity_threshold_squared"), "set_velocity_threshold_squared", "get_velocity_threshold_squared");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "desired_integration"), "set_desired_integration", "get_desired_integration");
+
+    ADD_SIGNAL(MethodInfo("despawn_unit_requested", PropertyInfo(Variant::INT, "unit_id")));
 }
 
 
