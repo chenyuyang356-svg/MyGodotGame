@@ -79,10 +79,11 @@ func _ready() -> void:
 	
 	var active_unit_ids: Array = []
 	
-	for x in range(2):
-		for y in range(2):
+	for x in range(5):
+		for y in range(5):
 			var id1 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
-			var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(3000, 3000), 2)
+			var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(2000, 2000), 2)
+			unit_manager.spawn_unit_by_type("Tank", -32 * Vector2(x, y), 1)
 			
 			active_unit_ids.append(id1)
 			active_unit_ids.append(id2)

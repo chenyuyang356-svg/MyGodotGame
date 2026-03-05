@@ -54,6 +54,7 @@ namespace godot {
         int idle_row = 0;      // 待机动画在图集的第几行
         int anim_fps = 10;     // 动画播放速度
 
+        float dying_time = 1.0f;
 
     protected:
         static void _bind_methods();
