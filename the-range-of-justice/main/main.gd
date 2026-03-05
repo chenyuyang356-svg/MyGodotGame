@@ -10,7 +10,7 @@ func _ready() -> void:
 	var group_manager: GroupManager = $GroupManager
 	var game_manager: GameManager = $GameManager
 	var projectile_manager: ProjectileManager = $ProjectileManager
-	var attack_maanger: AttackManager = $AttackManager
+	var attack_manager: AttackManager = $AttackManager
 	var economy_manager: EconomyManager = $EconomyManager
 	
 	var cell_size: Vector2i = tile_map_layer.tile_set.tile_size
@@ -30,7 +30,7 @@ func _ready() -> void:
 	game_manager.set_flow_field_manager(flow_field_manager)
 	game_manager.set_selection_manager(selection_manager)
 	game_manager.set_group_manager(group_manager)
-	unit_manager.set_attack_manager(attack_maanger)
+	unit_manager.set_attack_manager(attack_manager)
 	game_manager.set_economy_manager(economy_manager)
 	
 	game_manager.setup_system(width, height, cell_size, grid_origin)
