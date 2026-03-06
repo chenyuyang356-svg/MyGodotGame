@@ -16,7 +16,7 @@ void BuildingStats::_bind_methods() {
 
     BIND_ENUM_CONSTANT(PLACE_LAND);
     BIND_ENUM_CONSTANT(PLACE_WATER);
-    BIND_ENUM_CONSTANT(PLACE_COAST);
+    BIND_ENUM_CONSTANT(PLACE_ON_RESOURCE);
 
     // --- 基础属性绑定 ---
     ClassDB::bind_method(D_METHOD("get_building_type"), &BuildingStats::get_building_type);

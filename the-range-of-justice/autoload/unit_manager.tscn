@@ -1,5 +1,0 @@
-[gd_scene format=3 uid="uid://iss7c5iajag1"]
-
-[node name="UnitManager" type="UnitManager" unique_id=1152759632]
-
-[node name="FlowFieldManager" type="FlowFieldManager" parent="." unique_id=1522977633]

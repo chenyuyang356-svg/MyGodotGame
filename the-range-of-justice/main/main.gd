@@ -8,7 +8,6 @@ func _ready() -> void:
 	var flow_field_manager: FlowFieldManager = $FlowFieldManager
 	var selection_manager: SelectionManager = $SelectionManager
 	var group_manager: GroupManager = $GroupManager
-	var game_manager: GameManager = $GameManager
 	var projectile_manager: ProjectileManager = $ProjectileManager
 	var attack_manager: AttackManager = $AttackManager
 	var economy_manager: EconomyManager = $EconomyManager
@@ -25,15 +24,15 @@ func _ready() -> void:
 	map_manager.load_from_tilemap(tile_map_layer)
 	tile_map_layer.hide()
 	
-	game_manager.set_building_manager(building_manager)
-	game_manager.set_unit_manager(unit_manager)
-	game_manager.set_flow_field_manager(flow_field_manager)
-	game_manager.set_selection_manager(selection_manager)
-	game_manager.set_group_manager(group_manager)
+	GlobalGameManager.set_building_manager(building_manager)
+	GlobalGameManager.set_unit_manager(unit_manager)
+	GlobalGameManager.set_flow_field_manager(flow_field_manager)
+	GlobalGameManager.set_selection_manager(selection_manager)
+	GlobalGameManager.set_group_manager(group_manager)
 	unit_manager.set_attack_manager(attack_manager)
-	game_manager.set_economy_manager(economy_manager)
+	GlobalGameManager.set_economy_manager(economy_manager)
 	
-	game_manager.setup_system(width, height, cell_size, grid_origin)
+	GlobalGameManager.setup_system(width, height, cell_size, grid_origin)
 	
 	attack_manager.set_projectile_manager(projectile_manager)
 	attack_manager.set_building_manager(building_manager)
@@ -42,7 +41,18 @@ func _ready() -> void:
 	unit_manager.register_unit_type("Fighter", "res://config/unit/fighter.txt")
 	unit_manager.register_unit_type("Battleship", "res://config/unit/battleship.txt")
 	
+	building_manager.register_building_type("HumanBarrack", "res://config/building/human_barrack.txt")
+	building_manager.register_building_type("Collector", "res://config/building/collector.txt")
+	
 	projectile_manager.register_projectile_type("Bullet", "res://config/projectile/bullet.txt")
+	
+	for x in range(used_rect.position.x, used_rect.end.x):
+		for y in range(used_rect.position.y, used_rect.end.y):
+			var coords: Vector2i = Vector2i(x, y)
+			var data = tile_map_layer.get_cell_tile_data(coords)
+			if data.get_custom_data("IsResource"):
+				flow_field_manager.set_cell_meta_data(coords, 1, true)
+	
 	#NAV_LAND
 	for x in range(used_rect.position.x, used_rect.end.x):
 		for y in range(used_rect.position.y, used_rect.end.y):
@@ -79,16 +89,18 @@ func _ready() -> void:
 	
 	var active_unit_ids: Array = []
 	
-	for x in range(5):
-		for y in range(5):
-			var id1 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 1)
-			var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(2000, 2000), 2)
-			unit_manager.spawn_unit_by_type("Tank", -32 * Vector2(x, y), 1)
+	for x in range(2):
+		for y in range(2):
+			#var id1 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 2)
+			#var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(2000, 2000), 2)
 			
-			active_unit_ids.append(id1)
-			active_unit_ids.append(id2)
+			GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y), 1)
+			
+			#active_unit_ids.append(id1)
+			#active_unit_ids.append(id2)
 		
 	economy_manager.set_balance(1, 5000)
+	economy_manager.set_balance(2, 5000)
 			
 	if debug_draw != null:
 		debug_draw.unit_manager = unit_manager

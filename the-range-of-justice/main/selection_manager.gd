@@ -4,7 +4,6 @@ extends SelectionManager
 @export_group("Dependencies")
 @export var unit_manager: Node3D
 @export var building_manager: Node3D
-@export var game_manager: Node2D
 @export var camera_3d: Node3D # 需具备 get_mouse_world_pos() 和 get_visible_world_rect() 方法
 @export var production_panel: VBoxContainer
 

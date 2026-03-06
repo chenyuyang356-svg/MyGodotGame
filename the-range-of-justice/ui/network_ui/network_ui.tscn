@@ -1,0 +1,52 @@
+[gd_scene format=3 uid="uid://08rgqexg3d8r"]
+
+[ext_resource type="Script" uid="uid://dt8fo8njh081d" path="res://ui/network_ui/network_ui.gd" id="1_3q5o4"]
+
+[node name="NetworkUI" type="CanvasLayer" unique_id=774892550]
+script = ExtResource("1_3q5o4")
+
+[node name="PanelContainer" type="PanelContainer" parent="." unique_id=392281971]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer" unique_id=1584820436]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="PanelContainer/VBoxContainer" unique_id=1822272640]
+layout_mode = 2
+text = "联机菜单"
+
+[node name="HSeparator" type="HSeparator" parent="PanelContainer/VBoxContainer" unique_id=97911646]
+layout_mode = 2
+
+[node name="IPInput" type="LineEdit" parent="PanelContainer/VBoxContainer" unique_id=1852948974]
+layout_mode = 2
+text = "127.0.0.1"
+
+[node name="PortInput" type="LineEdit" parent="PanelContainer/VBoxContainer" unique_id=1742663110]
+layout_mode = 2
+text = "7777"
+
+[node name="HostButton" type="Button" parent="PanelContainer/VBoxContainer" unique_id=1785186198]
+layout_mode = 2
+text = "创建房间 (Host)"
+
+[node name="JoinButton" type="Button" parent="PanelContainer/VBoxContainer" unique_id=1419614433]
+layout_mode = 2
+text = "加入房间 (Join)"
+
+[node name="StartGameButton" type="Button" parent="PanelContainer/VBoxContainer" unique_id=1288703374]
+layout_mode = 2
+text = "开始游戏 (Start)"
+
+[node name="StatusLabel" type="Label" parent="PanelContainer/VBoxContainer" unique_id=1928627364]
+layout_mode = 2

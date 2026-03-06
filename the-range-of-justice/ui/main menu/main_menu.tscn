@@ -4,6 +4,7 @@
 [ext_resource type="Theme" uid="uid://cpyg1yehfm7ug" path="res://ui/theme/main_menu.theme" id="1_cngla"]
 [ext_resource type="Texture2D" uid="uid://c1eqh0dj8lj01" path="res://icon.svg" id="1_w6cik"]
 [ext_resource type="PackedScene" uid="uid://dywbpnqknsp0r" path="res://ui/option menu/option_menu.tscn" id="4_sln25"]
+[ext_resource type="PackedScene" uid="uid://08rgqexg3d8r" path="res://ui/network_ui/network_ui.tscn" id="5_dv33c"]
 
 [node name="MainMenu" type="Control" unique_id=1229322745]
 layout_mode = 3
@@ -27,11 +28,17 @@ expand_mode = 1
 stretch_mode = 6
 
 [node name="MainLayout" type="MarginContainer" parent="." unique_id=1791803155]
-layout_mode = 0
-offset_left = 810.0
-offset_top = 551.0
-offset_right = 1110.0
-offset_bottom = 944.0
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -150.0
+offset_top = -671.0
+offset_right = 150.0
+grow_horizontal = 2
+grow_vertical = 0
 theme_override_constants/margin_left = 50
 theme_override_constants/margin_top = 50
 theme_override_constants/margin_right = 50
@@ -49,11 +56,16 @@ layout_mode = 2
 size_flags_vertical = 6
 alignment = 1
 
-[node name="StartButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=967664777]
+[node name="SinglePlayerButtonayButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=967664777]
 custom_minimum_size = Vector2(200, 50)
 layout_mode = 2
 localize_numeral_system = false
-text = "START"
+text = "SINGLE PLAYER"
+
+[node name="MultiplayerButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=1469595126]
+custom_minimum_size = Vector2(200, 50)
+layout_mode = 2
+text = "MULTIPLAYER"
 
 [node name="OptionsButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=53033225]
 custom_minimum_size = Vector2(100, 50)
@@ -77,6 +89,7 @@ layout_mode = 2
 text = "mods"
 
 [node name="OptionsMenu" parent="." unique_id=1075139515 instance=ExtResource("4_sln25")]
+visible = false
 layout_mode = 0
 anchors_preset = 0
 anchor_right = 0.0
@@ -84,6 +97,10 @@ anchor_bottom = 0.0
 grow_horizontal = 1
 grow_vertical = 1
 
-[connection signal="pressed" from="MainLayout/ContentVBox/MenuButtons/StartButton" to="." method="_on_start_button_pressed"]
+[node name="NetworkUI" parent="." unique_id=774892550 instance=ExtResource("5_dv33c")]
+visible = false
+
+[connection signal="pressed" from="MainLayout/ContentVBox/MenuButtons/SinglePlayerButtonayButton" to="." method="_on_single_player_pressed"]
+[connection signal="pressed" from="MainLayout/ContentVBox/MenuButtons/MultiplayerButton" to="." method="_on_multiplayer_pressed"]
 [connection signal="pressed" from="MainLayout/ContentVBox/MenuButtons/OptionsButton" to="." method="_on_options_button_pressed"]
 [connection signal="pressed" from="MainLayout/ContentVBox/MenuButtons/ExitButton" to="." method="_on_exit_button_pressed"]

@@ -22,8 +22,12 @@ void BuildingManager::set_economy_manager(Node* p_node) {
 }
 
 void BuildingManager::update(double p_delta) {
+    handle_dead_buildings(p_delta);
+
     for (auto& pair : buildings) {
         BuildingData& b = pair.second;
+
+        if (b.state == BuildingState::DYING) continue;
 
         // 逻辑 A：处理建筑自身的建造过程
         if (b.state == BuildingState::BUILDING) {
@@ -191,6 +195,45 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
     }
 }
 
+void BuildingManager::handle_dead_buildings(double p_delta) {
+    // 使用临时向量存储需要移除的 ID，避免在遍历时修改 map
+    std::vector<int> to_remove;
+
+    for (auto& pair : buildings) {
+        BuildingData& b = pair.second;
+
+        // 触发死亡状态
+        if (b.current_health <= 0 && b.state != BuildingState::DYING) {
+            b.state = BuildingState::DYING;
+            b.current_dying_time = 0.0f;
+
+            // 死亡时立即释放格子占位（可选，取决于你是否希望残骸阻挡单位）
+            // 如果希望残骸不挡路，可以在这里调用 flow_field_manager->set_cost(..., 1)
+        }
+
+        // 死亡计时
+        if (b.state == BuildingState::DYING) {
+            b.current_dying_time += (float)p_delta;
+
+            // 假设 BuildingStats 中定义了 dying_time，如果没有，可以暂用固定值如 2.0f
+            float max_dying_time = 2.0f;
+            if (b.stats.is_valid()) {
+                // 建议在 BuildingStats 加上这个属性
+                // max_dying_time = b.stats->get_dying_time(); 
+            }
+
+            if (b.current_dying_time >= max_dying_time) {
+                to_remove.push_back(b.id);
+            }
+        }
+    }
+
+    for (int id : to_remove) {
+        // 发出信号让 GameManager 执行最终的逻辑移除（清理 Selection 等）
+        emit_signal("despawn_building_requested", id);
+    }
+}
+
 void BuildingManager::register_building_type(String p_name, String p_path) {
     Ref<BuildingStats> stats = BuildingLoader::load_from_txt(p_path);
     if (stats.is_null()) return;
@@ -295,6 +338,11 @@ bool BuildingManager::is_area_clear(Vector2i p_grid_pos, Ref<BuildingStats> p_st
             if (req & PLACE_WATER) {
                 if (flow_field_manager->get_cost(current_cell, NAV_SEA) == 255) { return false; }
             }
+
+            if (req & PLACE_ON_RESOURCE) {
+                if (!(flow_field_manager->get_cell_metadata(current_cell) & CELL_META_RESOURCE)) { return false; }
+            }
+            else if (flow_field_manager->get_cell_metadata(current_cell) & CELL_META_RESOURCE) { return false; }
         }
     }
 
@@ -510,4 +558,6 @@ void BuildingManager::_bind_methods() {
         PropertyInfo(Variant::INT, "team_id")));
     ADD_SIGNAL(MethodInfo("spawn_unit_requested", PropertyInfo(Variant::STRING, "type_name"), PropertyInfo(Variant::VECTOR2, "spawn_pos"),
         PropertyInfo(Variant::INT, "team_id")));
+
+    ADD_SIGNAL(MethodInfo("despawn_building_requested", PropertyInfo(Variant::INT, "building_id")));
 }

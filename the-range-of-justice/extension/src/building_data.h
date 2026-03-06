@@ -7,7 +7,8 @@ namespace godot {
     enum class BuildingState {
         BUILDING,
         IDLE,
-        WORKING
+        WORKING,
+        DYING
     };
 
     struct BuildingData {
@@ -27,6 +28,8 @@ namespace godot {
         float attack_cooldown = 0.0f;
         std::vector<String> production_queue; // ��������λ�����б�
         float unit_production_timer = 0.0f;    // ��ǰ��λ��������ʱ
+
+        float current_dying_time = 0.0f;
     };
 
 }

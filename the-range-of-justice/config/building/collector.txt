@@ -5,17 +5,17 @@
 
 [Identity]
 # 建筑名称
-building_name=HumanBarrack
+building_name=Collector
 # 建筑类型: Generic, Barracks, Turret, Collector, Storage (对应枚举 BuildingType)
-building_type=Barracks
+building_type=Collector
 # land, sea, on_resource
-placement = land
+placement = land,on_resource
 
 [Economy]
 # 建造消耗资源
 cost=500
 # 建造所需时间 (单位: 秒)
-build_time=30.0
+build_time=15.0
 
 [Stats]
 # 最大生命值
@@ -25,7 +25,7 @@ health_max=2000.0
 # 物理占地大小 (Vector2i): 建筑实际阻挡的网格数 (例如 2,2 表示 2x2 格子)
 footprint=1,1
 # 放置间距 (Vector2i): 放置时要求的清理范围，通常等于或大于 footprint
-clearance=3,3
+clearance=1,1
 
 [Visuals]
 # 纹理文件路径

@@ -51,6 +51,12 @@ GameManager::GameManager() {
 	rpc_config("rpc_server_request_produce_unit", req_config);
 
 	rpc_config("rpc_client_sync_resources", sync_config);
+
+	Dictionary start_config;
+	start_config["rpc_mode"] = MultiplayerAPI::RPC_MODE_AUTHORITY;
+	start_config["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
+	start_config["call_local"] = true; // 主机也要执行场景切换
+	rpc_config("rpc_client_load_game", start_config);
 }
 
 GameManager::~GameManager() {}
@@ -150,6 +156,7 @@ void GameManager::set_building_manager(Node* p_node) {
 	if (building_manager) {
 		building_manager->connect("placement_requested", Callable(this, "_on_placement_requested"));
 		building_manager->connect("spawn_unit_requested", Callable(this, "_on_spawn_unit_requested"));
+		building_manager->connect("despawn_building_requested", Callable(this, "_on_despawn_building_requested"));
 	}
 }
 
@@ -212,6 +219,17 @@ void GameManager::join_game(String p_address, int p_port) {
 	UtilityFunctions::print("Connecting to: ", p_address);
 }
 
+void GameManager::host_start_game() {
+	if (!is_server_authority()) return;
+	// 广播给所有客户端加载游戏场景
+	rpc("rpc_client_load_game", "res://main/main.tscn");
+}
+
+void GameManager::rpc_client_load_game(const String& p_scene_path) {
+	// 使用 Godot 的场景切换功能
+	get_tree()->change_scene_to_file(p_scene_path);
+}
+
 // --- 服务器接收到 RPC 后的处理 ---
 
 void GameManager::rpc_server_receive_move(PackedInt32Array p_ids, Vector2 p_pos) {
@@ -233,38 +251,53 @@ void GameManager::rpc_server_receive_attack_unit(PackedInt32Array p_ids, int p_t
 }
 
 void GameManager::broadcast_network_snapshot() {
-	if (!unit_manager || unit_manager->units.empty()) return;
+	if (!unit_manager || !building_manager) return;
 
 	PackedByteArray data;
 	int unit_count = (int)unit_manager->units.size();
+	int bld_count = (int)building_manager->buildings.size();
 
-	// 预分配空间：4字节(计数) + 每个单位字节
-	data.resize(4 + unit_count * 25);
+	// 重新计算缓冲区大小: 4(unit_count) + unit_data + 4(bld_count) + bld_data
+	// 建筑数据包结构：ID(4), HP(4), State(1) = 9 bytes
+	data.resize(4 + unit_count * 25 + 4 + bld_count * 9);
 
-	// 写入单位数量
-	data.encode_s32(0, unit_count);
-
-	int offset = 4;
+	int offset = 0;
+	// 1. 写入单位
+	data.encode_s32(offset, unit_count);
+	offset += 4;
 	for (const auto& unit : unit_manager->units) {
-		data.encode_s32(offset, unit.id);           // 4 bytes
-		data.encode_float(offset + 4, unit.position.x); // 4 bytes
-		data.encode_float(offset + 8, unit.position.y); // 4 bytes
-		data.encode_float(offset + 12, unit.rotation);  // 4 bytes
-		data.encode_float(offset + 16, unit.height);  // 4 bytes
-		data.encode_float(offset + 20, unit.current_health);  // 4 bytes
-		data.set(offset + 24, (uint8_t)unit.state);     // 1 byte
+		data.encode_s32(offset, unit.id);
+		data.encode_float(offset + 4, unit.position.x);
+		data.encode_float(offset + 8, unit.position.y);
+		data.encode_float(offset + 12, unit.rotation);
+		data.encode_float(offset + 16, unit.height);
+		data.encode_float(offset + 20, unit.current_health);
+		data.set(offset + 24, (uint8_t)unit.state);
 		offset += 25;
 	}
 
-	// 广播二进制流
+	// 2. 写入建筑 (新增)
+	data.encode_s32(offset, bld_count);
+	offset += 4;
+	for (const auto& pair : building_manager->buildings) {
+		const BuildingData& b = pair.second;
+		data.encode_s32(offset, b.id);              // 4 bytes
+		data.encode_float(offset + 4, b.current_health); // 4 bytes
+		data.set(offset + 8, (uint8_t)b.state);      // 1 byte
+		offset += 9;
+	}
+
 	rpc("rpc_client_receive_snapshot", data);
 }
 
 void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data) {
 	if (!unit_manager || p_raw_data.size() < 4) return;
 
-	int unit_count = p_raw_data.decode_s32(0);
-	int offset = 4;
+	int offset = 0;
+
+	// 1. 解析单位
+	int unit_count = p_raw_data.decode_s32(offset);
+	offset += 4;
 
 	for (int i = 0; i < unit_count; i++) {
 		if (offset + 21 > p_raw_data.size()) break;
@@ -295,6 +328,27 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 
 			unit.current_health = health;
 			unit.state = (UnitState)state;
+		}
+	}
+
+	// 2. 解析建筑 (新增)
+	if (offset + 4 <= p_raw_data.size()) {
+		int bld_count = p_raw_data.decode_s32(offset);
+		offset += 4;
+
+		for (int i = 0; i < bld_count; i++) {
+			if (offset + 9 > p_raw_data.size()) break;
+
+			int id = p_raw_data.decode_s32(offset);
+			float health = p_raw_data.decode_float(offset + 4);
+			uint8_t state = p_raw_data.get(offset + 8);
+			offset += 9;
+
+			if (building_manager->buildings.count(id)) {
+				BuildingData& b = building_manager->buildings[id];
+				b.current_health = health;
+				b.state = (BuildingState)state;
+			}
 		}
 	}
 
@@ -450,6 +504,11 @@ void godot::GameManager::_on_despawn_unit_requested(int p_unit_id) {
 	unit_manager->despawn_unit(p_unit_id, selection_manager);
 }
 
+void GameManager::_on_despawn_building_requested(int p_bid) {
+	// 无论是服务器还是客户端，一旦 DYING 结束，就从内存中移除
+	building_manager->remove_building(p_bid, selection_manager);
+}
+
 void GameManager::_on_unit_production_requested(int p_bid, String p_type) {
 	if (get_multiplayer()->is_server()) {
 		// 如果是服务器，直接进入逻辑
@@ -472,6 +531,9 @@ void GameManager::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("host_game", "port"), &GameManager::host_game);
 	ClassDB::bind_method(D_METHOD("join_game", "address", "port"), &GameManager::join_game);
+
+	ClassDB::bind_method(D_METHOD("host_start_game"), &GameManager::host_start_game);
+	ClassDB::bind_method(D_METHOD("rpc_client_load_game", "scene_path"), &GameManager::rpc_client_load_game);
 
 	ClassDB::bind_method(D_METHOD("rpc_server_receive_move", "ids", "pos"), &GameManager::rpc_server_receive_move);
 	ClassDB::bind_method(D_METHOD("rpc_server_receive_attack_unit", "ids", "target_id"), &GameManager::rpc_server_receive_attack_unit);
@@ -506,6 +568,7 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_placement_requested", "ids", "grid_pos", "team_id"), &GameManager::_on_placement_requested);
 	ClassDB::bind_method(D_METHOD("_on_spawn_unit_requested", "ids", "pos", "team_id"), &GameManager::_on_spawn_unit_requested);
 	ClassDB::bind_method(D_METHOD("_on_despawn_unit_requested", "id"), &GameManager::_on_despawn_unit_requested);
+	ClassDB::bind_method(D_METHOD("_on_despawn_building_requested", "id"), &GameManager::_on_despawn_building_requested);
 
 	ClassDB::bind_method(D_METHOD("get_logic_tick_rate"), &GameManager::get_logic_tick_rate);
 	ClassDB::bind_method(D_METHOD("set_logic_tick_rate", "logic_tick_rate"), &GameManager::set_logic_tick_rate);

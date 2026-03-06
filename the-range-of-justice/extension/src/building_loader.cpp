@@ -46,7 +46,7 @@ Ref<BuildingStats> BuildingLoader::load_from_txt(String p_path, Ref<BuildingStat
                 String req = requirements[i].strip_edges();
                 if (req == "land") mask |= PLACE_LAND;
                 else if (req == "water") mask |= PLACE_WATER;
-                else if (req == "coast") mask |= PLACE_COAST;
+                else if (req == "on_resource") mask |= PLACE_ON_RESOURCE;
             }
             // 如果是纯数字掩码也能解析
             if (mask == 0 && val.is_valid_int()) mask = val.to_int();

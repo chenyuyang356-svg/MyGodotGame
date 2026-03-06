@@ -65,6 +65,9 @@ namespace godot {
 		void host_game(int p_port);
 		void join_game(String p_address, int p_port);
 
+		void rpc_client_load_game(const String& p_scene_path);
+		void host_start_game(); // 主机点击“开始游戏”时调用
+
 		// --- RPC 指令接口 (客户端发送，服务器执行) ---
 		// 在 Godot 4 C++ 中，RPC 函数名通常和普通函数一样，但在绑定时指定权限
 		void rpc_server_receive_move(PackedInt32Array p_ids, Vector2 p_pos);
@@ -104,6 +107,8 @@ namespace godot {
 		void _on_placement_requested(String p_type_name, Vector2i p_grid_pos, int p_team_id);
 		void _on_spawn_unit_requested(String p_type_name, Vector2 p_pos, int p_team_id);
 		void _on_despawn_unit_requested(int p_unit_id);
+
+		void _on_despawn_building_requested(int p_bid);
 
 		void _on_unit_production_requested(int p_bid, String p_type);
 

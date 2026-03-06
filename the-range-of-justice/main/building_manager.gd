@@ -21,7 +21,6 @@ func _ready():
 	# 动态创建画布层，防止手动在编辑器里摆放麻烦
 	_setup_overlay()
 	
-	register_building_type("HumanBarrack", "res://config/building/human_barrack.txt")
 	call_deferred("_create_build_buttons")
 	
 	if build_menu_container:

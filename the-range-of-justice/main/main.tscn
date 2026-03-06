@@ -8,7 +8,6 @@
 [ext_resource type="Script" uid="uid://cxdwnig240dls" path="res://main/selection_manager.gd" id="4_3wy1v"]
 [ext_resource type="Script" uid="uid://3bqvng8q6y28" path="res://main/camera_3d.gd" id="5_3wy1v"]
 [ext_resource type="Script" uid="uid://rcx1w1scq2ev" path="res://main/debug_draw.gd" id="6_kfbq2"]
-[ext_resource type="Script" uid="uid://dt8fo8njh081d" path="res://main/network_ui.gd" id="8_67ri8"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_3wy1v"]
 texture = ExtResource("1_53q0u")
@@ -19,6 +18,7 @@ texture_region_size = Vector2i(256, 256)
 0:2/0 = 0
 0:2/0/custom_data_1 = true
 0:3/0 = 0
+0:3/0/custom_data_2 = true
 
 [sub_resource type="TileSet" id="TileSet_kfbq2"]
 tile_size = Vector2i(256, 256)
@@ -26,12 +26,12 @@ custom_data_layer_0/name = "IsWall"
 custom_data_layer_0/type = 1
 custom_data_layer_1/name = "IsSea"
 custom_data_layer_1/type = 1
+custom_data_layer_2/name = "IsResource"
+custom_data_layer_2/type = 1
 sources/1 = SubResource("TileSetAtlasSource_3wy1v")
 
 [node name="main" type="Node" unique_id=224165495]
 script = ExtResource("1_3wy1v")
-
-[node name="GameManager" type="GameManager" parent="." unique_id=1740388468]
 
 [node name="GroupManager" type="GroupManager" parent="." unique_id=2096338072]
 
@@ -74,11 +74,10 @@ friction_factor = 15.0
 force_threshold_squared = 0.0
 desired_integration = 1.0
 
-[node name="SelectionManager" type="SelectionManager" parent="." unique_id=803111584 node_paths=PackedStringArray("unit_manager", "building_manager", "game_manager", "camera_3d", "production_panel")]
+[node name="SelectionManager" type="SelectionManager" parent="." unique_id=803111584 node_paths=PackedStringArray("unit_manager", "building_manager", "camera_3d", "production_panel")]
 script = ExtResource("4_3wy1v")
 unit_manager = NodePath("../UnitManager")
 building_manager = NodePath("../BuildingManager")
-game_manager = NodePath("../GameManager")
 camera_3d = NodePath("../Camera3D")
 production_panel = NodePath("CanvasLayer/ProductionPanel")
 
@@ -114,48 +113,3 @@ script = ExtResource("6_kfbq2")
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 1000, 0)
 projection = 1
 script = ExtResource("5_3wy1v")
-
-[node name="NetworkUI" type="CanvasLayer" parent="." unique_id=2084756751]
-script = ExtResource("8_67ri8")
-
-[node name="PanelContainer" type="PanelContainer" parent="NetworkUI" unique_id=912104451]
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -20.0
-offset_top = -20.0
-offset_right = 20.0
-offset_bottom = 20.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="VBoxContainer" type="VBoxContainer" parent="NetworkUI/PanelContainer" unique_id=1427424147]
-layout_mode = 2
-
-[node name="Label" type="Label" parent="NetworkUI/PanelContainer/VBoxContainer" unique_id=2046155424]
-layout_mode = 2
-text = "联机菜单"
-
-[node name="HSeparator" type="HSeparator" parent="NetworkUI/PanelContainer/VBoxContainer" unique_id=1749316656]
-layout_mode = 2
-
-[node name="IPInput" type="LineEdit" parent="NetworkUI/PanelContainer/VBoxContainer" unique_id=1331342995]
-layout_mode = 2
-text = "127.0.0.1"
-
-[node name="PortInput" type="LineEdit" parent="NetworkUI/PanelContainer/VBoxContainer" unique_id=3500058]
-layout_mode = 2
-text = "7777"
-
-[node name="HostButton" type="Button" parent="NetworkUI/PanelContainer/VBoxContainer" unique_id=1427822137]
-layout_mode = 2
-text = "创建房间 (Host)"
-
-[node name="JoinButton" type="Button" parent="NetworkUI/PanelContainer/VBoxContainer" unique_id=1889685486]
-layout_mode = 2
-text = "加入房间 (Join)"
-
-[node name="StatusLabel" type="Label" parent="NetworkUI/PanelContainer/VBoxContainer" unique_id=173471691]
-layout_mode = 2
