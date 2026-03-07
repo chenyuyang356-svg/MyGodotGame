@@ -38,11 +38,20 @@ func _ready() -> void:
 	attack_manager.set_building_manager(building_manager)
 	
 	unit_manager.register_unit_type("Tank", "res://config/unit/tank.txt")
+	unit_manager.register_unit_type("TinyTank", "res://config/unit/tiny_tank.txt")
+	unit_manager.register_unit_type("HeavyTank", "res://config/unit/heavy_tank.txt")
+	
 	unit_manager.register_unit_type("Fighter", "res://config/unit/fighter.txt")
+	unit_manager.register_unit_type("Helicopter", "res://config/unit/helicopter.txt")
+	unit_manager.register_unit_type("AttackHelicopter", "res://config/unit/attack_helicopter.txt")
+	
+	unit_manager.register_unit_type("TinyGunboat", "res://config/unit/tiny_gunboat.txt")
+	unit_manager.register_unit_type("Gunboat", "res://config/unit/gunboat.txt")
 	unit_manager.register_unit_type("Battleship", "res://config/unit/battleship.txt")
 	
 	building_manager.register_building_type("HumanBarrack", "res://config/building/human_barrack.txt")
 	building_manager.register_building_type("Collector", "res://config/building/collector.txt")
+	building_manager.register_building_type("Shipyard", "res://config/building/shipyard.txt")
 	
 	projectile_manager.register_projectile_type("Bullet", "res://config/projectile/bullet.txt")
 	
@@ -75,7 +84,7 @@ func _ready() -> void:
 		for y in range(used_rect.position.y, used_rect.end.y):
 			var coords: Vector2i = Vector2i(x, y)
 			var data = tile_map_layer.get_cell_tile_data(coords)
-			if data == null or (not data.get_custom_data("IsSea")):
+			if data == null or (!data.get_custom_data("IsSea")):
 				flow_field_manager.init_cost(coords, 255, 1)
 			else:
 				flow_field_manager.init_cost(coords, 1, 1)
@@ -94,7 +103,8 @@ func _ready() -> void:
 			#var id1 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 2)
 			#var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(2000, 2000), 2)
 			
-			GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y), 1)
+			GlobalGameManager.rpc_server_request_spawn_unit("HeavyTank", -32 * Vector2(x, y), 1)
+			GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y) + Vector2(11000, 3500), 2)
 			
 			#active_unit_ids.append(id1)
 			#active_unit_ids.append(id2)

@@ -8,7 +8,7 @@
 building_name=Collector
 # 建筑类型: Generic, Barracks, Turret, Collector, Storage (对应枚举 BuildingType)
 building_type=Collector
-# land, sea, on_resource
+# land, water, on_resource
 placement = land,on_resource
 
 [Economy]
@@ -29,11 +29,11 @@ clearance=1,1
 
 [Visuals]
 # 纹理文件路径
-texture_path=res://asset/建筑01改1.png
+texture_path=res://asset/building/资源采集器.png
 # 图集分栏 (整个贴图有多少列和多少行)
 h_frames=1
 # 图集分栏
-v_frames=1
+v_frames=4
 # 动画播放帧率
 anim_fps=8
 

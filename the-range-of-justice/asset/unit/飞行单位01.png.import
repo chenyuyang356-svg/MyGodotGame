@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d0d5geew4q8pd"
-path="res://.godot/imported/Square.png-df7303af48e98d1cc6e2d1454309a53e.ctex"
+uid="uid://dp03agvwgr5ct"
+path="res://.godot/imported/飞行单位01.png-2597c3f05c7acf5ea44e4697e6858b44.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://asset/Square.png"
-dest_files=["res://.godot/imported/Square.png-df7303af48e98d1cc6e2d1454309a53e.ctex"]
+source_file="res://asset/unit/飞行单位01.png"
+dest_files=["res://.godot/imported/飞行单位01.png-2597c3f05c7acf5ea44e4697e6858b44.ctex"]
 
 [params]
 

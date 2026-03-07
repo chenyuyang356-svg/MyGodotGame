@@ -5,6 +5,7 @@ extends CanvasLayer
 @onready var port_input = $PanelContainer/VBoxContainer/PortInput
 @onready var status_label = $PanelContainer/VBoxContainer/StatusLabel
 @onready var start_game_button = $PanelContainer/VBoxContainer/StartGameButton
+@onready var menu_buttons = $"../MainLayout/ContentVBox"
 
 func _ready():
 	# 按钮点击事件连接
@@ -33,10 +34,15 @@ func _on_join_pressed():
 	var port = int(port_input.text)
 	status_label.text = "状态: 正在尝试连接 %s..." % ip
 	GlobalGameManager.join_game(ip, port)
+	
 
 func _on_peer_changed(_id):
 	var peers = multiplayer.get_peers()
 	status_label.text = "当前房间人数: %d" % (peers.size() + 1)
+
+func _on_back_pressed():
+	hide()
+	menu_buttons.show()
 
 func _on_start_game_pressed():
 	# 主机点击开始

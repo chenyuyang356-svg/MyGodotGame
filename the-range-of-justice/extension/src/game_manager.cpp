@@ -57,6 +57,20 @@ GameManager::GameManager() {
 	start_config["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
 	start_config["call_local"] = true; // 主机也要执行场景切换
 	rpc_config("rpc_client_load_game", start_config);
+
+	// 客户端请求注册：ANY_PEER (任何人可发), RELIABLE
+	Dictionary reg_config;
+	reg_config["rpc_mode"] = MultiplayerAPI::RPC_MODE_ANY_PEER;
+	reg_config["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
+	reg_config["call_local"] = false;
+	rpc_config("rpc_server_request_registration", reg_config);
+
+	// 服务器同步注册结果给所有客户端：AUTHORITY (仅服务器发), RELIABLE
+	Dictionary reg_sync_config;
+	reg_sync_config["rpc_mode"] = MultiplayerAPI::RPC_MODE_AUTHORITY;
+	reg_sync_config["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
+	reg_sync_config["call_local"] = true; // 确保服务器本地也更新 map
+	rpc_config("rpc_client_on_player_registered", reg_sync_config);
 }
 
 GameManager::~GameManager() {}
@@ -191,6 +205,7 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 	building_manager->set_flow_field_manager(flow_field_manager);
 	building_manager->set_unit_manager(unit_manager);
 	building_manager->set_economy_manager(economy_manager);
+	selection_manager->set_team_id(peer_to_team_map[get_multiplayer()->get_unique_id()]);
 	unit_manager->setup_system(p_width, p_height, p_cell_size, p_origin);
 	is_setup = true;
 }
@@ -204,6 +219,8 @@ void GameManager::host_game(int p_port) {
 		return;
 	}
 	get_multiplayer()->set_multiplayer_peer(peer);
+
+	register_player(1, 1);
 	UtilityFunctions::print("Server started on port: ", p_port);
 }
 
@@ -225,9 +242,55 @@ void GameManager::host_start_game() {
 	rpc("rpc_client_load_game", "res://main/main.tscn");
 }
 
+void GameManager::register_player(int p_peer_id, int p_team_id) {
+	peer_to_team_map[p_peer_id] = p_team_id;
+	UtilityFunctions::print("Registered Peer: ", p_peer_id, " to Team: ", p_team_id);
+}
+
 void GameManager::rpc_client_load_game(const String& p_scene_path) {
 	// 使用 Godot 的场景切换功能
 	get_tree()->change_scene_to_file(p_scene_path);
+}
+
+// [RPC] 运行在服务器上
+void GameManager::rpc_server_request_registration(int p_team_id) {
+	if (!get_multiplayer()->is_server()) return;
+
+	int sender_id = get_multiplayer()->get_remote_sender_id();
+
+	// 1. 服务器逻辑校验 (例如：该队伍是否已满？)
+	// if (team_is_full(p_team_id)) p_team_id = find_next_available_team();
+
+	// 2. 在服务器本地注册
+	int desired_team_id = p_team_id;
+	if (desired_team_id == 0) {
+		desired_team_id = peer_to_team_map.size() + 1;
+	}
+	register_player(sender_id, desired_team_id);
+
+	// 3. 广播给所有人：新玩家加入了某队
+	// 这样每个人的 peer_to_team_map 都是同步的
+	rpc("rpc_client_on_player_registered", sender_id, desired_team_id);
+
+	// 4. 【额外步骤】将“当前已存在的玩家列表”同步给这个新加入的玩家
+	for (const auto& pair : peer_to_team_map) {
+		if (pair.first != sender_id) {
+			rpc_id(sender_id, "rpc_client_on_player_registered", pair.first, pair.second);
+		}
+	}
+}
+
+// [RPC] 运行在所有客户端上
+void GameManager::rpc_client_on_player_registered(int p_peer_id, int p_team_id) {
+	peer_to_team_map[p_peer_id] = p_team_id;
+	UtilityFunctions::print("Sync: Player ", p_peer_id, " is on Team ", p_team_id);
+
+	// 如果注册的是本地玩家自己，更新 SelectionManager 的 team_id
+	if (p_peer_id == get_multiplayer()->get_unique_id()) {
+		if (selection_manager) {
+			selection_manager->set_team_id(p_team_id);
+		}
+	}
 }
 
 // --- 服务器接收到 RPC 后的处理 ---
@@ -413,18 +476,38 @@ void GameManager::rpc_client_remove_building(int p_id) {
 void GameManager::rpc_server_request_produce_unit(int p_building_id, String p_unit_type) {
 	if (!get_multiplayer()->is_server()) return;
 
-	// 1. 验证：该玩家是否拥有该建筑？(这里可以通过 get_remote_sender_id 校验)
-	if (building_manager->get_building_team_id(p_building_id) != selection_manager->get_team_id()) {
+	// 1. 获取发送者的 Peer ID
+	int sender_id = get_multiplayer()->get_remote_sender_id();
+
+	// 2. 找到该 Peer 对应的 Team ID
+	int sender_team;
+	if (sender_id <= 1) {
+		// 说明是主机（Server）自己在操作
+		sender_team = selection_manager->get_team_id();
+	}
+	else {
+		// 说明是远程客户端在操作，去我们维护的映射表里查
+		if (peer_to_team_map.find(sender_id) != peer_to_team_map.end()) {
+			sender_team = peer_to_team_map[sender_id];
+		}
+		else {
+			return; // 未识别的玩家
+		}
+	}
+
+	// 3. 校验：该建筑的归属权是否属于发送者所在的队伍
+	if (building_manager->get_building_team_id(p_building_id) != sender_team) {
+		UtilityFunctions::print("Peer ", sender_id, " (Team ", sender_team,
+			") tried to use building ", p_building_id,
+			" belonging to Team ", building_manager->get_building_team_id(p_building_id));
 		return;
 	}
 
-	int team_id = building_manager->get_building_team_id(p_building_id);
+	// 4. 执行逻辑（扣费、加入生产队列）
 	Ref<UnitStats> u_stats = unit_manager->get_unit_stats_by_type(p_unit_type);
-
-	// 验证钱是否足够
-	if (economy_manager->try_spend(team_id, u_stats->get_cost())) {
+	if (economy_manager->try_spend(sender_team, u_stats->get_cost())) {
 		building_manager->add_unit_to_production_queue(p_building_id, p_unit_type);
-		sync_resources_to_client(team_id);
+		sync_resources_to_client(sender_team);
 	}
 }
 
@@ -520,6 +603,30 @@ void GameManager::_on_unit_production_requested(int p_bid, String p_type) {
 	}
 }
 
+void GameManager::_enter_tree() {
+	// 连接信号
+	get_multiplayer()->connect("peer_connected", Callable(this, "_on_peer_connected"));
+	get_multiplayer()->connect("connected_to_server", Callable(this, "_on_connected_to_server"));
+}
+
+// --- 服务器端触发 ---
+void GameManager::_on_peer_connected(int p_id) {
+	if (!get_multiplayer()->is_server()) return;
+	UtilityFunctions::print("Server: Peer connected: ", p_id);
+	// 等待客户端主动发 RPC 过来告知其 TeamID，或者由服务器在这里分配
+}
+
+// --- 客户端端触发 ---
+void GameManager::_on_connected_to_server() {
+	int my_id = get_multiplayer()->get_unique_id();
+	UtilityFunctions::print("Client: Connected to server. My ID: ", my_id);
+
+	// 【关键】：主动向服务器请求注册。这里假设客户端知道自己想去哪个队（比如从 UI 选的）
+	// 如果是自动分配，可以先发一个 0，让服务器决定。
+	int desired_team = 0;
+	rpc_id(1, "rpc_server_request_registration", desired_team);
+}
+
 void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_unit_manager", "node"), &GameManager::set_unit_manager);
 	ClassDB::bind_method(D_METHOD("set_building_manager", "node"), &GameManager::set_building_manager);
@@ -534,6 +641,10 @@ void GameManager::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("host_start_game"), &GameManager::host_start_game);
 	ClassDB::bind_method(D_METHOD("rpc_client_load_game", "scene_path"), &GameManager::rpc_client_load_game);
+	ClassDB::bind_method(D_METHOD("rpc_server_request_registration", "team_id"), &GameManager::rpc_server_request_registration);
+	ClassDB::bind_method(D_METHOD("rpc_client_on_player_registered", "peer_id", "team_id"), &GameManager::rpc_client_on_player_registered);
+
+	ClassDB::bind_method(D_METHOD("register_player", "peer_id", "team_id"), &GameManager::register_player);
 
 	ClassDB::bind_method(D_METHOD("rpc_server_receive_move", "ids", "pos"), &GameManager::rpc_server_receive_move);
 	ClassDB::bind_method(D_METHOD("rpc_server_receive_attack_unit", "ids", "target_id"), &GameManager::rpc_server_receive_attack_unit);
@@ -569,6 +680,8 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_spawn_unit_requested", "ids", "pos", "team_id"), &GameManager::_on_spawn_unit_requested);
 	ClassDB::bind_method(D_METHOD("_on_despawn_unit_requested", "id"), &GameManager::_on_despawn_unit_requested);
 	ClassDB::bind_method(D_METHOD("_on_despawn_building_requested", "id"), &GameManager::_on_despawn_building_requested);
+	ClassDB::bind_method(D_METHOD("_on_peer_connected", "id"), &GameManager::_on_peer_connected);
+	ClassDB::bind_method(D_METHOD("_on_connected_to_server"), &GameManager::_on_connected_to_server);
 
 	ClassDB::bind_method(D_METHOD("get_logic_tick_rate"), &GameManager::get_logic_tick_rate);
 	ClassDB::bind_method(D_METHOD("set_logic_tick_rate", "logic_tick_rate"), &GameManager::set_logic_tick_rate);

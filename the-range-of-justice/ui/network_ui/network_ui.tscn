@@ -44,9 +44,15 @@ text = "创建房间 (Host)"
 layout_mode = 2
 text = "加入房间 (Join)"
 
+[node name="BackButton" type="Button" parent="PanelContainer/VBoxContainer" unique_id=13526796]
+layout_mode = 2
+text = "返回 (back)"
+
 [node name="StartGameButton" type="Button" parent="PanelContainer/VBoxContainer" unique_id=1288703374]
 layout_mode = 2
 text = "开始游戏 (Start)"
 
 [node name="StatusLabel" type="Label" parent="PanelContainer/VBoxContainer" unique_id=1928627364]
 layout_mode = 2
+
+[connection signal="pressed" from="PanelContainer/VBoxContainer/BackButton" to="." method="_on_back_pressed"]

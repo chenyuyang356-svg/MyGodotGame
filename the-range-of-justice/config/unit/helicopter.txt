@@ -1,57 +1,55 @@
-#########################################
-# 坦克单位配置文件 (Marine)
-#########################################
-
 # --- Survival (生存) ---
-health_max       = 75.0
+health_max       = 30.0
 health_regen     = 0.5
 shield_max       = 0.0
 shield_regen     = 0.0
 # 枚举可选: Light, Heavy, Building, Hero
 armor_type       = Light
-
 # --- Attack (攻击) ---
-attack_damage    = 6.0
-attack_range     = 1200
+attack_damage    = 5.0
+attack_range     = 1500.0
 attack_interval  = 0.86
+projectile_type=Bullet
+
 # 枚举可选: Physical, Magic, Siege
 attack_type      = Physical
 projectile_speed = 800.0
 splash_radius    = 0.0
 # 枚举可选: Closest, Lowest_hp, Highest_value
 target_priority  = Closest
+can_fire_on_move = true
 
 # --- Movement (移动与碰撞) ---
-move_speed       = 150.0
-acceleration     = 80.0
-turn_speed       = 0.7
-turn_acceleration= 1.0
+move_speed       = 250.0
+acceleration     = 1000.0
+turn_speed       = 2.0
+turn_acceleration= 10.0
 # [关键] 碰撞半径
-collision_radius = 48.0
+collision_radius = 30.0
+base_height = 50.0
 # 枚举可选: Ground, Air, Sea, Hover
-base_height = 0.0
-move_type        = Ground
+move_type        = Air
 
 # --- Vision (视野) ---
 sight_range      = 350.0
 aggro_range      = 3000.0
 
 # --- Economy (经济) ---
-cost             = 500
-build_time       = 15.0
+cost             = 400
+build_time       = 7.5
 
 # --- Misc (其他/标签) ---
 # 支持逗号分隔的多个标签
 unit_tags        = Biological
 
 # 渲染基础
-texture_path = res://asset/unit/地面单位02.png
-h_frames = 8
+texture_path = res://asset/unit/飞行单位01.png
+h_frames = 2
 v_frames = 3
 
 # 状态机动画定义
 idle_row = 0
-idle_frames = 1
+idle_frames = 2
 move_row = 1
-move_frames = 1
+move_frames = 2
 anim_fps = 10

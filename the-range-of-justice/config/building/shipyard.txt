@@ -5,11 +5,11 @@
 
 [Identity]
 # 建筑名称
-building_name=HumanBarrack
+building_name=Shipyard
 # 建筑类型: Generic, Barracks, Turret, Collector, Storage (对应枚举 BuildingType)
 building_type=Barracks
 # land, water, on_resource
-placement = land
+placement = sea
 
 [Economy]
 # 建造消耗资源
@@ -53,7 +53,7 @@ working_row=1
 
 [Barracks]
 # 可生产的单位列表 (字符串数组，用逗号分隔，名称需与 register_unit_type 对应)
-producible_units=TinyTank,Tank,HeavyTank,Fighter,Helicopter,AttackHelicopter
+producible_units=TinyGunboat,Gunboat,Battleship
 # 生产速度倍率 (1.0为标准)
 production_speed=1.0
 

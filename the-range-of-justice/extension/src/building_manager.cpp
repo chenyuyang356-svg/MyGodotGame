@@ -46,6 +46,8 @@ void BuildingManager::update(double p_delta) {
 
                 // UtilityFunctions::print("Building ", b.id, " constructed!");
             }
+
+            continue;
         }
 
         // 这里可以继续添加 WORKING 状态的逻辑（如资源产生进度等）

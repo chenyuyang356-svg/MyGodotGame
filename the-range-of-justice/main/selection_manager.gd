@@ -67,9 +67,6 @@ func _unhandled_input(event: InputEvent):
 	
 
 func _on_selection_changed():
-	# 清空旧按钮
-	for child in production_panel.get_children():
-		child.queue_free()
 	production_panel.hide()
 	
 	# 获取选中的建筑 ID
@@ -136,6 +133,10 @@ func _on_right_pressed():
 
 func _show_production_buttons(building_id: int, stats: BuildingStats):
 	production_panel.show()
+	# 清空旧按钮
+	for child in production_panel.get_children():
+		child.queue_free()
+		
 	var units = stats.producible_units
 	for unit_type in units:
 		var btn = Button.new()
