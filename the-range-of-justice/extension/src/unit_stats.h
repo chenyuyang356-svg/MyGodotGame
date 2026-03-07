@@ -1,9 +1,17 @@
 #pragma once
-
+#include <vector>
 #include <godot_cpp/classes/resource.hpp>
 #include "game_definitions.h" // 引入枚举定义
 
 namespace godot {
+    struct WeaponStats {
+        String projectile_type_name; // 发射的子弹视觉类型（用于在 ProjectileManager 查找模型）
+        float damage = 10.0f;        // 武器伤害
+        float attack_range = 100.0f; // 武器射程
+        float attack_interval = 1.0f;// 攻击间隔（冷却时间）
+        float projectile_speed = 500.0f; // 子弹飞行速度
+        float splash_radius = 0.0f;  // 范围溅射半径 (AOE)
+    };
 
     class UnitStats : public Resource {
         GDCLASS(UnitStats, Resource)
@@ -17,14 +25,9 @@ namespace godot {
         ArmorType armor_type = ARMOR_LIGHT;
 
         // --- 攻击 ---
-        float attack_damage = 10.0f;
-        float attack_range = 100.0f;
-        float attack_interval = 1.0f;
-        float splash_radius = 0.0f;
-        AttackType attack_type = ATTACK_PHYSICAL;
-        float projectile_speed = 500.0f;
         TargetPriority target_priority = PRIORITY_CLOSEST;
         bool can_fire_on_move = false;
+        std::vector<WeaponStats> weapons;
 
         // --- 移动 ---
         float move_speed = 200.0f;
@@ -54,7 +57,6 @@ namespace godot {
         int idle_row = 0;      // 待机动画在图集的第几行
         int anim_fps = 10;     // 动画播放速度
 
-        float dying_time = 1.0f;
 
     protected:
         static void _bind_methods();
@@ -79,24 +81,6 @@ namespace godot {
 
         void set_armor_type(ArmorType p_value) { armor_type = p_value; }
         ArmorType get_armor_type() const { return armor_type; }
-
-        void set_attack_damage(float p_value) { attack_damage = p_value; }
-        float get_attack_damage() const { return attack_damage; }
-
-        void set_attack_range(float p_value) { attack_range = p_value; }
-        float get_attack_range() const { return attack_range; }
-
-        void set_attack_interval(float p_value) { attack_interval = p_value; }
-        float get_attack_interval() const { return attack_interval; }
-
-        void set_splash_radius(float p_value) { splash_radius = p_value; }
-        float get_splash_radius() const { return splash_radius; }
-
-        void set_attack_type(AttackType p_value) { attack_type = p_value; }
-        AttackType get_attack_type() const { return attack_type; }
-
-        void set_projectile_speed(float p_value) { projectile_speed = p_value; }
-        float get_projectile_speed() const { return projectile_speed; }
 
         void set_target_priority(TargetPriority p_value) { target_priority = p_value; }
         TargetPriority get_target_priority() const { return target_priority; }

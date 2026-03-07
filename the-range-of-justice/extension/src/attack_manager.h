@@ -52,7 +52,7 @@ namespace godot {
         // 获取目标的位置和碰撞半径（屏蔽单位和建筑的差异）
         bool _get_target_info(int p_target_id, bool p_is_building, Vector2& out_pos, float& out_radius);
 
-        void _execute_attack(UnitData& attacker, int target_id, bool target_is_building);
+        void _execute_attack(UnitData& attacker, int target_id, bool target_is_building, const WeaponStats& weapon);
         void _execute_building_attack(BuildingData& attacker, int target_id, bool target_is_building);
     };
 }

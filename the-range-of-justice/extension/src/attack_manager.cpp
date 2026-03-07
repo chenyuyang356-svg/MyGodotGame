@@ -4,6 +4,7 @@
 #include "projectile_manager.h"
 #include <godot_cpp/variant/utility_functions.hpp> 
 #include <godot_cpp/classes/engine.hpp>
+#include <algorithm>
 
 using namespace godot;
 
@@ -59,17 +60,12 @@ void AttackManager::update_units(double p_delta) {
     for (int i = 0; i < unit_manager->units.size(); ++i) {
         UnitData& unit = unit_manager->units[i];
 
-        // 1. 冷却逻辑
-        if (unit.attack_cooldown > 0) unit.attack_cooldown -= p_delta;
-
-        // 2. 状态分发
         switch (unit.state) {
         case IDLE:      _handle_idle(unit); break;
         case CHASING:   _handle_chasing(unit); break;
         case ATTACKING: _handle_attacking(unit, p_delta); break;
         case MOVING:    _handle_moving(unit); break;
         case PATROLLING: _handle_patrolling(unit); break;
-            // 可选：移动攻击 (Attack Move) 逻辑可以在这里加
         }
     }
 }
@@ -166,7 +162,15 @@ void AttackManager::_handle_idle(UnitData& p_unit) {
 
             float dist_sq = p_unit.position.distance_squared_to(target_pos);
             // 计算实际的攻击距离（基础攻击距离 + 双方碰撞体积）
-            float atk_range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target_radius;
+            float max_attack_range = 0.0f;
+            if (!p_unit.stats->weapons.empty()) {
+                for (const auto& weapon : p_unit.stats->weapons) {
+                    if (weapon.attack_range > max_attack_range) {
+                        max_attack_range = weapon.attack_range;
+                    }
+                }
+            }
+            float atk_range = max_attack_range + p_unit.stats->get_collision_radius() + target_radius;
 
             if (dist_sq <= atk_range * atk_range) {
                 // 如果敌人在攻击范围内，直接进入攻击状态
@@ -202,19 +206,55 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
 
     p_unit.target_pos = target_pos;
     float dist_sq = p_unit.position.distance_squared_to(target_pos);
-    float atk_range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target_radius;
 
+    // 1. 获取所有武器中的最大射程
+    float max_attack_range = 0.0f;
+    if (p_unit.stats.is_valid() && !p_unit.stats->weapons.empty()) {
+        for (const auto& weapon : p_unit.stats->weapons) {
+            if (weapon.attack_range > max_attack_range) {
+                max_attack_range = weapon.attack_range;
+            }
+        }
+    }
+    float atk_range = max_attack_range + p_unit.stats->get_collision_radius() + target_radius;
+
+    // 2. 如果进入了最大射程
     if (dist_sq <= atk_range * atk_range) {
         if (p_unit.stats->get_can_fire_on_move()) {
-            if (p_unit.attack_cooldown <= 0) {
-                _execute_attack(p_unit, p_unit.target_id, p_unit.target_is_building);
-                p_unit.attack_cooldown = p_unit.stats->get_attack_interval();
+            // 【重写：多武器系统的移动射击逻辑】
+            for (size_t i = 0; i < p_unit.stats->weapons.size(); ++i) {
+                const WeaponStats& weapon = p_unit.stats->weapons[i];
+                float real_weapon_range = weapon.attack_range + p_unit.stats->get_collision_radius() + target_radius;
+
+                // 检查这把特定武器是否够得着
+                if (dist_sq <= real_weapon_range * real_weapon_range) {
+                    // 检查这把特定武器是否冷却完毕
+                    if (p_unit.weapon_cooldowns[i] <= 0.0f) {
+
+                        // 生成投射物并注入专属伤害
+                        if (projectile_manager) {
+                            float start_height = p_unit.stats->base_height + 5.0f;
+                            projectile_manager->spawn_projectile(
+                                weapon.projectile_type_name,
+                                p_unit.position, start_height,
+                                p_unit.target_id, p_unit.target_is_building, 0.0f,
+                                p_unit.id, false,
+                                weapon.damage
+                            );
+                        }
+
+                        // 独立重置这把武器的冷却时间
+                        p_unit.weapon_cooldowns[i] = weapon.attack_interval;
+                    }
+                }
             }
         }
         else {
+            // 不能移动射击，停下脚步切换到 ATTACKING 状态
             p_unit.state = ATTACKING;
         }
     }
+    // 3. 脱战逻辑 (如果目标跑出了仇恨范围的2倍距离)
     else if (!p_unit.is_manual_target && dist_sq > p_unit.stats->get_aggro_range() * p_unit.stats->get_aggro_range() * 4.0f) {
         p_unit.target_id = -1;
         p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE;
@@ -222,37 +262,56 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
 }
 
 void AttackManager::_handle_attacking(UnitData& p_unit, double p_delta) {
-    if (p_unit.attack_cooldown > 0) {
-        p_unit.attack_cooldown -= p_delta;
-    }
-
-    if (!_is_target_valid(p_unit.target_id, p_unit.target_is_building)) {
-        p_unit.target_id = -1;
-        p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE;
+    if (p_unit.target_id == -1) {
+        p_unit.state = IDLE;
         return;
     }
 
     Vector2 target_pos;
     float target_radius;
-    _get_target_info(p_unit.target_id, p_unit.target_is_building, target_pos, target_radius);
+    bool target_alive = _get_target_info(p_unit.target_id, p_unit.target_is_building, target_pos, target_radius);
 
-    float dist_sq = p_unit.position.distance_squared_to(target_pos);
-    float atk_range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target_radius;
-
-    float buffer = 10.0f;
-    if (dist_sq > (atk_range + buffer) * (atk_range + buffer)) {
-        p_unit.state = CHASING;
+    if (!target_alive) {
+        p_unit.target_id = -1;
+        p_unit.state = IDLE;
         return;
     }
 
-    if (p_unit.attack_cooldown <= 0) {
-        _execute_attack(p_unit, p_unit.target_id, p_unit.target_is_building);
-        p_unit.attack_cooldown = p_unit.stats->get_attack_interval();
+    float distance = p_unit.position.distance_to(target_pos);
+    bool is_in_any_range = false;
+
+    // 遍历该单位挂载的所有武器
+    if (p_unit.stats.is_valid()) {
+        for (size_t i = 0; i < p_unit.stats->weapons.size(); ++i) {
+            const WeaponStats& weapon = p_unit.stats->weapons[i];
+
+            // 计算这把武器的实际攻击距离（武器基础射程 + 双方碰撞半径）
+            float real_range = weapon.attack_range + p_unit.stats->get_collision_radius() + target_radius;
+
+            // 独立扣减这把武器的冷却时间
+            if (p_unit.weapon_cooldowns[i] > 0.0f) {
+                p_unit.weapon_cooldowns[i] -= p_delta;
+            }
+
+            // 判断目标是否在这把武器的射程内
+            if (distance <= real_range) {
+                is_in_any_range = true; 
+
+                // 检查这把武器是否冷却完毕
+                if (p_unit.weapon_cooldowns[i] <= 0.0f) {
+                    _execute_attack(p_unit, p_unit.target_id, p_unit.target_is_building, weapon);
+                    p_unit.weapon_cooldowns[i] = weapon.attack_interval;
+                }
+            }
+        }
+    }
+    if (!is_in_any_range) {
+        p_unit.state = CHASING;
     }
 }
 
 void AttackManager::_handle_patrolling(UnitData& p_unit) {
-    // 1. 巡逻时主动寻找 aggro_range 范围内的敌人
+    // 1. 巡逻时主动寻找敌人 (这里的 _try_find_target 已经能自动处理多武器最大射程)
     if (_try_find_target(p_unit)) {
         p_unit.state = CHASING;
         return;
@@ -276,18 +335,27 @@ void AttackManager::_handle_patrolling(UnitData& p_unit) {
 }
 
 void AttackManager::_handle_moving(UnitData& p_unit) {
-    if (p_unit.stats->get_can_fire_on_move()) {
+    // 只有允许移动射击的单位，在纯移动状态下才会开火
+    if (p_unit.stats.is_valid() && p_unit.stats->get_can_fire_on_move()) {
         if (_try_find_target(p_unit)) {
             Vector2 target_pos;
             float target_radius;
             if (_get_target_info(p_unit.target_id, p_unit.target_is_building, target_pos, target_radius)) {
                 float dist_sq = p_unit.position.distance_squared_to(target_pos);
-                float atk_range = p_unit.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target_radius;
 
-                if (dist_sq <= atk_range * atk_range) {
-                    if (p_unit.attack_cooldown <= 0) {
-                        _execute_attack(p_unit, p_unit.target_id, p_unit.target_is_building);
-                        p_unit.attack_cooldown = p_unit.stats->get_attack_interval();
+                // 遍历所有武器进行移动射击判定
+                for (size_t i = 0; i < p_unit.stats->weapons.size(); ++i) {
+                    const WeaponStats& weapon = p_unit.stats->weapons[i];
+                    float real_weapon_range = weapon.attack_range + p_unit.stats->get_collision_radius() + target_radius;
+
+                    // 检查这把特定武器是否够得着
+                    if (dist_sq <= real_weapon_range * real_weapon_range) {
+
+                        // 移动状态下，冷却时间的扣减通常在全局更新里，这里只负责判断是否冷却完毕
+                        if (p_unit.weapon_cooldowns[i] <= 0.0f) {
+                            _execute_attack(p_unit, p_unit.target_id, p_unit.target_is_building, weapon);
+                            p_unit.weapon_cooldowns[i] = weapon.attack_interval;
+                        }
                     }
                 }
             }
@@ -297,8 +365,20 @@ void AttackManager::_handle_moving(UnitData& p_unit) {
 
 // 索敌逻辑：使用 UnitManager 的网格查询
 bool AttackManager::_try_find_target(UnitData& p_unit) {
-    float range = p_unit.stats->get_aggro_range();
+    if (!p_unit.stats.is_valid() || p_unit.stats->weapons.empty()) {
+        return false;
+    }
+
+    float max_weapon_range = 0.0f;
+    for (const auto& weapon : p_unit.stats->weapons) {
+        if (weapon.attack_range > max_weapon_range) {
+            max_weapon_range = weapon.attack_range;
+        }
+    }
+
+    float range = std::max(p_unit.stats->get_aggro_range(), max_weapon_range);
     float min_dist_sq = range * range;
+
     int best_target_id = -1;
     bool best_is_building = false;
 
@@ -319,7 +399,9 @@ bool AttackManager::_try_find_target(UnitData& p_unit) {
     // 2. 查找敌方建筑 
     if (building_manager) {
         Vector2 cell_sz = Vector2(256.0f, 256.0f);
-        if (building_manager->flow_field_manager) cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
+        if (building_manager->flow_field_manager) {
+            cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
+        }
 
         for (auto& pair : building_manager->buildings) {
             BuildingData& b = pair.second;
@@ -337,12 +419,14 @@ bool AttackManager::_try_find_target(UnitData& p_unit) {
         }
     }
 
+    // 3. 赋值最优目标
     if (best_target_id != -1) {
         p_unit.target_id = best_target_id;
         p_unit.target_is_building = best_is_building;
         p_unit.is_manual_target = false;
         return true;
     }
+
     return false;
 }
 
@@ -377,15 +461,16 @@ bool AttackManager::_try_find_target_for_building(BuildingData& p_building) {
     return false;
 }
 
-void AttackManager::_execute_attack(UnitData& attacker, int target_id, bool target_is_building) {
-    float dmg = attacker.stats->get_attack_damage();
-    float proj_speed = attacker.stats->get_projectile_speed();
-    float splash = attacker.stats->get_splash_radius();
+void AttackManager::_execute_attack(UnitData& attacker, int target_id, bool target_is_building, const WeaponStats& weapon) {
+    float dmg = weapon.damage;
+    float proj_speed = weapon.projectile_speed;
+    float splash = weapon.splash_radius;
 
     Vector2 target_pos;
     float target_radius;
     _get_target_info(target_id, target_is_building, target_pos, target_radius);
 
+    // 激光/即时命中逻辑 (Hitscan)
     if (proj_speed <= 0.0f || proj_speed > 5000.0f) {
         if (splash > 0.0f) {
             apply_aoe_damage(target_pos, splash, dmg, attacker.id, false);
@@ -394,6 +479,7 @@ void AttackManager::_execute_attack(UnitData& attacker, int target_id, bool targ
             apply_damage(target_id, target_is_building, dmg, attacker.id, false);
         }
     }
+    // 实体投射物逻辑
     else {
         if (projectile_manager) {
             // 1. 动态计算攻击者的发射高度 (地形高度 + 炮口相对高度)
@@ -419,17 +505,20 @@ void AttackManager::_execute_attack(UnitData& attacker, int target_id, bool targ
                 }
             }
 
+            // 3. 生成投射物 (保持你原本的 13个 参数不变，注入当前武器的具体数值)
             projectile_manager->spawn_projectile(
-                attacker.position, start_height,
-                target_id, target_is_building, target_height,
-                dmg, proj_speed,
-                attacker.id, false,
-                splash,
-                0,    // 对应 p_type
-                0.0f, // 对应 p_arc_height 
-                0.0f  // 对应 p_acceleration 
+                weapon.projectile_type_name, 
+                attacker.position,           
+                start_height,               
+                target_id,                  
+                target_is_building,     
+                target_height,            
+                attacker.id,                 
+                false,                      
+                dmg                         
             );
-            UtilityFunctions::print("fire! target:", target_id);
+
+            UtilityFunctions::print("fire! target:", target_id, " dmg:", dmg);
         }
     }
 }
@@ -476,7 +565,6 @@ void AttackManager::_execute_building_attack(BuildingData& attacker, int target_
             // --- 动态计算 256x256 网格下的发射坐标 ---
             Vector2 cell_sz = Vector2(256.0f, 256.0f);
 
-            // 如果你有 FlowFieldManager，最好动态获取以防以后再改网格大小：
             if (building_manager && building_manager->flow_field_manager) {
                 cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
             }
@@ -486,18 +574,24 @@ void AttackManager::_execute_building_attack(BuildingData& attacker, int target_
 
             // 发射中心点 = 起点 + 宽高的一半
             Vector2 spawn_pos = Vector2(attacker.grid_pos) * cell_sz + fp_size * 0.5f;
-            // ----------------------------------------
+
+            // 注意：这里需要传入一个子弹名字。如果你在 BuildingStats 里增加了这个属性，可以用 attacker.stats->get_projectile_type_name()
+            // 如果没有，你可以先硬编码一个你在 txt 里注册过的子弹名字，比如 "Shell" 或 "Bullet"
+            String building_projectile_type = "Shell";
 
             projectile_manager->spawn_projectile(
-                spawn_pos, // <--- 使用计算好的中心点
-                start_height,
-                target_id, target_is_building, target_height,
-                dmg, proj_speed,
-                attacker.id, true,
-                splash,
-                0,
-                0.0f, 0.0f
+                building_projectile_type, 
+                spawn_pos,                
+                start_height,           
+                target_id,                
+                target_is_building,      
+                target_height,            
+                attacker.id,              
+                true,                     
+                dmg                      
             );
+
+            UtilityFunctions::print("Building fire! target:", target_id, " dmg:", dmg);
         }
     }
 }

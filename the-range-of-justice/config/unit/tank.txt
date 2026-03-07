@@ -20,6 +20,8 @@ projectile_speed = 800.0
 splash_radius    = 0.0
 # 枚举可选: Closest, Lowest_hp, Highest_value
 target_priority  = Closest
+# 挂载武器 1: 机枪 (调用 MarineBullet 子弹，伤害6，射程250，0.15秒开一枪)
+weapon = MarineBullet, 6.0, 250.0, 0.15, 800.0, 0.0
 
 # --- Movement (移动与碰撞) ---
 move_speed       = 150.0

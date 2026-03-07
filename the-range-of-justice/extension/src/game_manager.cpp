@@ -65,10 +65,10 @@ void GameManager::_physics_process(double p_delta) {
 
 		// 1. 运行单位逻辑 (移动计算、流场应用、状态切换)
 			// 注意：内部会将 position 存入 prev_position，新算的存入 next_position
-		unit_manager->physics_update(p_delta);
+		unit_manager->update(p_delta);
 
 		// 2. 运行建筑逻辑 (建造进度增加、生产队列逻辑)
-		
+		building_manager->update(p_delta);
 
 		// 确保逻辑按固定频率运行 (逻辑 Tick)
 		while (tick_accumulator >= logic_tick_rate) {
@@ -94,9 +94,6 @@ void GameManager::_physics_process(double p_delta) {
 
 void GameManager::_process(double p_delta) {
 	if (!is_setup) return;
-
-	unit_manager->update(p_delta);
-	building_manager->update(p_delta);
 
 	// 1. 计算插值系数 alpha (0.0 到 1.0)
 	// 它代表当前时间处于两个逻辑 Tick 之间的位置
@@ -138,10 +135,6 @@ void GameManager::update_group(double p_delta) {
 
 void GameManager::set_unit_manager(Node* p_node) {
 	unit_manager = Object::cast_to<UnitManager>(p_node);
-
-	if (unit_manager) {
-		unit_manager->connect("despawn_unit_requested", Callable(this, "_on_despawn_unit_requested"));
-	}
 }
 
 void GameManager::set_building_manager(Node* p_node) {
@@ -239,7 +232,7 @@ void GameManager::broadcast_network_snapshot() {
 	int unit_count = (int)unit_manager->units.size();
 
 	// 预分配空间：4字节(计数) + 每个单位字节
-	data.resize(4 + unit_count * 25);
+	data.resize(4 + unit_count * 21);
 
 	// 写入单位数量
 	data.encode_s32(0, unit_count);
@@ -251,9 +244,8 @@ void GameManager::broadcast_network_snapshot() {
 		data.encode_float(offset + 8, unit.position.y); // 4 bytes
 		data.encode_float(offset + 12, unit.rotation);  // 4 bytes
 		data.encode_float(offset + 16, unit.height);  // 4 bytes
-		data.encode_float(offset + 20, unit.current_health);  // 4 bytes
-		data.set(offset + 24, (uint8_t)unit.state);     // 1 byte
-		offset += 25;
+		data.set(offset + 20, (uint8_t)unit.state);     // 1 byte
+		offset += 21;
 	}
 
 	// 广播二进制流
@@ -274,9 +266,8 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 		float py = p_raw_data.decode_float(offset + 8);
 		float rot = p_raw_data.decode_float(offset + 12);
 		float height = p_raw_data.decode_float(offset + 16);
-		float health = p_raw_data.decode_float(offset + 20);
-		uint8_t state = p_raw_data.get(offset + 24);
-		offset += 25;
+		uint8_t state = p_raw_data.get(offset + 20);
+		offset += 21;
 
 		int idx = unit_manager->get_unit_index_by_id(id);
 		if (idx != -1) {
@@ -292,11 +283,11 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 			unit.next_position = Vector2(px, py);
 			unit.next_rotation = rot;
 			unit.next_height = height;
-
-			unit.current_health = health;
 			unit.state = (UnitState)state;
 		}
 	}
+
+	unit_manager->update_spatial_grid();
 
 	// 重置插值时间轴
 	tick_accumulator = 0.0;
@@ -349,7 +340,7 @@ void GameManager::rpc_client_spawn_building(int p_id, String p_type, Vector2i p_
 
 // 3. 销毁逻辑
 void GameManager::rpc_client_despawn_unit(int p_id) {
-	selection_manager->on_unit_despawned(p_id);
+	unit_manager->despawn_unit(p_id, selection_manager);
 }
 
 void GameManager::rpc_client_remove_building(int p_id) {
@@ -446,10 +437,6 @@ void godot::GameManager::_on_spawn_unit_requested(String p_type_name, Vector2 p_
 	}
 }
 
-void godot::GameManager::_on_despawn_unit_requested(int p_unit_id) {
-	unit_manager->despawn_unit(p_unit_id, selection_manager);
-}
-
 void GameManager::_on_unit_production_requested(int p_bid, String p_type) {
 	if (get_multiplayer()->is_server()) {
 		// 如果是服务器，直接进入逻辑
@@ -505,7 +492,6 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_unit_production_requested", "id", "type"), &GameManager::_on_unit_production_requested);
 	ClassDB::bind_method(D_METHOD("_on_placement_requested", "ids", "grid_pos", "team_id"), &GameManager::_on_placement_requested);
 	ClassDB::bind_method(D_METHOD("_on_spawn_unit_requested", "ids", "pos", "team_id"), &GameManager::_on_spawn_unit_requested);
-	ClassDB::bind_method(D_METHOD("_on_despawn_unit_requested", "id"), &GameManager::_on_despawn_unit_requested);
 
 	ClassDB::bind_method(D_METHOD("get_logic_tick_rate"), &GameManager::get_logic_tick_rate);
 	ClassDB::bind_method(D_METHOD("set_logic_tick_rate", "logic_tick_rate"), &GameManager::set_logic_tick_rate);

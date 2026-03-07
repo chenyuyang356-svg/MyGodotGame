@@ -8,17 +8,58 @@ using namespace godot;
 
 void ProjectileManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("register_projectile_type", "type_name", "config_path"), &ProjectileManager::register_projectile_type);
+
+    // 更新绑定的参数列表
     ClassDB::bind_method(D_METHOD("spawn_projectile",
+        "type_name",
         "start_pos", "start_height",
         "target_id", "target_is_building", "target_height",
-        "damage", "speed",
-        "source_id", "source_is_building", "splash_radius",
-        "type", "arc_height", "acceleration"),
+        "source_id", "source_is_building"),
         &ProjectileManager::spawn_projectile);
+
     ClassDB::bind_method(D_METHOD("setup", "p_um", "p_am"), &ProjectileManager::setup);
     ClassDB::bind_method(D_METHOD("set_building_manager", "p_bm"), &ProjectileManager::set_building_manager);
 }
 
+void ProjectileManager::spawn_projectile(
+    const String& p_type_name,
+    Vector2 p_start_pos, float p_start_height,
+    int p_target_id, bool p_target_is_building, float p_target_height,
+    int p_source_id, bool p_source_is_building,
+    float p_weapon_damage)
+{
+    if (projectile_templates.find(p_type_name) == projectile_templates.end()) {
+        UtilityFunctions::printerr(">>> [ProjectileManager] 无法生成投射物，未知的类型: ", p_type_name);
+        return;
+    }
+
+    Ref<ProjectileStats> stats = projectile_templates[p_type_name];
+
+    UtilityFunctions::print(">>> [ProjectileManager] Spawning projectile! Target ID: ", p_target_id);
+    ProjectileData p;
+    p.position = p_start_pos;
+    p.target_pos = p_start_pos;
+    p.start_pos = p_start_pos;
+
+    p.start_height = p_start_height;
+    p.target_height = p_target_height;
+    p.current_height = p_start_height;
+
+    p.target_id = p_target_id;
+    p.target_is_building = p_target_is_building;
+    p.source_id = p_source_id;
+    p.source_is_building = p_source_is_building;
+    p.damage = p_weapon_damage;
+
+
+    p.speed = stats->get_speed();
+    p.acceleration = stats->get_acceleration();
+    p.splash_radius = stats->get_splash_radius();
+    p.type = stats->get_projectile_type();
+    p.arc_height = stats->get_arc_height();
+
+    projectiles.push_back(p);
+}
 ProjectileManager::ProjectileManager() {}
 ProjectileManager::~ProjectileManager() {}
 
@@ -46,36 +87,7 @@ void ProjectileManager::set_building_manager(BuildingManager* p_bm) {
     building_manager = p_bm;
 }
 
-void ProjectileManager::spawn_projectile(
-    Vector2 p_start_pos, float p_start_height,
-    int p_target_id, bool p_target_is_building, float p_target_height,
-    float p_damage, float p_speed, int p_source_id, bool p_source_is_building,
-    float p_splash_radius, int p_type, float p_arc_height, float p_acceleration)
-{
-    UtilityFunctions::print(">>> [ProjectileManager] Spawning projectile! Target ID: ", p_target_id);
-    ProjectileData p;
-    p.position = p_start_pos;
-    p.target_pos = p_start_pos;
-    p.start_pos = p_start_pos;
 
-    p.start_height = p_start_height;
-    p.target_height = p_target_height;
-    p.current_height = p_start_height;
-    p.arc_height = p_arc_height;
-
-    p.target_id = p_target_id;
-    p.target_is_building = p_target_is_building; // 记录目标类型
-    p.source_id = p_source_id;
-    p.source_is_building = p_source_is_building; // 记录攻击者类型
-
-    p.damage = p_damage;
-    p.speed = p_speed;
-    p.acceleration = p_acceleration;
-    p.splash_radius = p_splash_radius;
-    p.type = p_type;
-
-    projectiles.push_back(p);
-}
 
 void ProjectileManager::_physics_process(double p_delta) {
     if (Engine::get_singleton()->is_editor_hint()) return;

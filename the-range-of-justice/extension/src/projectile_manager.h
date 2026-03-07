@@ -71,11 +71,11 @@ namespace godot {
         void set_building_manager(BuildingManager* p_bm); // 设置建筑管理器
 
         void spawn_projectile(
+            const String& p_type_name, // 新增：直接传入注册好的类型名
             Vector2 p_start_pos, float p_start_height,
             int p_target_id, bool p_target_is_building, float p_target_height,
-            float p_damage, float p_speed,
-            int p_source_id, bool p_source_is_building, float p_splash_radius,
-            int p_type, float p_arc_height, float p_acceleration
+            int p_source_id, bool p_source_is_building,
+            float p_weapon_damage
         );
         virtual void _physics_process(double p_delta) override;
         void update_render_buffer();
