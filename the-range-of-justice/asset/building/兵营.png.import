@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bbjih1rxsm8k1"
-path="res://.godot/imported/战斗机01.png-e24fdacb4552b5302b99cdae4e098b9a.ctex"
+uid="uid://lo4k3lxmqokg"
+path="res://.godot/imported/兵营.png-bbf3ee76ba5ac41621c159a7a9a96101.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://asset/战斗机01.png"
-dest_files=["res://.godot/imported/战斗机01.png-e24fdacb4552b5302b99cdae4e098b9a.ctex"]
+source_file="res://asset/building/兵营.png"
+dest_files=["res://.godot/imported/兵营.png-bbf3ee76ba5ac41621c159a7a9a96101.ctex"]
 
 [params]
 

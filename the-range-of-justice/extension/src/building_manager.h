@@ -32,7 +32,6 @@ namespace godot {
         UnitManager* unit_manager = nullptr;
         EconomyManager* economy_manager = nullptr;
 
-        std::unordered_map<int, BuildingData> buildings;
         HashMap<String, Ref<BuildingStats>> building_types_cache;
         int next_building_id = 0;
 
@@ -51,6 +50,8 @@ namespace godot {
         static void _bind_methods();
 
     public:
+        std::unordered_map<int, BuildingData> buildings;
+
         BuildingManager();
         ~BuildingManager();
 
@@ -62,6 +63,8 @@ namespace godot {
 
         void update(double p_delta);
         void update_multimesh_buffer(double p_delta, float p_alpha, SelectionManager* p_selection_manager);
+
+        void handle_dead_buildings(double p_delta);
 
         // 注册建筑：从 txt 加载配置并缓存
         void register_building_type(String p_name, String p_path);

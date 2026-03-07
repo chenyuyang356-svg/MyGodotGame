@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c140gr4aeadju"
-path="res://.godot/imported/海上单位03 (2).png-684240ea43a844aef6f230ce37c89d77.ctex"
+uid="uid://sacwyl4jqn1"
+path="res://.godot/imported/地面单位02.png-b749df7ef4957d18d509a23bf56b706a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://asset/海上单位03 (2).png"
-dest_files=["res://.godot/imported/海上单位03 (2).png-684240ea43a844aef6f230ce37c89d77.ctex"]
+source_file="res://asset/unit/地面单位02.png"
+dest_files=["res://.godot/imported/地面单位02.png-b749df7ef4957d18d509a23bf56b706a.ctex"]
 
 [params]
 

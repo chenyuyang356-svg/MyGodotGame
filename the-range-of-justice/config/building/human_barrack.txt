@@ -8,14 +8,14 @@
 building_name=HumanBarrack
 # 建筑类型: Generic, Barracks, Turret, Collector, Storage (对应枚举 BuildingType)
 building_type=Barracks
-# land, sea, coast
+# land, water, on_resource
 placement = land
 
 [Economy]
 # 建造消耗资源
 cost=500
 # 建造所需时间 (单位: 秒)
-build_time=30.0
+build_time=10.0
 
 [Stats]
 # 最大生命值
@@ -29,11 +29,11 @@ clearance=3,3
 
 [Visuals]
 # 纹理文件路径
-texture_path=res://asset/建筑01改1.png
+texture_path=res://asset/building/兵营.png
 # 图集分栏 (整个贴图有多少列和多少行)
 h_frames=1
 # 图集分栏
-v_frames=1
+v_frames=4
 # 动画播放帧率
 anim_fps=8
 
@@ -53,7 +53,7 @@ working_row=1
 
 [Barracks]
 # 可生产的单位列表 (字符串数组，用逗号分隔，名称需与 register_unit_type 对应)
-producible_units=Tank,Fighter
+producible_units=TinyTank,Tank,HeavyTank,Fighter,Helicopter,AttackHelicopter
 # 生产速度倍率 (1.0为标准)
 production_speed=1.0
 

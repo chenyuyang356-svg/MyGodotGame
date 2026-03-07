@@ -17,9 +17,9 @@ namespace godot {
     };
 
     enum PlacementRequirement {
-        PLACE_LAND = 1,      // 01
-        PLACE_WATER = 2,     // 10
-        PLACE_COAST = 4      // 100 (可选扩展)
+        PLACE_LAND = 1 << 0,      // 01
+        PLACE_WATER = 1 << 1,     // 10
+        PLACE_ON_RESOURCE = 1 << 2      // 100 (可选扩展)
     };
 
     class BuildingStats : public Resource {
@@ -62,6 +62,8 @@ namespace godot {
         String resource_type = "Gold";
         float collection_rate = 5.0f;
         float collection_capacity = 100.0f;
+
+        float dying_time = 5.0f;
 
     protected:
         static void _bind_methods();

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c8fclle1il1uv"
-path="res://.godot/imported/中型坦克.png-ddae5d0779dba570a2d038467eb67c42.ctex"
+uid="uid://4d2jfkwvpg2m"
+path="res://.godot/imported/海上单位02.png-6de4738ffb9ec3767302b34fe6a87fee.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://asset/中型坦克.png"
-dest_files=["res://.godot/imported/中型坦克.png-ddae5d0779dba570a2d038467eb67c42.ctex"]
+source_file="res://asset/unit/海上单位02.png"
+dest_files=["res://.godot/imported/海上单位02.png-6de4738ffb9ec3767302b34fe6a87fee.ctex"]
 
 [params]
 

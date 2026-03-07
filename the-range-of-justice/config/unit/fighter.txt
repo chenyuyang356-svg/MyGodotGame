@@ -39,7 +39,7 @@ sight_range      = 350.0
 aggro_range      = 3000.0
 
 # --- Economy (经济) ---
-cost             = 50
+cost             = 500
 build_time       = 12.5
 
 # --- Misc (其他/标签) ---
@@ -47,9 +47,9 @@ build_time       = 12.5
 unit_tags        = Biological
 
 # 渲染基础
-texture_path = res://asset/飞行单位03.png
+texture_path = res://asset/unit/飞行单位02.png
 h_frames = 2
-v_frames = 2
+v_frames = 3
 
 # 状态机动画定义
 idle_row = 0

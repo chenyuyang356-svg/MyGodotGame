@@ -13,13 +13,16 @@ func _ready():
 	options_menu.close_requested.connect(_on_options_closed)
 
 
-func _on_start_button_pressed():
-	# 切换到你的 RTS 游戏主关卡
-	# 这里使用了你之前尝试过的 get_tree()，但在函数内部是安全的
-	if game_scene_path != "":
-		get_tree().change_scene_to_file(game_scene_path)
-	else:
-		print("警告：未设置游戏主场景路径")
+func _on_single_player_pressed():
+	# 单机模式：直接开启本地服务器并进入游戏
+	GlobalGameManager.host_game(7777)
+	GlobalGameManager.host_start_game()
+
+func _on_multiplayer_pressed():
+	# 进入联机 UI 界面
+	# 假设你把 NetworkUI 放在了主菜单的一个面板里
+	$NetworkUI.show()
+	menu_buttons.hide()
 
 func _on_options_button_pressed():
 	# 这里未来可以用来打开设置面板

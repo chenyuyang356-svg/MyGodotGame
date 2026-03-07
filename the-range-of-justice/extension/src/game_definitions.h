@@ -48,6 +48,12 @@ namespace godot {
         NAV_MAX // 用于计数
     };
 
+    // 单元格元数据定义
+    enum CellMetadata {
+        CELL_META_NONE = 0,
+        CELL_META_RESOURCE = 1 << 0 // 该格子含有资源
+    };
+
     inline Color get_team_color(int p_team_id) {
         switch (p_team_id) {
         case 1: return Color(0.2, 1.0, 0.2); // 绿色

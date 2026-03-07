@@ -73,6 +73,8 @@ namespace godot {
         const double CLEANUP_INTERVAL = 2.0; // 每 2 秒扫描一次
         const double UNUSED_THRESHOLD = 1.0; // 超过 1 秒没用就删除
 
+        std::vector<uint32_t> metadata_grid; // 存储每个格子的元数据（位掩码）
+
     protected:
         static void _bind_methods();
 
@@ -111,6 +113,8 @@ namespace godot {
 
         void set_init_cost(Vector2i p_cell_pos, uint8_t p_cost, int p_nav_type);
 
+        void set_cell_metadata(Vector2i p_grid_pos, uint32_t p_meta_flag, bool p_enabled);
+
         // [核心] 计算指定目标的集成场 (Dijkstra/BFS)
         void compute_integration_field(FlowFieldKey p_key);
 
@@ -120,6 +124,8 @@ namespace godot {
         // --- 查询接口 (供单位调用) ---
 
         float get_cost(Vector2i p_grid_pos, int p_nav_type);
+
+        uint32_t get_cell_metadata(Vector2i p_grid_pos);
 
         // 根据世界坐标和目标坐标，获取该位置与目标的距离
         float get_integration(Vector2 p_world_pos, Vector2 p_target_world_pos, int p_nav_type);

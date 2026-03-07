@@ -92,6 +92,8 @@ void FlowFieldManager::setup_grid(int p_width, int p_height, Vector2i p_origin, 
         init_cost_maps[i].assign(size, 1);
         cost_maps[i].assign(size, 1);
     }
+
+    metadata_grid.assign(size, CELL_META_NONE);
 }
 
 void FlowFieldManager::create_flow_field(Vector2i p_target_grid_pos, int p_nav_type, bool p_overwrite) {
@@ -168,6 +170,15 @@ void FlowFieldManager::set_init_cost(Vector2i p_cell_pos, uint8_t p_cost, int p_
     if (relative.x >= 0 && relative.x < width && relative.y >= 0 && relative.y < height) {
         int index = relative.y * width + relative.x;
         init_cost_maps[p_nav_type][index] = p_cost;
+    }
+}
+
+void FlowFieldManager::set_cell_metadata(Vector2i p_grid_pos, uint32_t p_meta_flag, bool p_enabled) {
+    Vector2i relative = p_grid_pos - grid_origin;
+    if (is_in_grid(p_grid_pos)) {
+        int index = relative.y * width + relative.x;
+        if (p_enabled) metadata_grid[index] |= p_meta_flag;
+        else metadata_grid[index] &= ~p_meta_flag;
     }
 }
 
@@ -335,6 +346,14 @@ float FlowFieldManager::get_cost(Vector2i p_grid_pos, int p_nav_type) {
     return cost_maps[p_nav_type][index];
 }
 
+uint32_t FlowFieldManager::get_cell_metadata(Vector2i p_grid_pos) {
+    Vector2i relative = p_grid_pos - grid_origin;
+    if (is_in_grid(p_grid_pos)) {
+        return metadata_grid[relative.y * width + relative.x];
+    }
+    return 0;
+}
+
 float FlowFieldManager::get_integration(Vector2 p_world_pos, Vector2 p_target_world_pos, int p_nav_type) {
     Vector2i relative_grid_pos = world_to_grid(p_world_pos) - grid_origin;
     Vector2i target_grid = world_to_grid(p_target_world_pos);
@@ -427,6 +446,7 @@ void FlowFieldManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("clear_all_fields"), &FlowFieldManager::clear_all_fields);
     ClassDB::bind_method(D_METHOD("set_cost", "grid_position", "cost", "nav_type"), &FlowFieldManager::set_cost);
     ClassDB::bind_method(D_METHOD("set_init_cost", "grid_position", "cost", "nav_type"), &FlowFieldManager::set_init_cost);
+    ClassDB::bind_method(D_METHOD("set_cell_meta_data", "grid_position", "meta_flag", "enabled"), &FlowFieldManager::set_cell_metadata);
     ClassDB::bind_method(D_METHOD("get_integration", "world_position", "target_world_position", "nav_type"), &FlowFieldManager::get_integration);
     ClassDB::bind_method(D_METHOD("get_flow_direction", "world_position", "target_world_position", "nav_type"), &FlowFieldManager::get_flow_direction);
     ClassDB::bind_method(D_METHOD("world_to_grid", "world_pos"), &FlowFieldManager::world_to_grid);

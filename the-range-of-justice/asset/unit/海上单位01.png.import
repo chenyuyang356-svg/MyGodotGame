@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b5homoc2mg5u0"
-path="res://.godot/imported/Tileset.png-e40cf962c59a076c7c5a5ddaffbbd3be.ctex"
+uid="uid://bqjo4jm0d8mgx"
+path="res://.godot/imported/海上单位01.png-d1975031895c16c27ddf2a25dd1066a1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://asset/Tileset.png"
-dest_files=["res://.godot/imported/Tileset.png-e40cf962c59a076c7c5a5ddaffbbd3be.ctex"]
+source_file="res://asset/unit/海上单位01.png"
+dest_files=["res://.godot/imported/海上单位01.png-d1975031895c16c27ddf2a25dd1066a1.ctex"]
 
 [params]
 

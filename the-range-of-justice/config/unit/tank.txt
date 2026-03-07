@@ -3,7 +3,7 @@
 #########################################
 
 # --- Survival (生存) ---
-health_max       = 90.0
+health_max       = 75.0
 health_regen     = 0.5
 shield_max       = 0.0
 shield_regen     = 0.0
@@ -12,7 +12,7 @@ armor_type       = Light
 
 # --- Attack (攻击) ---
 attack_damage    = 6.0
-attack_range     = 1500
+attack_range     = 1200
 attack_interval  = 0.86
 # 枚举可选: Physical, Magic, Siege
 attack_type      = Physical
@@ -39,16 +39,16 @@ sight_range      = 350.0
 aggro_range      = 3000.0
 
 # --- Economy (经济) ---
-cost             = 50
-build_time       = 12.5
+cost             = 500
+build_time       = 15.0
 
 # --- Misc (其他/标签) ---
 # 支持逗号分隔的多个标签
 unit_tags        = Biological
 
 # 渲染基础
-texture_path = res://asset/中型坦克.png
-h_frames = 2
+texture_path = res://asset/unit/地面单位02.png
+h_frames = 8
 v_frames = 3
 
 # 状态机动画定义
