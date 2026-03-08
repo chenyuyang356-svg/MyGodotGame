@@ -50,7 +50,6 @@ void BuildingManager::update(double p_delta) {
             continue;
         }
 
-        // 这里可以继续添加 WORKING 状态的逻辑（如资源产生进度等）
 
         // 逻辑 B：处理兵营单位生产 (仅限 BARRACKS 类型)
         if (b.stats->get_building_type() == BUILDING_BARRACKS) {
@@ -62,14 +61,13 @@ void BuildingManager::update(double p_delta) {
                 String unit_type = b.production_queue.front();
 
                 // 3. 获取该单位的 Stats 以读取其所需的 build_time
-                // 这里需要通过 unit_manager 预存的 cache 或者 UnitLoader 获取
                 Ref<UnitStats> u_stats = unit_manager->get_unit_stats_by_type(unit_type);
 
                 if (u_stats.is_valid()) {
                     // 计算进度：考虑兵营的生产速度加成
                     // 实际时间 = 单位基础建造时间 / 兵营生产效率
                     float production_speed = b.stats->get_production_speed();
-                    if (production_speed <= 0.0f) production_speed = 1.0f; // 防止除以0
+                    if (production_speed <= 0.0f) production_speed = 1.0f;
 
                     b.unit_production_timer += (float)p_delta * production_speed;
 
@@ -120,9 +118,6 @@ void BuildingManager::update(double p_delta) {
 
             // 直接加到经济管理器中
             economy_manager->add_resources(b.team_id, income);
-
-            // 注意：采集频率很高，不需要每帧同步 RPC。
-            // 建议在 GameManager 中每隔 0.5 秒或 1.0 秒同步一次余额。
         }
     }
 }
@@ -211,16 +206,14 @@ void BuildingManager::handle_dead_buildings(double p_delta) {
         if (b.current_health <= 0 && b.state != BuildingState::DYING) {
             b.state = BuildingState::DYING;
             b.current_dying_time = 0.0f;
-
-            // 死亡时立即释放格子占位（可选，取决于你是否希望残骸阻挡单位）
-            // 如果希望残骸不挡路，可以在这里调用 flow_field_manager->set_cost(..., 1)
+            // 死亡时立即释放格子占位
         }
 
         // 死亡计时
         if (b.state == BuildingState::DYING) {
             b.current_dying_time += (float)p_delta;
 
-            // 假设 BuildingStats 中定义了 dying_time，如果没有，可以暂用固定值如 2.0f
+            // 可以暂用固定值如 2.0f
             float max_dying_time = 2.0f;
             if (b.stats.is_valid()) {
                 // 建议在 BuildingStats 加上这个属性

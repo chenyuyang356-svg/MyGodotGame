@@ -8,6 +8,7 @@
 
 using namespace godot;
 
+// GODOT绑定与初始化
 void AttackManager::_bind_methods() {
         ClassDB::bind_method(D_METHOD("set_projectile_manager", "p_proj_manager"), &AttackManager::set_projectile_manager);
         ClassDB::bind_method(D_METHOD("set_building_manager", "p_bmanager"), &AttackManager::set_building_manager);
@@ -41,11 +42,17 @@ bool AttackManager::_get_target_info(int p_target_id, bool p_is_building, Vector
         if (it == building_manager->buildings.end()) return false;
 
         BuildingData& b = it->second;
+        // 默认网格大小是256*256像素
         Vector2 cell_sz = Vector2(256.0f, 256.0f);
         if (building_manager->flow_field_manager) cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
+
+        // 计算建筑的实际像素尺寸：占地格子数 * 单个格子大小
         Vector2 fp_size = Vector2(b.stats->get_footprint()) * cell_sz;
 
+        // 建筑的中心点坐标 = 网格左上角坐标 + 一半的长宽
         out_pos = Vector2(b.grid_pos) * cell_sz + fp_size * 0.5f;
+
+        // 使用建筑长宽的最大值的一半作为等效碰撞半径
         out_radius = std::max(fp_size.x, fp_size.y) * 0.5f;
         return true;
     }
@@ -96,18 +103,18 @@ void AttackManager::update_buildings(double p_delta) {
                 float target_radius;
                 _get_target_info(b.target_id, b.target_is_building, target_pos, target_radius);
 
-                // 计算建筑中心点
                 Vector2 cell_sz = Vector2(256.0f, 256.0f);
                 if (building_manager->flow_field_manager) cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
                 Vector2 fp_size = Vector2(b.stats->get_footprint()) * cell_sz;
                 Vector2 b_center = Vector2(b.grid_pos) * cell_sz + fp_size * 0.5f;
 
                 float dist_sq = b_center.distance_squared_to(target_pos);
-                float b_radius = std::max(fp_size.x, fp_size.y) * 0.5f; // 建筑等效半径
+                float b_radius = std::max(fp_size.x, fp_size.y) * 0.5f; 
                 float atk_range = b.stats->get_attack_range() + b_radius + target_radius;
 
+                // 抛出范围则丢失目标
                 if (dist_sq > atk_range * atk_range) {
-                    b.target_id = -1; // 跑出范围，丢失目标
+                    b.target_id = -1; 
                 }
                 else if (b.attack_cooldown <= 0) {
                     _execute_building_attack(b, b.target_id, b.target_is_building);
@@ -156,13 +163,12 @@ bool AttackManager::_is_target_valid(int p_target_id, bool p_is_building) {
 }
 
 void AttackManager::_handle_idle(UnitData& p_unit) {
-    // 空闲时尝试索敌（_try_find_target 会寻找 aggro_range 范围内的最近目标）
+    // 空闲时尝试索敌
     if (_try_find_target(p_unit)) {
 
         Vector2 target_pos;
         float target_radius;
 
-        // 使用通用的 _get_target_info，完美兼容目标是建筑还是单位
         if (_get_target_info(p_unit.target_id, p_unit.target_is_building, target_pos, target_radius)) {
 
             float dist_sq = p_unit.position.distance_squared_to(target_pos);
@@ -183,15 +189,13 @@ void AttackManager::_handle_idle(UnitData& p_unit) {
                 UtilityFunctions::print("[Debug Attack] unit ", p_unit.id, " into attack range,changing ATTACKING。目标 ID: ", p_unit.target_id);
             }
             else {
-                // 如果虽然在警戒范围内，但超出了攻击范围
-                // 因为是 IDLE 状态“不会主动追击”，所以当做没看见，清除目标并保持 IDLE
-                // （如果你希望单位主动追击，这里可以改成 p_unit.state = CHASING;）
+                // 如果在警戒范围内，但超出了攻击范围，处于 IDLE 状态的单位不会主动追击
                 p_unit.target_id = -1;
                 p_unit.state = IDLE;
             }
         }
         else {
-            // 获取目标信息失败（可能目标刚死亡）
+            // 获取目标信息失败
             p_unit.target_id = -1;
             p_unit.state = IDLE;
         }
@@ -226,12 +230,11 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
     // 2. 如果进入了最大射程
     if (dist_sq <= atk_range * atk_range) {
         if (p_unit.stats->get_can_fire_on_move()) {
-            // 【重写：多武器系统的移动射击逻辑】
             for (size_t i = 0; i < p_unit.stats->weapons.size(); ++i) {
                 const WeaponStats& weapon = p_unit.stats->weapons[i];
                 float real_weapon_range = weapon.attack_range + p_unit.stats->get_collision_radius() + target_radius;
 
-                // 检查这把特定武器是否够得着
+                // 检查目标是否在这把武器的射程之内
                 if (dist_sq <= real_weapon_range * real_weapon_range) {
                     // 检查这把特定武器是否冷却完毕
                     if (p_unit.weapon_cooldowns[i] <= 0.0f) {
@@ -255,11 +258,11 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
             }
         }
         else {
-            // 不能移动射击，停下脚步切换到 ATTACKING 状态
+            // 如果不能移动射击，停下脚步切换到 ATTACKING 状态
             p_unit.state = ATTACKING;
         }
     }
-    // 3. 脱战逻辑 (如果目标跑出了仇恨范围的2倍距离)
+    // 3. 当敌方单位跑出了目标射程的 2 倍则脱战
     else if (!p_unit.is_manual_target && dist_sq > p_unit.stats->get_aggro_range() * p_unit.stats->get_aggro_range() * 4.0f) {
         p_unit.target_id = -1;
         p_unit.state = p_unit.is_patrolling ? PATROLLING : IDLE;
@@ -316,7 +319,7 @@ void AttackManager::_handle_attacking(UnitData& p_unit, double p_delta) {
 }
 
 void AttackManager::_handle_patrolling(UnitData& p_unit) {
-    // 1. 巡逻时主动寻找敌人 (这里的 _try_find_target 已经能自动处理多武器最大射程)
+    // 1. 巡逻时主动寻找敌人，若找到敌人，则变为追击状态
     if (_try_find_target(p_unit)) {
         p_unit.state = CHASING;
         return;
@@ -538,7 +541,7 @@ void AttackManager::_execute_building_attack(BuildingData& attacker, int target_
     _get_target_info(target_id, target_is_building, target_pos, target_radius);
 
     if (proj_speed <= 0.0f || proj_speed > 5000.0f) {
-        // 瞬间命中
+        // 投射物速度设置在这个范围时，默认为瞬间命中
         if (splash > 0.0f) {
             apply_aoe_damage(target_pos, splash, dmg, attacker.id, true);
         }
@@ -567,21 +570,21 @@ void AttackManager::_execute_building_attack(BuildingData& attacker, int target_
                 }
             }
 
-            // --- 动态计算 256x256 网格下的发射坐标 ---
+            // 动态计算 256x256 网格下的发射坐标
             Vector2 cell_sz = Vector2(256.0f, 256.0f);
 
             if (building_manager && building_manager->flow_field_manager) {
                 cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
             }
 
-            // 获取建筑的占地网格数 (例如 1x1, 2x2)
+            // 获取建筑的占地网格数 
             Vector2 fp_size = Vector2(attacker.stats->get_footprint()) * cell_sz;
 
             // 发射中心点 = 起点 + 宽高的一半
             Vector2 spawn_pos = Vector2(attacker.grid_pos) * cell_sz + fp_size * 0.5f;
 
-            // 注意：这里需要传入一个子弹名字。如果你在 BuildingStats 里增加了这个属性，可以用 attacker.stats->get_projectile_type_name()
-            // 如果没有，你可以先硬编码一个你在 txt 里注册过的子弹名字，比如 "Shell" 或 "Bullet"
+            // 这里需要传入一个子弹名字。
+            // 目前建筑攻击尚未完成，如果后续在 BuildingStats 里增加了这个属性，可以用 attacker.stats->get_projectile_type_name()
             String building_projectile_type = "Shell";
 
             emit_signal("spawn_projectile_requested", 
@@ -602,11 +605,11 @@ void AttackManager::_execute_building_attack(BuildingData& attacker, int target_
 }
 
 void AttackManager::apply_damage(int target_id, bool is_building, float damage, int attacker_id, bool attacker_is_building) {
-    // Check if the function is successfully called
+    // 检查函数是否被成功调用
     godot::UtilityFunctions::print(">>> [Apply Damage] Triggered! Attacker ID: ", attacker_id, " Target ID: ", target_id, " Damage: ", damage, " Is Building: ", is_building);
 
     if (is_building) {
-        // 1. Target is a building
+        // 1. 当目标为建筑
         if (!building_manager) {
             godot::UtilityFunctions::printerr(">>> [Apply Damage Failed] FATAL: building_manager is null! (Check setup/bind_methods)");
             return;
@@ -623,7 +626,7 @@ void AttackManager::apply_damage(int target_id, bool is_building, float damage, 
         }
     }
     else {
-        // 2. Target is a unit
+        // 2. 当目标为单位
         if (!unit_manager) {
             godot::UtilityFunctions::printerr(">>> [Apply Damage Failed] FATAL: unit_manager is null! (Check setup/bind_methods)");
             return;
@@ -648,7 +651,7 @@ void AttackManager::apply_damage(int target_id, bool is_building, float damage, 
 }
 
 void AttackManager::apply_aoe_damage(Vector2 p_epicenter, float p_radius, float p_damage, int p_attacker_id, bool attacker_is_building) {
-    // 这里以查找攻击者队伍ID避免误伤为例
+    // 查找攻击者ID避免误伤
     int attacker_team = -1;
     if (attacker_is_building && building_manager) {
         auto it = building_manager->buildings.find(p_attacker_id);

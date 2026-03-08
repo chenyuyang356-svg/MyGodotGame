@@ -13,7 +13,6 @@ int ProjectileLoader::_parse_enum(String p_key, String p_value) {
         if (p_value.is_valid_int()) return p_value.to_int();
     }
 
-    // Fallback 
     if (p_value.is_valid_int()) return p_value.to_int();
     return 0;
 }

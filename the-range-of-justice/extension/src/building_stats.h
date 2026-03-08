@@ -19,7 +19,7 @@ namespace godot {
     enum PlacementRequirement {
         PLACE_LAND = 1 << 0,      // 01
         PLACE_WATER = 1 << 1,     // 10
-        PLACE_ON_RESOURCE = 1 << 2      // 100 (可选扩展)
+        PLACE_ON_RESOURCE = 1 << 2      // 100 
     };
 
     class BuildingStats : public Resource {
@@ -55,8 +55,8 @@ namespace godot {
         float attack_range = 300.0f;
         float attack_interval = 1.0f;
         int attack_target_mask = 0; // 0:地面, 1:空中, 2:全部
-        float projectile_speed = 0.0f; // <--- 新增：投射物速度 (0代表瞬间命中)
-        float splash_radius = 0.0f;    // <--- 新增：溅射半径 (0代表单体伤害)
+        float projectile_speed = 0.0f; // 投射物速度 (0代表瞬间命中)
+        float splash_radius = 0.0f;    // 溅射半径 (0代表单体伤害)
 
         // --- 采集类属性 ---
         String resource_type = "Gold";

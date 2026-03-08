@@ -21,14 +21,16 @@ namespace godot {
         AttackManager();
         ~AttackManager();
 
+        // 初始化
         void setup(UnitManager* p_manager);
         void set_building_manager(BuildingManager* p_bmanager);
         void set_projectile_manager(ProjectileManager* p_proj_manager);
 
-        // 核心入口
+        // 更新数据
         void update_units(double p_delta);
-        void update_buildings(double p_delta); // 新增：更新建筑的攻击状态
+        void update_buildings(double p_delta); 
 
+        // 获取向量力
         bool try_get_combat_force(UnitData& p_unit, Vector2& out_force);
 
         // 伤害接口
@@ -42,17 +44,19 @@ namespace godot {
         void _handle_attacking(UnitData& p_unit, double p_delta);
         void _handle_patrolling(UnitData& p_unit);
         void _handle_moving(UnitData& p_unit);
-
-        // 行为逻辑
+        
+        // 索敌逻辑
         bool _try_find_target(UnitData& p_unit);
-        bool _try_find_target_for_building(BuildingData& p_building); // 新增：建筑索敌
-
+        bool _try_find_target_for_building(BuildingData& p_building);
         bool _is_target_valid(int p_target_id, bool p_is_building);
 
-        // 获取目标的位置和碰撞半径（屏蔽单位和建筑的差异）
-        bool _get_target_info(int p_target_id, bool p_is_building, Vector2& out_pos, float& out_radius);
-
+        //攻击逻辑
         void _execute_attack(UnitData& attacker, int target_id, bool target_is_building, const WeaponStats& weapon);
         void _execute_building_attack(BuildingData& attacker, int target_id, bool target_is_building);
+
+        // 获取目标的位置和碰撞半径
+        bool _get_target_info(int p_target_id, bool p_is_building, Vector2& out_pos, float& out_radius);
+
+        
     };
 }

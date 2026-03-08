@@ -29,7 +29,7 @@ namespace godot {
         float arc_height;       // 抛物线的最高点附加高度
 
         // --- 逻辑相关 ---
-        int type;               // 投射物类型 (ProjectileType)
+        int type;               // 投射物类型
         int target_id;
         bool target_is_building; // 目标是否是建筑
         int source_id;
@@ -85,7 +85,7 @@ namespace godot {
         void set_building_manager(BuildingManager* p_bm); // 设置建筑管理器
 
         void spawn_projectile(
-            const String& p_type_name, // 新增：直接传入注册好的类型名
+            const String& p_type_name, // 直接传入注册好的类型名
             Vector2 p_start_pos, float p_start_height,
             int p_target_id, bool p_target_is_building, float p_target_height,
             int p_source_id, bool p_source_is_building,
