@@ -21,6 +21,7 @@ projectile_speed = 800.0
 splash_radius    = 0.0
 # 枚举可选: Closest, Lowest_hp, Highest_value
 target_priority  = Closest
+weapon = MarineBullet, 10.0, 400.0, 0.25, 1200.0, 2.0
 
 # --- Movement (移动与碰撞) ---
 move_speed       = 150.0
