@@ -104,6 +104,7 @@ namespace godot {
 		// --- 单位生命周期 ---
 		int spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id = 0, int p_forced_id = -1);
 		void despawn_unit(int p_unit_id, SelectionManager* p_selection_manager);
+		void handle_dead_unit(double p_delta);
 
 		// --- 单位攻击逻辑 ---
 		void command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos);
@@ -123,6 +124,7 @@ namespace godot {
 
 		// --- 核心循环 ---
 		void update(double p_delta);
+		void physics_update(double p_delta);
 
 		// --- 逻辑计算 ---
 		Vector2 get_flow(UnitData& p_unit);

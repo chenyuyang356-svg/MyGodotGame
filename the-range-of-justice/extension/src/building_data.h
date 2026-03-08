@@ -1,4 +1,5 @@
 #pragma once
+#pragma warning(disable : 4828)
 #include <godot_cpp/variant/vector2.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include "building_stats.h"
@@ -13,7 +14,7 @@ namespace godot {
 
     struct BuildingData {
         int id;
-        Vector2i grid_pos;   // Footprint ×óÉÏ½Ç×ø±ê
+        Vector2i grid_pos;   // Footprint ï¿½ï¿½ï¿½Ï½ï¿½ï¿½ï¿½ï¿½ï¿½
         Ref<BuildingStats> stats;
         int team_id;
         float current_health;
@@ -22,7 +23,7 @@ namespace godot {
         float build_timer = 0.0f;
         BuildingState state = BuildingState::BUILDING;
 
-        // ½¨ÖþµÄ¹¥»÷ÀäÈ´ºÍÄ¿±êÐÅÏ¢
+        // ï¿½ï¿½ï¿½ï¿½ï¿½Ä¹ï¿½ï¿½ï¿½ï¿½ï¿½È´ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½ï¿½Ï¢
         int target_id = -1;
         bool target_is_building = false;
         float attack_cooldown = 0.0f;

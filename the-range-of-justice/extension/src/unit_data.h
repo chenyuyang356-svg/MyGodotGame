@@ -11,6 +11,7 @@ namespace godot {
         CHASING,     // 追击中
         ATTACKING,   // 攻击中
         PATROLLING,  // 巡逻中
+        DYING,      // 死亡中
     };
 
     struct UnitData {
@@ -41,6 +42,8 @@ namespace godot {
         float height = 0.0f;
 
         float anim_time = 0.0f; // 累计播放时间
+
+        float current_dying_time = 0.0f;
 
         // 组管理相关数据
         int temp_group_id = -1;

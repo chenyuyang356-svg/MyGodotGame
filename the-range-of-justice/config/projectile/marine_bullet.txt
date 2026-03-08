@@ -4,7 +4,7 @@ projectile_type = 0
 speed = 800.0       
 damage = 6.0        
 # 绑定的特效预制体路径
-visual_path = res://assets/fx/bullet_tracer.tscn 
+visual_path = res://asset/projectile/bullet.png
 # 子弹没有溅射和抛物线
 splash_radius = 0.0 
 arc_height = 0.0    

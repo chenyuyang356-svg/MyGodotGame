@@ -53,7 +53,7 @@ func _ready() -> void:
 	building_manager.register_building_type("Collector", "res://config/building/collector.txt")
 	building_manager.register_building_type("Shipyard", "res://config/building/shipyard.txt")
 	
-	projectile_manager.register_projectile_type("Bullet", "res://config/projectile/bullet.txt")
+	projectile_manager.register_projectile_type("MarineBullet", "res://config/projectile/marine_bullet.txt")
 	
 	for x in range(used_rect.position.x, used_rect.end.x):
 		for y in range(used_rect.position.y, used_rect.end.y):
@@ -103,10 +103,12 @@ func _ready() -> void:
 			#var id1 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 2)
 			#var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(2000, 2000), 2)
 			
-			GlobalGameManager.rpc_server_request_spawn_unit("HeavyTank", -32 * Vector2(x, y), 1)
+			GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y), 1)
 			GlobalGameManager.rpc_server_request_spawn_unit("TinyTank", -32 * Vector2(x, y), 1)
 			GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y) + Vector2(11000, 3500), 2)
+			GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y) + Vector2(0, 500), 2)
 			
+			active_unit_ids.append(1)
 			#active_unit_ids.append(id1)
 			#active_unit_ids.append(id2)
 		
