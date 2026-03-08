@@ -114,7 +114,6 @@ namespace godot {
 
 		void _on_placement_requested(String p_type_name, Vector2i p_grid_pos, int p_team_id);
 		void _on_spawn_unit_requested(String p_type_name, Vector2 p_pos, int p_team_id);
-		void _on_despawn_unit_requested(int p_unit_id);
 
 		void _on_despawn_building_requested(int p_bid);
 

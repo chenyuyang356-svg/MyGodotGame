@@ -11,7 +11,6 @@ namespace godot {
         CHASING,     // 追击中
         ATTACKING,   // 攻击中
         PATROLLING,  // 巡逻中
-        DYING,      // 死亡中
     };
 
     struct UnitData {
@@ -50,13 +49,11 @@ namespace godot {
 
         int team_id = 0;
         int target_id = -1;
-        float attack_cooldown = 0.1f;
+        std::vector<float> weapon_cooldowns;
 
         bool is_patrolling = false;
         std::vector<Vector2> patrol_waypoints;
         int current_waypoint_idx = 0;
-
-        float current_dying_time = 0.0f;
 
         UnitData() : id(-1), state(IDLE), current_health(0) {}
 

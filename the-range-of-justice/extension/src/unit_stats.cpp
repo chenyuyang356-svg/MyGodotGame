@@ -52,33 +52,9 @@ void UnitStats::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::INT, "armor_type", PROPERTY_HINT_ENUM, "Light,Heavy,Building,Hero"), "set_armor_type", "get_armor_type");
 
     ADD_GROUP("Attack", "");
-    ClassDB::bind_method(D_METHOD("set_attack_damage", "value"), &UnitStats::set_attack_damage);
-    ClassDB::bind_method(D_METHOD("get_attack_damage"), &UnitStats::get_attack_damage);
-    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "attack_damage"), "set_attack_damage", "get_attack_damage");
-
-    ClassDB::bind_method(D_METHOD("set_attack_range", "value"), &UnitStats::set_attack_range);
-    ClassDB::bind_method(D_METHOD("get_attack_range"), &UnitStats::get_attack_range);
-    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "attack_range", PROPERTY_HINT_RANGE, "0,2000,1"), "set_attack_range", "get_attack_range");
-
-    ClassDB::bind_method(D_METHOD("set_attack_interval", "value"), &UnitStats::set_attack_interval);
-    ClassDB::bind_method(D_METHOD("get_attack_interval"), &UnitStats::get_attack_interval);
-    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "attack_interval", PROPERTY_HINT_RANGE, "0.01,10,0.01,suffix:s"), "set_attack_interval", "get_attack_interval");
-
     ClassDB::bind_method(D_METHOD("set_can_fire_on_move", "p_value"), &UnitStats::set_can_fire_on_move);
     ClassDB::bind_method(D_METHOD("get_can_fire_on_move"), &UnitStats::get_can_fire_on_move);
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "can_fire_on_move"), "set_can_fire_on_move", "get_can_fire_on_move");
-
-    ClassDB::bind_method(D_METHOD("set_attack_type", "value"), &UnitStats::set_attack_type);
-    ClassDB::bind_method(D_METHOD("get_attack_type"), &UnitStats::get_attack_type);
-    ADD_PROPERTY(PropertyInfo(Variant::INT, "attack_type", PROPERTY_HINT_ENUM, "Physical,Magic,Siege"), "set_attack_type", "get_attack_type");
-
-    ClassDB::bind_method(D_METHOD("set_splash_radius", "value"), &UnitStats::set_splash_radius);
-    ClassDB::bind_method(D_METHOD("get_splash_radius"), &UnitStats::get_splash_radius);
-    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "splash_radius"), "set_splash_radius", "get_splash_radius");
-
-    ClassDB::bind_method(D_METHOD("set_projectile_speed", "value"), &UnitStats::set_projectile_speed);
-    ClassDB::bind_method(D_METHOD("get_projectile_speed"), &UnitStats::get_projectile_speed);
-    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "projectile_speed"), "set_projectile_speed", "get_projectile_speed");
 
     ClassDB::bind_method(D_METHOD("set_target_priority", "value"), &UnitStats::set_target_priority);
     ClassDB::bind_method(D_METHOD("get_target_priority"), &UnitStats::get_target_priority);

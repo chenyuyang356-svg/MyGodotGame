@@ -1,3 +1,0 @@
-projectile_type=Bullet
-speed=300.0
-damage=6.0

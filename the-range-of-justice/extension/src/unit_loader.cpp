@@ -42,6 +42,7 @@ int UnitLoader::_parse_enum(String p_key, String p_value) {
         if (p_value == "Highest_value") return PRIORITY_HIGHEST_VALUE;
         if (p_value.is_valid_int()) return p_value.to_int();
     }
+
     // 默认情况：返回一个标
     // 记值（如 -999）或者尝试直接转 int
     if (p_value.is_valid_int()) return p_value.to_int();
@@ -109,6 +110,25 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, Ref<UnitStats> p_t
             bool can_fire = val_str.contains("true") || val_str.contains("1");
             UtilityFunctions::print("[UnitLoader] 修复后，读到字符串: '", val_str, "'，最终判定结果为: ", can_fire);
             stats->set_can_fire_on_move(can_fire);
+        }
+
+        else if (key == "weapon") {
+            // 解析由逗号分隔的武器字符串，例如: "Bullet, 15.0, 200.0, 0.5, 500.0, 0.0"
+            PackedStringArray parts = value_str.split(",");
+            if (parts.size() >= 4) {
+                WeaponStats w;
+                w.projectile_type_name = parts[0].strip_edges();
+                w.damage = parts[1].to_float();
+                w.attack_range = parts[2].to_float();
+                w.attack_interval = parts[3].to_float();
+
+                // 可选参数
+                if (parts.size() >= 5) w.projectile_speed = parts[4].to_float();
+                if (parts.size() >= 6) w.splash_radius = parts[5].to_float();
+
+                stats->weapons.push_back(w);
+                UtilityFunctions::print("[UnitLoader] 成功为单位挂载武器: ", w.projectile_type_name, " 伤害: ", w.damage);
+            }
         }
             
     
