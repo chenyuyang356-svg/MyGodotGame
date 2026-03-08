@@ -34,47 +34,47 @@ namespace godot {
 
     protected:
         static void _bind_methods() {
-            // 绑定枚举，方便在 GDScript 中直接使用
+            // 绑定枚举
             BIND_ENUM_CONSTANT(PROJECTILE_BULLET);
             BIND_ENUM_CONSTANT(PROJECTILE_SHELL);
             BIND_ENUM_CONSTANT(PROJECTILE_MISSILE);
 
-            // 1. projectile_type
+            // 1.投射物类型
             ClassDB::bind_method(D_METHOD("get_projectile_type"), &ProjectileStats::get_projectile_type);
             ClassDB::bind_method(D_METHOD("set_projectile_type", "type"), &ProjectileStats::set_projectile_type);
             ADD_PROPERTY(PropertyInfo(Variant::INT, "projectile_type"), "set_projectile_type", "get_projectile_type");
 
-            // 2. speed
+            // 2.速度
             ClassDB::bind_method(D_METHOD("get_speed"), &ProjectileStats::get_speed);
             ClassDB::bind_method(D_METHOD("set_speed", "speed"), &ProjectileStats::set_speed);
             ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "speed"), "set_speed", "get_speed");
 
-            // 3. damage
+            // 3. 伤害
             ClassDB::bind_method(D_METHOD("get_damage"), &ProjectileStats::get_damage);
             ClassDB::bind_method(D_METHOD("set_damage", "damage"), &ProjectileStats::set_damage);
             ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "damage"), "set_damage", "get_damage");
 
-            // 4. visual_path
+            // 4. 特效所在路径
             ClassDB::bind_method(D_METHOD("get_visual_path"), &ProjectileStats::get_visual_path);
             ClassDB::bind_method(D_METHOD("set_visual_path", "visual_path"), &ProjectileStats::set_visual_path);
             ADD_PROPERTY(PropertyInfo(Variant::STRING, "visual_path"), "set_visual_path", "get_visual_path");
 
-            // 5. splash_radius
+            // 5. 溅射半径
             ClassDB::bind_method(D_METHOD("get_splash_radius"), &ProjectileStats::get_splash_radius);
             ClassDB::bind_method(D_METHOD("set_splash_radius", "splash_radius"), &ProjectileStats::set_splash_radius);
             ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "splash_radius"), "set_splash_radius", "get_splash_radius");
 
-            // 6. arc_height
+            // 6. 最大高度
             ClassDB::bind_method(D_METHOD("get_arc_height"), &ProjectileStats::get_arc_height);
             ClassDB::bind_method(D_METHOD("set_arc_height", "arc_height"), &ProjectileStats::set_arc_height);
             ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "arc_height"), "set_arc_height", "get_arc_height");
 
-            // 7. turn_speed
+            // 7. 转向速度
             ClassDB::bind_method(D_METHOD("get_turn_speed"), &ProjectileStats::get_turn_speed);
             ClassDB::bind_method(D_METHOD("set_turn_speed", "turn_speed"), &ProjectileStats::set_turn_speed);
             ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "turn_speed"), "set_turn_speed", "get_turn_speed");
 
-            // 8. acceleration
+            // 8. 加速度
             ClassDB::bind_method(D_METHOD("get_acceleration"), &ProjectileStats::get_acceleration);
             ClassDB::bind_method(D_METHOD("set_acceleration", "acceleration"), &ProjectileStats::set_acceleration);
             ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "acceleration"), "set_acceleration", "get_acceleration");
@@ -111,7 +111,6 @@ namespace godot {
         void set_acceleration(float p_acceleration) { acceleration = p_acceleration; }
     };
 
-} // namespace godot
+} 
 
-// 这一步非常重要，告诉 Godot 你的枚举可以通过类名访问
 VARIANT_ENUM_CAST(ProjectileType);

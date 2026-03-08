@@ -69,9 +69,6 @@ int UnitLoader::_parse_bitfield(String p_value) {
 }
 
 Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, Ref<UnitStats> p_target) {
-    // [关键点]：热重载的核心
-    // 如果传入了 p_target，我们直接操作它（内存地址不变，引用它的单位会自动更新）
-    // 如果没传，我们才 new 一个新的。
     Ref<UnitStats> stats = p_target;
     if (stats.is_null()) {
         stats.instantiate();
@@ -158,6 +155,5 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, Ref<UnitStats> p_t
 }
 
 void UnitLoader::_bind_methods() {
-    // [修改] 绑定时记得把第二个参数也暴露出来
     ClassDB::bind_static_method("UnitLoader", D_METHOD("load_stats_from_txt", "path", "target_resource"), &UnitLoader::load_stats_from_txt, DEFVAL(Variant()));
 }

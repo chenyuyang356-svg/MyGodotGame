@@ -5,6 +5,7 @@
 #include "building_stats.h"
 
 namespace godot {
+    // 建筑状态机
     enum class BuildingState {
         BUILDING,
         IDLE,
@@ -14,21 +15,24 @@ namespace godot {
 
     struct BuildingData {
         int id;
-        Vector2i grid_pos;   // Footprint ���Ͻ�����
+        Vector2i grid_pos;   
         Ref<BuildingStats> stats;
         int team_id;
         float current_health;
         float anim_time = 0.0f;
 
+        // 建造
         float build_timer = 0.0f;
         BuildingState state = BuildingState::BUILDING;
 
-        // �����Ĺ�����ȴ��Ŀ����Ϣ
+        // 攻击
         int target_id = -1;
         bool target_is_building = false;
         float attack_cooldown = 0.0f;
-        std::vector<String> production_queue; // ��������λ�����б�
-        float unit_production_timer = 0.0f;    // ��ǰ��λ��������ʱ
+
+        // 产兵
+        std::vector<String> production_queue; 
+        float unit_production_timer = 0.0f; 
 
         float current_dying_time = 0.0f;
     };

@@ -17,7 +17,7 @@ void EconomyManager::add_resources(int p_team_id, double p_amount) {
 }
 
 bool EconomyManager::try_spend(int p_team_id, double p_amount) {
-    if (p_amount < 0.0) return false; // 不允许扣除负数（那叫加钱）
+    if (p_amount < 0.0) return false; // 不允许扣除负数
 
     auto it = team_balances.find(p_team_id);
     if (it != team_balances.end()) {
