@@ -22,6 +22,10 @@ namespace godot {
         float damage = 10.0f;
         String visual_path = "";
 
+        int h_frames = 1;
+        int v_frames = 1;
+        float anim_fps = 10.0f;
+
         // === 炮弹/导弹特有属性 ===
         float splash_radius = 0.0f;
 
@@ -78,6 +82,18 @@ namespace godot {
             ClassDB::bind_method(D_METHOD("get_acceleration"), &ProjectileStats::get_acceleration);
             ClassDB::bind_method(D_METHOD("set_acceleration", "acceleration"), &ProjectileStats::set_acceleration);
             ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "acceleration"), "set_acceleration", "get_acceleration");
+
+            ClassDB::bind_method(D_METHOD("get_h_frames"), &ProjectileStats::get_h_frames);
+            ClassDB::bind_method(D_METHOD("set_h_frames", "count"), &ProjectileStats::set_h_frames);
+            ADD_PROPERTY(PropertyInfo(Variant::INT, "h_frames"), "set_h_frames", "get_h_frames");
+
+            ClassDB::bind_method(D_METHOD("get_v_frames"), &ProjectileStats::get_v_frames);
+            ClassDB::bind_method(D_METHOD("set_v_frames", "count"), &ProjectileStats::set_v_frames);
+            ADD_PROPERTY(PropertyInfo(Variant::INT, "v_frames"), "set_v_frames", "get_v_frames");
+
+            ClassDB::bind_method(D_METHOD("get_anim_fps"), &ProjectileStats::get_anim_fps);
+            ClassDB::bind_method(D_METHOD("set_anim_fps", "fps"), &ProjectileStats::set_anim_fps);
+            ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "anim_fps"), "set_anim_fps", "get_anim_fps");
         }
 
     public:
@@ -109,6 +125,15 @@ namespace godot {
 
         float get_acceleration() const { return acceleration; }
         void set_acceleration(float p_acceleration) { acceleration = p_acceleration; }
+
+        int get_h_frames() const { return h_frames; }
+        void set_h_frames(int p_count) { h_frames = p_count; }
+
+        int get_v_frames() const { return v_frames; }
+        void set_v_frames(int p_count) { v_frames = p_count; }
+
+        float get_anim_fps() const { return anim_fps; }
+        void set_anim_fps(float p_fps) { anim_fps = p_fps; }
     };
 
 } 

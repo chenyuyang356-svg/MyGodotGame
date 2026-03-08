@@ -3,6 +3,9 @@
 #include <godot_cpp/classes/node3d.hpp> 
 #include <godot_cpp/classes/multi_mesh_instance3d.hpp>
 #include <godot_cpp/classes/multi_mesh.hpp>
+#include <godot_cpp/classes/multiplayer_api.hpp>
+#include <godot_cpp/classes/multiplayer_peer.hpp>
+#include <godot_cpp/classes/e_net_multiplayer_peer.hpp>
 #include <vector>
 #include "projectile_stats.h"
 #include "building_manager.h" 
@@ -35,6 +38,10 @@ namespace godot {
         float acceleration;     // 导弹的加速度
         float damage;
         float splash_radius;
+
+        Ref<ProjectileStats> stats;
+
+        float anim_time = 0.0f;
     };
 
     struct GodotStringHasher {
@@ -56,9 +63,16 @@ namespace godot {
         BuildingManager* building_manager = nullptr; // 建筑管理器指针
         AttackManager* attack_manager = nullptr;
 
-        // 渲染组件
-        MultiMeshInstance3D* multimesh_instance = nullptr;
-        Ref<MultiMesh> multimesh;
+        // 渲染器映射：每个 ProjectileStats 对应一个 MultiMeshInstance3D
+        std::unordered_map<ProjectileStats*, MultiMeshInstance3D*> type_renderers;
+        std::unordered_map<ProjectileStats*, MultiMeshInstance3D*> shadow_renderers;
+
+        // 分组缓存：每一帧将投射物按类型分组更新
+        std::unordered_map<ProjectileStats*, std::vector<int>> type_grouping_cache;
+
+        // 着色器资源
+        Ref<Shader> projectile_shader;
+        Ref<Shader> shadow_shader;
 
     protected:
         static void _bind_methods();
@@ -78,7 +92,7 @@ namespace godot {
             float p_weapon_damage
         );
         virtual void _physics_process(double p_delta) override;
-        void update_render_buffer();
-        void register_projectile_type(const String& p_type_name, const String& p_config_path);
+        void update_render_buffer(double p_delta);
+        void register_projectile_type(String p_type_name, String p_config_path);
     };
 }

@@ -13,6 +13,8 @@
 #include "group_manager.h"
 #include "unit_loader.h"
 #include "economy_manager.h"
+#include "attack_manager.h"
+#include "projectile_manager.h"
 
 namespace godot {
 
@@ -26,6 +28,8 @@ namespace godot {
 		SelectionManager* selection_manager = nullptr;
 		GroupManager* group_manager = nullptr;
 		EconomyManager* economy_manager = nullptr;
+		AttackManager* attack_manager = nullptr;
+		ProjectileManager* projectile_manager = nullptr;
 
 		bool is_setup = false;
 
@@ -61,6 +65,8 @@ namespace godot {
 		void set_selection_manager(Node* p_node);
 		void set_group_manager(Node* p_node);
 		void set_economy_manager(Node* p_node);
+		void set_attack_manager(Node* p_node);
+		void set_projectile_manager(Node* p_node);
 		void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
 
 		// --- 网络管理接口 ---
@@ -104,6 +110,13 @@ namespace godot {
 
 		void rpc_server_request_produce_unit(int p_building_id, String p_unit_type);
 
+		void rpc_client_spawn_projectile(
+			const String& p_type_name,
+			Vector2 p_start_pos, float p_start_height,
+			int p_target_id, bool p_target_is_building, float p_target_height,
+			int p_source_id, bool p_source_is_building,
+			float p_weapon_damage);
+
 		void rpc_client_sync_resources(int p_team_id, double p_amount); // 仅同步给对应的客户端
 		void sync_resources_to_client(int p_team_id);
 
@@ -118,6 +131,12 @@ namespace godot {
 		void _on_despawn_unit_requested(int p_unit_id);
 
 		void _on_despawn_building_requested(int p_bid);
+
+		void _on_spawn_projectile_requested(const String& p_type_name,
+			Vector2 p_start_pos, float p_start_height,
+			int p_target_id, bool p_target_is_building, float p_target_height,
+			int p_source_id, bool p_source_is_building,
+			float p_weapon_damage);
 
 		void _on_unit_production_requested(int p_bid, String p_type);
 

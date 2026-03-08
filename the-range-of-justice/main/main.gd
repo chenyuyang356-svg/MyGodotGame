@@ -29,13 +29,11 @@ func _ready() -> void:
 	GlobalGameManager.set_flow_field_manager(flow_field_manager)
 	GlobalGameManager.set_selection_manager(selection_manager)
 	GlobalGameManager.set_group_manager(group_manager)
-	unit_manager.set_attack_manager(attack_manager)
+	GlobalGameManager.set_attack_manager(attack_manager)
+	GlobalGameManager.set_projectile_manager(projectile_manager)
 	GlobalGameManager.set_economy_manager(economy_manager)
 	
 	GlobalGameManager.setup_system(width, height, cell_size, grid_origin)
-	
-	attack_manager.set_projectile_manager(projectile_manager)
-	attack_manager.set_building_manager(building_manager)
 	
 	unit_manager.register_unit_type("Tank", "res://config/unit/tank.txt")
 	unit_manager.register_unit_type("TinyTank", "res://config/unit/tiny_tank.txt")
@@ -54,6 +52,7 @@ func _ready() -> void:
 	building_manager.register_building_type("Shipyard", "res://config/building/shipyard.txt")
 	
 	projectile_manager.register_projectile_type("MarineBullet", "res://config/projectile/marine_bullet.txt")
+	projectile_manager.register_projectile_type("Missile", "res://config/projectile/missile.txt")
 	
 	for x in range(used_rect.position.x, used_rect.end.x):
 		for y in range(used_rect.position.y, used_rect.end.y):
@@ -104,11 +103,8 @@ func _ready() -> void:
 			#var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(2000, 2000), 2)
 			
 			GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y), 1)
-			GlobalGameManager.rpc_server_request_spawn_unit("TinyTank", -32 * Vector2(x, y), 1)
 			GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y) + Vector2(11000, 3500), 2)
-			GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y) + Vector2(0, 500), 2)
 			
-			active_unit_ids.append(1)
 			#active_unit_ids.append(id1)
 			#active_unit_ids.append(id2)
 		
