@@ -71,7 +71,7 @@ tile_set = SubResource("TileSet_kfbq2")
 separation_factor = 100000.0
 friction_factor = 15.0
 force_threshold_squared = 0.0
-desired_integration = 1.0
+desired_integration = 0.5
 
 [node name="SelectionManager" type="SelectionManager" parent="." unique_id=803111584 node_paths=PackedStringArray("unit_manager", "building_manager", "camera_3d", "production_panel")]
 script = ExtResource("4_3wy1v")

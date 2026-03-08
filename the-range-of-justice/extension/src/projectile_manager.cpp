@@ -14,7 +14,7 @@ void ProjectileManager::_bind_methods() {
         "type_name",
         "start_pos", "start_height",
         "target_id", "target_is_building", "target_height",
-        "source_id", "source_is_building"),
+        "source_id", "source_is_building", "weapon_damage"),
         &ProjectileManager::spawn_projectile);
 
     ClassDB::bind_method(D_METHOD("setup", "p_um", "p_am"), &ProjectileManager::setup);
@@ -51,7 +51,7 @@ void ProjectileManager::spawn_projectile(
     p.source_is_building = p_source_is_building;
     p.damage = p_weapon_damage;
 
-
+    p.stats = stats;
     p.speed = stats->get_speed();
     p.acceleration = stats->get_acceleration();
     p.splash_radius = stats->get_splash_radius();
@@ -63,16 +63,90 @@ void ProjectileManager::spawn_projectile(
 ProjectileManager::ProjectileManager() {}
 ProjectileManager::~ProjectileManager() {}
 
-void ProjectileManager::register_projectile_type(const String& p_type_name, const String& p_config_path) {
+void ProjectileManager::register_projectile_type(String p_type_name, String p_config_path) {
+    // 1. 加载配置资源
     Ref<ProjectileStats> stats = ProjectileLoader::load_stats_from_txt(p_config_path);
 
-    if (stats.is_valid()) {
-        projectile_templates[p_type_name] = stats;
-        UtilityFunctions::print("成功注册投射物: ", p_type_name, " 路径: ", p_config_path);
+    if (stats.is_null()) {
+        UtilityFunctions::printerr(">>> [ProjectileManager] 注册失败，无法加载配置: ", p_config_path);
+        return;
+    }
+
+    // 2. 缓存 Stats 引用
+    projectile_templates[p_type_name] = stats;
+    ProjectileStats* stats_ptr = stats.ptr();
+
+    // 3. 检查是否已经为该指针创建过渲染器（防止重复注册）
+    if (type_renderers.find(stats_ptr) != type_renderers.end()) return;
+
+    // --- 4. 创建主渲染器 (MultiMeshInstance3D) ---
+    MultiMeshInstance3D* mmi = memnew(MultiMeshInstance3D);
+    mmi->set_name(p_type_name + "_Renderer");
+    add_child(mmi);
+
+    // 设置 MultiMesh
+    Ref<MultiMesh> mm;
+    mm.instantiate();
+    mm->set_transform_format(MultiMesh::TRANSFORM_3D);
+    mm->set_use_colors(true);
+    mm->set_use_custom_data(true);
+
+    // 设置 Mesh 尺寸 (根据贴图和帧数计算单帧大小)
+    Ref<QuadMesh> qmesh;
+    qmesh.instantiate();
+
+    Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(stats->get_visual_path());
+    if (tex.is_valid()) {
+        // 单帧宽度 = 总宽度 / 横向帧数
+        Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
+        qmesh->set_size(frame_size);
     }
     else {
-        UtilityFunctions::printerr("注册投射物失败, 无法加载配置文件: ", p_config_path);
+        qmesh->set_size(Vector2(8, 8)); // 回退默认值
     }
+    mm->set_mesh(qmesh);
+    mmi->set_multimesh(mm);
+
+    // 设置材质与 Shader
+    if (projectile_shader.is_null()) {
+        projectile_shader = ResourceLoader::get_singleton()->load("res://shader/unit_shader.gdshader");
+    }
+    Ref<ShaderMaterial> mat;
+    mat.instantiate();
+    mat->set_shader(projectile_shader);
+    mat->set_shader_parameter("albedo_texture", tex);
+    mat->set_shader_parameter("h_frames", stats->get_h_frames());
+    mat->set_shader_parameter("v_frames", stats->get_v_frames());
+
+    mmi->set_material_override(mat);
+    type_renderers[stats_ptr] = mmi;
+
+    // --- 5. 创建影子渲染器 (Shadows) ---
+    MultiMeshInstance3D* s_mmi = memnew(MultiMeshInstance3D);
+    s_mmi->set_name(p_type_name + "_Shadows");
+    add_child(s_mmi);
+
+    Ref<MultiMesh> s_mm;
+    s_mm.instantiate();
+    s_mm->set_transform_format(MultiMesh::TRANSFORM_3D);
+    s_mm->set_use_custom_data(true);
+    s_mm->set_mesh(qmesh); // 复用上面的 QuadMesh 尺寸
+    s_mmi->set_multimesh(s_mm);
+
+    if (shadow_shader.is_null()) {
+        shadow_shader = ResourceLoader::get_singleton()->load("res://shader/unit_shadow.gdshader");
+    }
+    Ref<ShaderMaterial> s_mat;
+    s_mat.instantiate();
+    s_mat->set_shader(shadow_shader);
+    s_mat->set_shader_parameter("albedo_texture", tex);
+    s_mat->set_shader_parameter("h_frames", stats->get_h_frames());
+    s_mat->set_shader_parameter("v_frames", stats->get_v_frames());
+
+    s_mmi->set_material_override(s_mat);
+    shadow_renderers[stats_ptr] = s_mmi;
+
+    UtilityFunctions::print(">>> [ProjectileManager] 成功注册投射物渲染器: ", p_type_name);
 }
 
 void ProjectileManager::setup(UnitManager* p_um, AttackManager* p_am) {
@@ -139,17 +213,24 @@ void ProjectileManager::_physics_process(double p_delta) {
 
         // 3. 命中判定
         if (distance_to_target <= move_step) {
-            if (it->splash_radius > 0.0f) {
-                // AoE 伤害：传入攻击者是建筑还是单位
-                attack_manager->apply_aoe_damage(it->target_pos, it->splash_radius, it->damage, it->source_id, it->source_is_building);
+            // --- 联机逻辑关键修改 ---
+            // 只有服务器有权调用 AttackManager 进行结算
+            if (get_multiplayer()->is_server()) {
+                if (it->splash_radius > 0.0f) {
+                    attack_manager->apply_aoe_damage(it->target_pos, it->splash_radius, it->damage, it->source_id, it->source_is_building);
+                }
+                else {
+                    if (target_alive) {
+                        attack_manager->apply_damage(it->target_id, it->target_is_building, it->damage, it->source_id, it->source_is_building);
+                    }
+                }
+                // UtilityFunctions::print("Server: Projectile Hit & Damage Applied.");
             }
             else {
-                // 单体伤害：如果目标依然存活，则造成伤害
-                if (target_alive) {
-                    attack_manager->apply_damage(it->target_id, it->target_is_building, it->damage, it->source_id, it->source_is_building);
-                }
+                // 客户端仅销毁，不处理伤害
+                // UtilityFunctions::print("Client: Projectile Visual Hit.");
             }
-            UtilityFunctions::print("get it! target_alive:", target_alive);
+
             it = projectiles.erase(it);
         }
         // 4. 飞行与高度计算
@@ -173,19 +254,89 @@ void ProjectileManager::_physics_process(double p_delta) {
             ++it;
         }
     }
-    update_render_buffer();
+    update_render_buffer(p_delta);
 }
 
-void ProjectileManager::update_render_buffer() {
-    int idx = 0;
-    for (const auto& p : projectiles) {
-        Transform3D transform;
-        Vector3 pos_3d = Vector3(p.position.x, p.current_height, p.position.y);
-        transform = transform.translated(pos_3d);
+void ProjectileManager::update_render_buffer(double p_delta) {
+    if (type_renderers.empty()) return;
 
-        // 此处可以添加 look_at() 逻辑
+    // 1. 清空分组缓存
+    for (auto& pair : type_grouping_cache) {
+        pair.second.clear();
+    }
 
-        // multimesh->set_instance_transform(idx, transform);
-        idx++;
+    // 2. 按 stats 指针进行分组
+    for (int i = 0; i < (int)projectiles.size(); ++i) {
+        ProjectileStats* s_ptr = projectiles[i].stats.ptr();
+        if (s_ptr) {
+            type_grouping_cache[s_ptr].push_back(i);
+        }
+    }
+
+    // 3. 遍历渲染器更新
+    for (auto const& [s_ptr, mmi] : type_renderers) {
+        const std::vector<int>& indices = type_grouping_cache[s_ptr];
+        int count = (int)indices.size();
+
+        Ref<MultiMesh> mm = mmi->get_multimesh();
+        mm->set_instance_count(count);
+
+        MultiMeshInstance3D* s_mmi = shadow_renderers[s_ptr];
+        Ref<MultiMesh> s_mm = s_mmi->get_multimesh();
+        s_mm->set_instance_count(count);
+
+        if (count == 0) continue;
+
+        for (int i = 0; i < count; ++i) {
+            ProjectileData& p = projectiles[indices[i]]; // 注意：这里用引用，因为要更新 anim_time
+
+            // --- A. 更新动画时间 ---
+            p.anim_time += p_delta;
+
+            // --- B. 计算动画帧 (完全仿照 UnitManager 逻辑) ---
+            // 假设 ProjectileStats 有这些 Getter（如果没有，需在 stats 类中添加）
+            int h_frames = s_ptr->get_h_frames();
+            float anim_fps = s_ptr->get_anim_fps();
+
+            // 计算当前帧索引 (简单的循环播放)
+            // 如果投射物有多行(如旋转图集)，row 可以根据方向计算，这里默认取第0行
+            int frame_idx = (int)(p.anim_time * anim_fps) % h_frames;
+            int row = 0;
+            float modulate = 1.0f; // 投射物通常不需要 hover 高亮，设为 1.0
+
+            // --- C. 物理变换计算 ---
+            float fake_depth_offset = p.position.y * 0.0001f;
+            Vector3 pos_3d = Vector3(p.position.x, p.current_height + fake_depth_offset, p.position.y);
+
+            // 计算旋转方向
+            Vector2 dir = p.target_pos - p.position;
+            float angle = dir.angle();
+
+            Transform3D xform;
+            xform.origin = pos_3d;
+            xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
+            xform.basis = xform.basis.rotated(Vector3(0, -1, 0), angle + Math_PI / 2.0f);
+
+            // --- D. 设置渲染数据 ---
+            mm->set_instance_transform(i, xform);
+
+            // Custom Data: X=帧索引, Y=行索引, Z=亮度调制, W=自定义
+            mm->set_instance_custom_data(i, Color((float)frame_idx, (float)row, modulate, 0.0f));
+
+            // 如果需要团队颜色，也可以在这里设置
+            // mm->set_instance_color(i, team_color);
+
+            // --- E. 影子处理 ---
+            Transform3D shadow_xform;
+            float shadow_offset = 2.0f;
+            shadow_xform.origin = Vector3(p.position.x + shadow_offset, 0.1f + fake_depth_offset, p.position.y + shadow_offset);
+            shadow_xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
+            shadow_xform.basis = shadow_xform.basis.rotated(Vector3(0, -1, 0), angle + Math_PI / 2.0f);
+
+            s_mm->set_instance_transform(i, shadow_xform);
+
+            // 影子的动画帧必须和主体同步，否则形状对不上
+            s_mm->set_instance_custom_data(i, Color((float)frame_idx, (float)row, 0.0f, 0.0f));
+        }
     }
 }

@@ -12,6 +12,11 @@ void AttackManager::_bind_methods() {
         ClassDB::bind_method(D_METHOD("set_projectile_manager", "p_proj_manager"), &AttackManager::set_projectile_manager);
         ClassDB::bind_method(D_METHOD("set_building_manager", "p_bmanager"), &AttackManager::set_building_manager);
         ClassDB::bind_method(D_METHOD("setup", "p_manager"), &AttackManager::setup);
+
+        ADD_SIGNAL(MethodInfo("spawn_projectile_requested", PropertyInfo(Variant::STRING, "type_name"), PropertyInfo(Variant::VECTOR2, "start_pos"),
+            PropertyInfo(Variant::FLOAT, "start_height"), PropertyInfo(Variant::INT, "target_id"), PropertyInfo(Variant::BOOL, "target_is_building"),
+            PropertyInfo(Variant::FLOAT, "target_height"), PropertyInfo(Variant::INT, "source_id"), PropertyInfo(Variant::BOOL, "source_is_building"),
+            PropertyInfo(Variant::FLOAT, "weapon_damage")));
 }
 
 AttackManager::AttackManager() {}
@@ -234,7 +239,7 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
                         // 生成投射物并注入专属伤害
                         if (projectile_manager) {
                             float start_height = p_unit.stats->base_height + 5.0f;
-                            projectile_manager->spawn_projectile(
+                            emit_signal("spawn_projectile_requested",
                                 weapon.projectile_type_name,
                                 p_unit.position, start_height,
                                 p_unit.target_id, p_unit.target_is_building, 0.0f,
@@ -506,7 +511,7 @@ void AttackManager::_execute_attack(UnitData& attacker, int target_id, bool targ
             }
 
             // 3. 生成投射物 (保持你原本的 13个 参数不变，注入当前武器的具体数值)
-            projectile_manager->spawn_projectile(
+            emit_signal("spawn_projectile_requested",
                 weapon.projectile_type_name, 
                 attacker.position,           
                 start_height,               
@@ -579,7 +584,7 @@ void AttackManager::_execute_building_attack(BuildingData& attacker, int target_
             // 如果没有，你可以先硬编码一个你在 txt 里注册过的子弹名字，比如 "Shell" 或 "Bullet"
             String building_projectile_type = "Shell";
 
-            projectile_manager->spawn_projectile(
+            emit_signal("spawn_projectile_requested", 
                 building_projectile_type, 
                 spawn_pos,                
                 start_height,           

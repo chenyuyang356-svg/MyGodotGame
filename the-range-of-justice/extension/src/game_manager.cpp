@@ -71,6 +71,7 @@ GameManager::GameManager() {
 	reg_sync_config["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
 	reg_sync_config["call_local"] = true; // 确保服务器本地也更新 map
 	rpc_config("rpc_client_on_player_registered", reg_sync_config);
+	rpc_config("rpc_client_spawn_projectile", reg_sync_config);
 }
 
 GameManager::~GameManager() {}
@@ -196,14 +197,29 @@ void godot::GameManager::set_economy_manager(Node* p_node) {
 	economy_manager = Object::cast_to<EconomyManager>(p_node);
 }
 
+void godot::GameManager::set_attack_manager(Node* p_node) {
+	attack_manager = Object::cast_to<AttackManager>(p_node);
+
+	if (attack_manager) {
+		attack_manager->connect("spawn_projectile_requested", Callable(this, "_on_spawn_projectile_requested"));
+	}
+}
+
+void godot::GameManager::set_projectile_manager(Node* p_node) {
+	projectile_manager = Object::cast_to<ProjectileManager>(p_node);
+}
+
 
 void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin) {
 	unit_manager->set_flow_field_manager(flow_field_manager);
 	unit_manager->set_group_manager(group_manager);
+	unit_manager->set_attack_manager(attack_manager);
 	building_manager->set_flow_field_manager(flow_field_manager);
 	building_manager->set_unit_manager(unit_manager);
 	building_manager->set_economy_manager(economy_manager);
 	selection_manager->set_team_id(peer_to_team_map[get_multiplayer()->get_unique_id()]);
+	attack_manager->set_building_manager(building_manager);
+	attack_manager->set_projectile_manager(projectile_manager);
 	unit_manager->setup_system(p_width, p_height, p_cell_size, p_origin);
 	is_setup = true;
 }
@@ -368,8 +384,9 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 		float py = p_raw_data.decode_float(offset + 8);
 		float rot = p_raw_data.decode_float(offset + 12);
 		float height = p_raw_data.decode_float(offset + 16);
-		uint8_t state = p_raw_data.get(offset + 20);
-		offset += 21;
+		float health = p_raw_data.decode_float(offset + 20);
+		uint8_t state = p_raw_data.get(offset + 24);
+		offset += 25;
 
 		int idx = unit_manager->get_unit_index_by_id(id);
 		if (idx != -1) {
@@ -385,6 +402,7 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 			unit.next_position = Vector2(px, py);
 			unit.next_rotation = rot;
 			unit.next_height = height;
+			unit.current_health = health;
 			unit.state = (UnitState)state;
 		}
 	}
@@ -426,7 +444,7 @@ void GameManager::rpc_server_request_spawn_unit(String p_type, Vector2 p_pos, in
 }
 
 void GameManager::rpc_client_spawn_unit(int p_id, String p_type, Vector2 p_pos, int p_team) {
-	selection_manager->on_unit_despawned(p_id);
+	unit_manager->spawn_unit_by_type(p_type, p_pos, p_team, p_id);
 }
 
 // 2. 建筑生成
@@ -459,11 +477,27 @@ void GameManager::rpc_client_spawn_building(int p_id, String p_type, Vector2i p_
 
 // 3. 锢�毁��辑
 void GameManager::rpc_client_despawn_unit(int p_id) {
-	unit_manager->despawn_unit(p_id, selection_manager);
+	selection_manager->on_unit_despawned(p_id);
 }
 
 void GameManager::rpc_client_remove_building(int p_id) {
 	building_manager->remove_building(p_id, selection_manager);
+}
+
+void GameManager::rpc_client_spawn_projectile(
+	const String& p_type_name,
+	Vector2 p_start_pos, float p_start_height,
+	int p_target_id, bool p_target_is_building, float p_target_height,
+	int p_source_id, bool p_source_is_building,
+	float p_weapon_damage)
+{
+	if (projectile_manager) {
+		projectile_manager->spawn_projectile(
+			p_type_name, p_start_pos, p_start_height,
+			p_target_id, p_target_is_building, p_target_height,
+			p_source_id, p_source_is_building, p_weapon_damage
+		);
+	}
 }
 
 void GameManager::rpc_server_request_produce_unit(int p_building_id, String p_unit_type) {
@@ -585,6 +619,14 @@ void GameManager::_on_despawn_building_requested(int p_bid) {
 	building_manager->remove_building(p_bid, selection_manager);
 }
 
+void GameManager::_on_spawn_projectile_requested(const String& p_type_name, Vector2 p_start_pos, float p_start_height, int p_target_id, bool p_target_is_building, float p_target_height, int p_source_id, bool p_source_is_building, float p_weapon_damage) {
+	if (!get_multiplayer()->is_server()) { return; }
+	rpc("rpc_client_spawn_projectile",
+		p_type_name, p_start_pos, p_start_height,
+		p_target_id, p_target_is_building, p_target_height,
+		p_source_id, p_source_is_building, p_weapon_damage);
+}
+
 void GameManager::_on_unit_production_requested(int p_bid, String p_type) {
 	if (get_multiplayer()->is_server()) {
 		// 如果是服务器，直接进入��辑
@@ -627,6 +669,8 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_selection_manager", "node"), &GameManager::set_selection_manager);
 	ClassDB::bind_method(D_METHOD("set_group_manager", "node"), &GameManager::set_group_manager);
 	ClassDB::bind_method(D_METHOD("set_economy_manager", "node"), &GameManager::set_economy_manager);
+	ClassDB::bind_method(D_METHOD("set_attack_manager", "node"), &GameManager::set_attack_manager);
+	ClassDB::bind_method(D_METHOD("set_projectile_manager", "node"), &GameManager::set_projectile_manager);
 	ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &GameManager::setup_system);
 
 	ClassDB::bind_method(D_METHOD("host_game", "port"), &GameManager::host_game);
@@ -659,6 +703,8 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("rpc_client_remove_building", "id"),
 		&GameManager::rpc_client_remove_building);
 
+	ClassDB::bind_method(D_METHOD("rpc_client_spawn_projectile", "type", "start_pos", "start_h", "t_id", "t_is_bld", "t_h", "s_id", "s_is_bld", "dmg"), &GameManager::rpc_client_spawn_projectile);
+
 	ClassDB::bind_method(D_METHOD("rpc_server_request_produce_unit", "id", "unit_type"),
 		&GameManager::rpc_server_request_produce_unit);
 
@@ -673,6 +719,9 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_spawn_unit_requested", "ids", "pos", "team_id"), &GameManager::_on_spawn_unit_requested);
 	ClassDB::bind_method(D_METHOD("_on_despawn_unit_requested", "id"), &GameManager::_on_despawn_unit_requested);
 	ClassDB::bind_method(D_METHOD("_on_despawn_building_requested", "id"), &GameManager::_on_despawn_building_requested);
+	ClassDB::bind_method(D_METHOD("_on_spawn_projectile_requested", "type_name",
+		"start_pos", "start_height", "target_id", "target_is_building", "target_height",
+		"source_id", "source_is_building", "weapon_damage"), &GameManager::_on_spawn_projectile_requested);
 	ClassDB::bind_method(D_METHOD("_on_peer_connected", "id"), &GameManager::_on_peer_connected);
 	ClassDB::bind_method(D_METHOD("_on_connected_to_server"), &GameManager::_on_connected_to_server);
 
