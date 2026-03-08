@@ -23,7 +23,7 @@ target_priority  = Closest
 
 # --- Movement (移动与碰撞) ---
 move_speed       = 140.0
-acceleration     = 76.0
+acceleration     = 90.0
 turn_speed       = 0.65
 turn_acceleration= 0.95
 # [关键] 碰撞半径

@@ -9,7 +9,7 @@ building_name=Shipyard
 # 建筑类型: Generic, Barracks, Turret, Collector, Storage (对应枚举 BuildingType)
 building_type=Barracks
 # land, water, on_resource
-placement = sea
+placement = water
 
 [Economy]
 # 建造消耗资源

@@ -69,7 +69,6 @@ tile_set = SubResource("TileSet_kfbq2")
 
 [node name="UnitManager" type="UnitManager" parent="." unique_id=355650158]
 separation_factor = 100000.0
-separation_radius_factor = 2.0
 friction_factor = 15.0
 force_threshold_squared = 0.0
 desired_integration = 1.0

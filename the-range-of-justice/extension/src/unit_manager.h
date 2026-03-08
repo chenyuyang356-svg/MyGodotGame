@@ -82,6 +82,10 @@ namespace godot {
 		std::unordered_map<UnitStats*, MultiMeshInstance3D*> shadow_renderers;
 		Ref<Shader> shadow_shader;
 
+		// 血条渲染器
+		MultiMeshInstance3D* global_hp_bar_renderer = nullptr;
+		Ref<Shader> hp_bar_shader;
+
 		HashMap<String, Ref<UnitStats>> unit_types_cache;
 
 	protected:
@@ -95,6 +99,7 @@ namespace godot {
 
 		// --- 系统管理 ---
 		void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
+		void _setup_hp_bar_system();
 
 		// --- 单位生命周期 ---
 		int spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id = 0, int p_forced_id = -1);

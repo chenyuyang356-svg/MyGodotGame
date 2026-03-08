@@ -33,7 +33,39 @@ void UnitManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
         unit_grid[i].reserve(10);
     }
 
+    _setup_hp_bar_system();
+
     is_setup = true;
+}
+
+void UnitManager::_setup_hp_bar_system() {
+    if (global_hp_bar_renderer) return;
+
+    global_hp_bar_renderer = memnew(MultiMeshInstance3D);
+    global_hp_bar_renderer->set_name("GlobalHPBars");
+    add_child(global_hp_bar_renderer);
+
+    Ref<MultiMesh> mm;
+    mm.instantiate();
+    mm->set_transform_format(MultiMesh::TRANSFORM_3D);
+    mm->set_use_custom_data(true); // X: HP比例, Y: 团队颜色/可见性
+    mm->set_use_colors(true);      // 也可以用颜色存团队色
+
+    Ref<QuadMesh> mesh;
+    mesh.instantiate();
+    mesh->set_size(Vector2(1.0, 1.0)); // 初始尺寸设为1，后面在Transform里缩放
+    mm->set_mesh(mesh);
+
+    global_hp_bar_renderer->set_multimesh(mm);
+
+    // 材质设置
+    Ref<ShaderMaterial> mat;
+    mat.instantiate();
+    if (hp_bar_shader.is_null()) {
+        hp_bar_shader = ResourceLoader::get_singleton()->load("res://shader/hp_bar.gdshader");
+    }
+    mat->set_shader(hp_bar_shader);
+    global_hp_bar_renderer->set_material_override(mat);
 }
 
 int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id, int p_forced_id) {
@@ -742,6 +774,60 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
 
             unit.anim_time += p_delta;
         }
+    }
+
+    // --- 更新全局血条 ---
+    int total_units = units.size();
+    Ref<MultiMesh> hp_mm = global_hp_bar_renderer->get_multimesh();
+
+    if (hp_mm->get_instance_count() != total_units) {
+        hp_mm->set_instance_count(total_units);
+    }
+
+    for (int i = 0; i < total_units; ++i) {
+        UnitData& unit = units[i];
+
+        // 1. 获取基础视觉数据
+        Vector2 visual_pos = UtilityFunctions::lerp(unit.prev_position, unit.next_position, p_alpha);
+        float visual_height = UtilityFunctions::lerp(unit.prev_height, unit.next_height, p_alpha);
+
+        // 2. 计算血条位置和大小
+        float offset_y = unit.stats->get_collision_radius() * 1.1f; // 每个兵种高度不同
+        float bar_width = unit.stats->get_collision_radius() * 1.9f;
+
+        Transform3D xform;
+        // 这里的 Y 坐标加上了 offset_y
+        Vector3 pos_3d = Vector3(visual_pos.x,
+            visual_height + 10.0f,
+            visual_pos.y - visual_height - offset_y);
+        xform.origin = pos_3d;
+
+        xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
+        // 根据兵种设定的宽度进行缩放 (高度固定比如 4.0)
+        xform.basis = xform.basis.scaled(Vector3(bar_width, 4.0, 4.0));
+
+        hp_mm->set_instance_transform(i, xform);
+
+        // 3. 计算血量百分比
+        float hp_ratio = (float)unit.current_health / (float)unit.stats->get_health_max();
+
+        // 4. 控制显示逻辑 (比如：受伤显示，或者选中显示)
+        bool is_selected = p_selection_manager->is_unit_selected(unit.id);
+        bool is_damaged = hp_ratio < 0.99f;
+
+        // 如果不需要显示，直接把缩放设为 0 或者在 Shader 里 discard
+        if (!(is_selected || is_damaged)) {
+            hp_mm->set_instance_transform(i, Transform3D().scaled(Vector3(0, 0, 0)));
+            continue;
+        }
+
+        // 5. 传递数据给 Shader
+        // Custom Data: X = 比例, Y = 状态
+        hp_mm->set_instance_custom_data(i, Color(hp_ratio, 0.0, 0.0, 0.0));
+
+        // Color: 设置团队颜色（友绿敌红）
+        Color team_color = Color(1.0, 0.0, 0.0);
+        hp_mm->set_instance_color(i, team_color);
     }
 }
 

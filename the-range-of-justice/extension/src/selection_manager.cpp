@@ -10,7 +10,7 @@ void SelectionManager::do_single_select(Vector2 p_mouse_pos, Node* p_um, Node* p
 
     // 1. 优先检查单位 (由于单位小且移动，通常优先级更高)
     int u_id = um->get_unit_at_position(p_mouse_pos);
-    if (u_id != -1) {
+    if (u_id != -1 && um->get_unit_team_id(u_id) == team_id) {
         clear_selection();
         selected_unit_ids.insert(u_id);
         current_selection_type = UNIT;
@@ -21,7 +21,7 @@ void SelectionManager::do_single_select(Vector2 p_mouse_pos, Node* p_um, Node* p
     // 2. 检查建筑
     // 假设 FlowFieldManager 的 world_to_grid 在内部处理
     int b_id = bm->get_building_at_position(p_mouse_pos);
-    if (b_id != -1) {
+    if (b_id != -1 && bm->get_building_team_id(b_id) == team_id) {
         clear_selection();
         selected_building_ids.insert(b_id);
         current_selection_type = BUILDING;

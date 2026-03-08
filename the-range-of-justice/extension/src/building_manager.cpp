@@ -81,7 +81,10 @@ void BuildingManager::update(double p_delta) {
                         Vector2 cell_sz = Vector2(flow_field_manager->get_cell_size());
                         Vector2 fp_size = Vector2(b.stats->get_footprint()) * cell_sz;
                         Vector2 spawn_pos = Vector2(b.grid_pos) * cell_sz + fp_size * 0.5f;
+                        float random_angle = UtilityFunctions::randf_range(0, Math_TAU);
+                        Vector2 random_offset = Vector2(UtilityFunctions::cos(random_angle), UtilityFunctions::sin(random_angle));
                         spawn_pos.y += fp_size.y * 0.6f; // 向下偏离中心，防止重叠
+                        spawn_pos += random_offset;
 
                         // 注意：这里由服务器直接调用 spawn。
                         // 在联机版中，GameManager 会负责随后将此 ID 广播给所有客户端。
