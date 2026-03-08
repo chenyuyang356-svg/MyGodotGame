@@ -19,7 +19,7 @@ splash_radius    = 0.0
 target_priority  = Closest
 can_fire_on_move = true
 weapon = Missile, 10.0, 300.0, 0.3, 600.0, 2.0
-weapon = MarineBullet, 10.0, 300.0, 0.3, 1200.0, 2.0
+weapon = MarineBullet, 10.0, 300.0, 0.3, 1200.0, 2.0d
 
 # --- Movement (移动与碰撞) ---
 move_speed       = 250.0
