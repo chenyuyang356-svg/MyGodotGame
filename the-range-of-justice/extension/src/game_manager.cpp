@@ -198,6 +198,10 @@ void godot::GameManager::set_projectile_manager(Node* p_node) {
 	projectile_manager = Object::cast_to<ProjectileManager>(p_node);
 }
 
+void godot::GameManager::set_fog_manager(Node* p_node) {
+	fog_manager = Object::cast_to<FogManager>(p_node);
+}
+
 
 void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin) {
 	unit_manager->set_flow_field_manager(flow_field_manager);
@@ -209,6 +213,7 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 	selection_manager->set_team_id(peer_to_team_map[get_multiplayer()->get_unique_id()]);
 	attack_manager->set_building_manager(building_manager);
 	attack_manager->set_projectile_manager(projectile_manager);
+	fog_manager->setup(p_width, p_height, p_cell_size, p_origin);
 	unit_manager->setup_system(p_width, p_height, p_cell_size, p_origin);
 	is_setup = true;
 }
@@ -631,6 +636,7 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_economy_manager", "node"), &GameManager::set_economy_manager);
 	ClassDB::bind_method(D_METHOD("set_attack_manager", "node"), &GameManager::set_attack_manager);
 	ClassDB::bind_method(D_METHOD("set_projectile_manager", "node"), &GameManager::set_projectile_manager);
+	ClassDB::bind_method(D_METHOD("set_fog_manager", "node"), &GameManager::set_fog_manager);
 	ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &GameManager::setup_system);
 
 	ClassDB::bind_method(D_METHOD("host_game", "port"), &GameManager::host_game);

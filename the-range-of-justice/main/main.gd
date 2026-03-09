@@ -11,6 +11,7 @@ func _ready() -> void:
 	var projectile_manager: ProjectileManager = $ProjectileManager
 	var attack_manager: AttackManager = $AttackManager
 	var economy_manager: EconomyManager = $EconomyManager
+	var fog_manager: FogManager = $FogManager
 	
 	var cell_size: Vector2i = tile_map_layer.tile_set.tile_size
 	var used_rect: Rect2i = tile_map_layer.get_used_rect()
@@ -32,6 +33,7 @@ func _ready() -> void:
 	GlobalGameManager.set_attack_manager(attack_manager)
 	GlobalGameManager.set_projectile_manager(projectile_manager)
 	GlobalGameManager.set_economy_manager(economy_manager)
+	GlobalGameManager.set_fog_manager(fog_manager)
 	
 	GlobalGameManager.setup_system(width, height, cell_size, grid_origin)
 	

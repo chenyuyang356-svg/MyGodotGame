@@ -15,6 +15,7 @@
 #include "economy_manager.h"
 #include "attack_manager.h"
 #include "projectile_manager.h"
+#include "fog_manager.h"
 
 namespace godot {
 
@@ -30,6 +31,7 @@ namespace godot {
 		EconomyManager* economy_manager = nullptr;
 		AttackManager* attack_manager = nullptr;
 		ProjectileManager* projectile_manager = nullptr;
+		FogManager* fog_manager = nullptr;
 
 		bool is_setup = false;
 
@@ -67,6 +69,7 @@ namespace godot {
 		void set_economy_manager(Node* p_node);
 		void set_attack_manager(Node* p_node);
 		void set_projectile_manager(Node* p_node);
+		void set_fog_manager(Node* p_node);
 		void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
 
 		// --- 网络管理接口 ---
