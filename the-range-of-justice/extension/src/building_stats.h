@@ -72,6 +72,7 @@ namespace godot {
         BuildingStats();
         ~BuildingStats();
 
+        float sight_range = 700.0f;
         // --- Getters & Setters ---
 
         // Base

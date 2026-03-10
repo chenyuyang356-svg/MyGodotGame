@@ -5,6 +5,7 @@
 #include <godot_cpp/classes/multiplayer_peer.hpp>
 #include <godot_cpp/classes/e_net_multiplayer_peer.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/classes/resource_loader.hpp>
 
 #include "unit_manager.h"
 #include "building_manager.h"

@@ -116,6 +116,29 @@ void GameManager::_process(double p_delta) {
 	// 如果由于网络抖动导致丢包，允许短暂地超量推测 (上限 1.2 倍)，防止画面卡顿
 	float alpha = UtilityFunctions::clamp(tick_accumulator / logic_tick_rate, 0.0, 1.2);
 
+	// 更新迷雾
+	std::vector<Vector2> positions;
+	std::vector<float> radii;
+
+	for (const auto& unit : unit_manager->units) {
+		if (unit.team_id == selection_manager->get_team_id()) {
+			// 记录 3D 世界的 X 和 Z 坐标
+			positions.push_back(Vector2(unit.position.x, unit.position.y));
+			radii.push_back(unit.stats->sight_range);
+		}
+	}
+
+	for (auto& pair : building_manager->buildings) {
+		BuildingData& building = pair.second;
+		if (building.team_id == selection_manager->get_team_id()) {
+			positions.push_back(Vector2(building.grid_pos * flow_field_manager->get_cell_size()) +
+				Vector2(building.stats->get_footprint() * flow_field_manager->get_cell_size()) / 2);
+			radii.push_back(building.stats->sight_range);
+		}
+	}
+
+	fog_manager->update_vision(positions, radii);
+
 	// 驱动底层 MultiMesh 实例，让显卡去画出介于 prev 和 next 之间的平滑位置
 	unit_manager->update_multimesh_buffer(p_delta, alpha, selection_manager);
 	building_manager->update_multimesh_buffer(p_delta, alpha, selection_manager);
@@ -207,13 +230,21 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 	unit_manager->set_flow_field_manager(flow_field_manager);
 	unit_manager->set_group_manager(group_manager);
 	unit_manager->set_attack_manager(attack_manager);
+
 	building_manager->set_flow_field_manager(flow_field_manager);
 	building_manager->set_unit_manager(unit_manager);
 	building_manager->set_economy_manager(economy_manager);
+
 	selection_manager->set_team_id(peer_to_team_map[get_multiplayer()->get_unique_id()]);
+
 	attack_manager->set_building_manager(building_manager);
 	attack_manager->set_projectile_manager(projectile_manager);
-	fog_manager->setup(p_width, p_height, p_cell_size, p_origin);
+
+	Vector2 map_size = Vector2(p_width, p_height) * Vector2(p_cell_size);
+	Vector2 map_pos = Vector2(p_origin) * Vector2(p_cell_size);
+	Ref<Texture2D> brush = ResourceLoader::get_singleton()->load("res://asset/fog_brush.tres");
+	fog_manager->setup_fog(map_pos, map_size, brush);
+
 	unit_manager->setup_system(p_width, p_height, p_cell_size, p_origin);
 	is_setup = true;
 }

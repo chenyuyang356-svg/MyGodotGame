@@ -1,36 +1,42 @@
 #pragma once
 
+#include <vector>
+
 #include <godot_cpp/classes/node3d.hpp>
-#include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <godot_cpp/classes/sub_viewport.hpp>
+#include <godot_cpp/classes/multi_mesh_instance2d.hpp>
+#include <godot_cpp/classes/multi_mesh.hpp>
 #include <godot_cpp/classes/quad_mesh.hpp>
+#include <godot_cpp/classes/sprite2d.hpp>
+#include <godot_cpp/classes/camera2d.hpp>
+#include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/shader_material.hpp>
-#include <godot_cpp/classes/image_texture.hpp>
-#include <godot_cpp/classes/image.hpp>
+#include <godot_cpp/classes/placeholder_texture2d.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
-#include <godot_cpp/variant/vector2.hpp>
+#include <godot_cpp/classes/viewport_texture.hpp>
+#include <godot_cpp/classes/color_rect.hpp>
+#include <godot_cpp/classes/canvas_item_material.hpp>
 
 namespace godot {
 
     class FogManager : public Node3D {
         GDCLASS(FogManager, Node3D)
 
-    public:
-        enum FogMode { MODE_NONE = 0, MODE_LIGHT = 1, MODE_HEAVY = 2 };
-
     private:
-        // 渲染组件
-        MeshInstance3D* fog_mesh_instance = nullptr;
-        Ref<ImageTexture> fog_texture;
-        Ref<Image> fog_image;
-        Ref<ShaderMaterial> fog_material;
+        // Viewports
+        SubViewport* vpc_live = nullptr;
+        SubViewport* vpc_history = nullptr;
 
-        // 迷雾数据
-        int map_width = 0;
-        int map_height = 0;
-        Vector2i cell_size;
-        Vector2i origin_pos;
-        FogMode current_mode = MODE_HEAVY;
-        PackedByteArray grid_data; // 存储每个格子的状态: 0=未探索, 127=已探索, 255=当前可见
+        // 2D 渲染组件 (用于在 Viewport 里画圆)
+        MultiMeshInstance2D* vision_renderer = nullptr;
+        Ref<MultiMesh> vision_multimesh;
+
+        // 3D 视觉覆盖层
+        MeshInstance3D* fog_overlay_mesh = nullptr;
+
+        Vector2 map_size;
+        Vector2 map_pos;
+        int fog_resolution = 512; // 贴图分辨率
 
     protected:
         static void _bind_methods();
@@ -39,13 +45,14 @@ namespace godot {
         FogManager();
         ~FogManager();
 
-        // 在游戏初始化时调用
-        void setup(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin_pos);
+        void setup_fog(Vector2 p_map_pos, Vector2 p_map_size, Ref<Texture2D> p_brush_texture);
 
-        // 每帧更新迷雾贴图
-        void update_fog();
+        // 每帧调用：传入所有拥有视野的单位坐标和半径
+        void update_vision(const std::vector<Vector2>& p_positions, const std::vector<float>& p_radii);
 
-        void set_fog_mode(int p_mode);
+        Ref<Texture2D> get_live_texture() const;
+        Ref<Texture2D> get_history_texture() const;
+        Vector2 get_map_size() const { return map_size; }
     };
 
 }

@@ -134,6 +134,9 @@ void UnitManager::handle_dead_unit(double p_delta) {
         UnitData& unit = units[unit_idx];
         if (unit.current_health <= 0) {
             unit.state = DYING;
+        }
+
+        if (unit.state == DYING) {
             unit.current_dying_time += p_delta;
             if (unit.current_dying_time >= unit.stats->dying_time) {
                 emit_signal("despawn_unit_requested", unit.id);
@@ -655,8 +658,6 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
         const std::vector<int>& indices = type_grouping_cache[s_ptr];
         int count = indices.size();
 
-        if (count == 0) continue;
-
         Ref<MultiMesh> mm = mmi->get_multimesh();
         if (mm->get_instance_count() != count) {
             mm->set_instance_count(count);
@@ -665,6 +666,8 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
         MultiMeshInstance3D* s_mmi = shadow_renderers[s_ptr];
         Ref<MultiMesh> s_mm = s_mmi->get_multimesh();
         s_mm->set_instance_count(count);
+
+        if (count == 0) continue;
           
         for (int i = 0; i < count; ++i) {
             int u_idx = indices[i];
