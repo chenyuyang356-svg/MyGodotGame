@@ -8,18 +8,29 @@ uniform sampler2D albedo_texture : source_color, filter_nearest;
 uniform int h_frames = 1;
 uniform int v_frames = 1;
 
+uniform sampler2D tex_fog_live;  // 实时视野贴图
+uniform vec2 map_size;          // 地图的世界尺寸
+uniform vec2 map_pos;          // 地图的左上角
+
 varying vec4 custom_data;
 varying vec4 instance_color;
+varying vec3 world_pos;
 
 void vertex() {
     custom_data = INSTANCE_CUSTOM;
     instance_color = COLOR;
     
+	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
     // 让 Quad 始终面向摄像机（看板模式），如果你不需要可以删掉
     // MODELVIEW_MATRIX = VIEW_MATRIX * mat4(vec4(normalize(cross(vec3(0.0, 1.0, 0.0), VIEW_MATRIX[2].xyz)), 0.0), vec4(0.0, 1.0, 0.0, 0.0), vec4(normalize(cross(VIEW_MATRIX[0].xyz, vec3(0.0, 1.0, 0.0))), 0.0), WORLD_MATRIX[3]);
 }
 
 void fragment() {
+	vec2 fog_uv = vec2((world_pos.x - map_pos.x) / map_size.x,
+	 (world_pos.z - map_pos.y) / map_size.y);
+	float visibility = texture(tex_fog_live, fog_uv).r;
+	ALPHA *= smoothstep(0.0, 0.2, visibility);
+	
     float frame = floor(custom_data.x);
     float row = floor(custom_data.y); 
 	float modulate = custom_data.z;

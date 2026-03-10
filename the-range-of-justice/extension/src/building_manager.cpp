@@ -21,6 +21,10 @@ void BuildingManager::set_economy_manager(Node* p_node) {
     economy_manager = Object::cast_to<EconomyManager>(p_node);
 }
 
+void BuildingManager::set_fog_manager(Node* p_node) {
+    fog_manager = Object::cast_to<FogManager>(p_node);
+}
+
 void BuildingManager::update(double p_delta) {
     handle_dead_buildings(p_delta);
 
@@ -273,6 +277,13 @@ void BuildingManager::register_building_type(String p_name, String p_path) {
     mat->set_shader_parameter("albedo_texture", tex);
     mat->set_shader_parameter("h_frames", stats->get_h_frames());
     mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    // 传入实时视野贴图
+    mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+    // 传入地图尺寸
+    mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+    // 传入地图位置
+    mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+
     mmi->set_material_override(mat);
     type_renderers[s_ptr] = mmi;
 
@@ -302,6 +313,13 @@ void BuildingManager::register_building_type(String p_name, String p_path) {
     s_mat->set_shader_parameter("albedo_texture", tex);
     s_mat->set_shader_parameter("h_frames", stats->get_h_frames());
     s_mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    // 传入实时视野贴图
+    s_mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+    // 传入地图尺寸
+    s_mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+    // 传入地图位置
+    s_mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+
     s_mmi->set_material_override(s_mat);
     shadow_renderers[s_ptr] = s_mmi;
 }

@@ -16,7 +16,7 @@ void fragment() {
     } else if (history > 0.1) {
         alpha = shroud_opacity; // 已探索：半透明（显示下方地图）
     } else {
-        alpha = 1.0; // 未探索：纯黑
+        alpha = 0.9; // 未探索：纯黑
     }
     
     ALBEDO = fog_color;

@@ -229,11 +229,13 @@ void godot::GameManager::set_fog_manager(Node* p_node) {
 void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin) {
 	unit_manager->set_flow_field_manager(flow_field_manager);
 	unit_manager->set_group_manager(group_manager);
+	unit_manager->set_fog_manager(fog_manager);
 	unit_manager->set_attack_manager(attack_manager);
 
 	building_manager->set_flow_field_manager(flow_field_manager);
 	building_manager->set_unit_manager(unit_manager);
 	building_manager->set_economy_manager(economy_manager);
+	building_manager->set_fog_manager(fog_manager);
 
 	selection_manager->set_team_id(peer_to_team_map[get_multiplayer()->get_unique_id()]);
 

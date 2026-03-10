@@ -53,6 +53,7 @@ namespace godot {
         Ref<Texture2D> get_live_texture() const;
         Ref<Texture2D> get_history_texture() const;
         Vector2 get_map_size() const { return map_size; }
+        Vector2 get_map_pos() const { return map_pos; }
     };
 
 }

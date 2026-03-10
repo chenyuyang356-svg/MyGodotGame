@@ -105,7 +105,7 @@ func _ready() -> void:
 			#var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(2000, 2000), 2)
 			
 			GlobalGameManager.rpc_server_request_spawn_unit("Helicopter", -32 * Vector2(x, y), 1)
-			GlobalGameManager.rpc_server_request_spawn_unit("AttackHelicopter", -32 * Vector2(x, y) + Vector2(0, 500), 2)
+			GlobalGameManager.rpc_server_request_spawn_unit("Helicopter", -32 * Vector2(x, y) + Vector2(0, 500), 2)
 			GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(11000, 3500), 2)
 			
 			#active_unit_ids.append(id1)

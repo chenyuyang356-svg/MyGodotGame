@@ -16,6 +16,7 @@
 #include "building_loader.h"
 #include "building_data.h"
 #include "economy_manager.h"
+#include "fog_manager.h"
 
 namespace godot {
     class SelectionManager;
@@ -31,6 +32,7 @@ namespace godot {
         FlowFieldManager* flow_field_manager = nullptr;
         UnitManager* unit_manager = nullptr;
         EconomyManager* economy_manager = nullptr;
+        FogManager* fog_manager = nullptr;
 
         HashMap<String, Ref<BuildingStats>> building_types_cache;
         int next_building_id = 0;
@@ -58,6 +60,7 @@ namespace godot {
         void set_flow_field_manager(Node* p_node);
         void set_unit_manager(Node* p_node);
         void set_economy_manager(Node* p_node);
+        void set_fog_manager(Node* p_node);
 
         // --- 核心功能 ---
 

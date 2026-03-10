@@ -26,6 +26,7 @@
 
 #include "flow_field_manager.h"
 #include "group_manager.h"
+#include "fog_manager.h"
 #include "unit_loader.h"
 #include "unit_data.h"
 
@@ -43,6 +44,7 @@ namespace godot {
 		AttackManager* attack_manager = nullptr; 
 		FlowFieldManager *flow_field_manager;
 		GroupManager* group_manager;
+		FogManager* fog_manager;
 		std::unordered_map<int, size_t> id_to_index;
 		int next_unit_id = 0;
 
@@ -146,6 +148,7 @@ namespace godot {
 
 		void set_flow_field_manager(Node* p_node);
 		void set_group_manager(Node* p_node);
+		void set_fog_manager(Node* p_node);
 
 		void register_unit_type(String p_name, String p_path);
 		int spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_team_id, int p_forced_id = -1);

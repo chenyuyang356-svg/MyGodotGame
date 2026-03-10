@@ -65,7 +65,14 @@ void UnitManager::_setup_hp_bar_system() {
     if (hp_bar_shader.is_null()) {
         hp_bar_shader = ResourceLoader::get_singleton()->load("res://shader/hp_bar.gdshader");
     }
+    // 传入实时视野贴图
+    mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+    // 传入地图尺寸
+    mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+    // 传入地图位置
+    mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
     mat->set_shader(hp_bar_shader);
+
     global_hp_bar_renderer->set_material_override(mat);
 }
 
@@ -813,6 +820,10 @@ void UnitManager::set_group_manager(Node* p_node) {
     group_manager = Object::cast_to<GroupManager>(p_node);
 }
 
+void UnitManager::set_fog_manager(Node* p_node) {
+    fog_manager = Object::cast_to<FogManager>(p_node);
+}
+
 void UnitManager::register_unit_type(String p_name, String p_path) {
     Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(p_path);
     if (stats.is_null()) return; 
@@ -853,6 +864,12 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     mat->set_shader_parameter("h_frames", stats->get_h_frames());
     mat->set_shader_parameter("v_frames", stats->get_v_frames());
     mat->set_shader_parameter("albedo_texture", tex);
+    // 传入实时视野贴图
+    mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+    // 传入地图尺寸
+    mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+    // 传入地图位置
+    mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
 
     mmi->set_material_override(mat);
 
@@ -885,6 +902,13 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     s_mat->set_shader_parameter("albedo_texture", tex);
     s_mat->set_shader_parameter("h_frames", stats->get_h_frames());
     s_mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    // 传入实时视野贴图
+    s_mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+    // 传入地图尺寸
+    s_mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+    // 传入地图位置
+    s_mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+
     s_mmi->set_material_override(s_mat);
 
     shadow_renderers[stats_ptr] = s_mmi;
