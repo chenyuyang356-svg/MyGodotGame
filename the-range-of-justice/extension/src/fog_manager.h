@@ -22,6 +22,13 @@ namespace godot {
     class FogManager : public Node3D {
         GDCLASS(FogManager, Node3D)
 
+    public:
+        enum FogMode {
+            FOG_NONE = 0,   // 无雾
+            FOG_LIGHT = 1,  // 轻雾（探索过即永久可见）
+            FOG_HEAVY = 2   // 重雾（离开后变灰雾，有残影）
+        };
+
     private:
         // Viewports
         SubViewport* vpc_live = nullptr;
@@ -31,12 +38,19 @@ namespace godot {
         MultiMeshInstance2D* vision_renderer = nullptr;
         Ref<MultiMesh> vision_multimesh;
 
+        // 用于 FOG_NONE 的全局高亮白色遮罩
+        ColorRect* global_light_rect = nullptr;
+
         // 3D 视觉覆盖层
         MeshInstance3D* fog_overlay_mesh = nullptr;
 
         Vector2 map_size;
         Vector2 map_pos;
         int fog_resolution = 512; // 贴图分辨率
+
+        // 默认模式为重雾
+        FogMode fog_mode = FOG_HEAVY;
+
 
     protected:
         static void _bind_methods();
@@ -54,6 +68,11 @@ namespace godot {
         Ref<Texture2D> get_history_texture() const;
         Vector2 get_map_size() const { return map_size; }
         Vector2 get_map_pos() const { return map_pos; }
+
+        void set_fog_mode(FogMode p_mode);
+        FogMode get_fog_mode() const;
     };
 
 }
+
+VARIANT_ENUM_CAST(godot::FogManager::FogMode);

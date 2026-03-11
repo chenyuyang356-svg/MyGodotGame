@@ -3,6 +3,7 @@
 #include "building_manager.h"
 #include "selection_manager.h"
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/classes/image.hpp>
 
 using namespace godot;
 
@@ -124,6 +125,8 @@ void BuildingManager::update(double p_delta) {
             economy_manager->add_resources(b.team_id, income);
         }
     }
+
+    maintain_ghosts(p_delta);
 }
 
 void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, SelectionManager* p_selection_manager) {
@@ -197,6 +200,38 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
             b.anim_time += (float)p_delta;
         }
     }
+
+    // ========== 新增：处理残影渲染 ==========
+    for (auto& pair : ghost_grouping_cache) pair.second.clear();
+    for (auto const& [id, g_data] : ghost_buildings) {
+        ghost_grouping_cache[g_data.stats.ptr()].push_back(id);
+    }
+
+    for (auto& [s_ptr, g_mmi] : ghost_renderers) {
+        const std::vector<int>& ids = ghost_grouping_cache[s_ptr];
+        int count = (int)ids.size();
+        Ref<MultiMesh> g_mm = g_mmi->get_multimesh();
+
+        if (g_mm->get_instance_count() != count) {
+            g_mm->set_instance_count(count);
+        }
+
+        for (int i = 0; i < count; ++i) {
+            const GhostBuildingData& g = ghost_buildings[ids[i]];
+
+            Vector2 fp_size = Vector2(g.stats->get_footprint()) * cell_sz;
+            Vector2 center = Vector2(g.grid_pos) * cell_sz + fp_size * 0.5f;
+            float fake_depth_offset = center.y * 0.0001f - 0.01f; // 微微降低高度以位于实体之下
+
+            Transform3D xform;
+            xform.origin = Vector3(center.x, fake_depth_offset, center.y);
+            xform.basis = Basis().rotated(Vector3(1, 0, 0), -Math_PI / 2.0);
+
+            g_mm->set_instance_transform(i, xform);
+            g_mm->set_instance_color(i, get_team_color(g.team_id));
+            // 不需要再设置 custom_data，Shader 会强行调用第1帧
+        }
+    }
 }
 
 void BuildingManager::handle_dead_buildings(double p_delta) {
@@ -236,6 +271,73 @@ void BuildingManager::handle_dead_buildings(double p_delta) {
     }
 }
 
+void BuildingManager::maintain_ghosts(double p_delta) {
+    // 1. 同步活着的建筑到残影列表 (记录记忆)
+    // 只要建筑还存在，它的信息就会持续写入并刷新
+    for (const auto& pair : buildings) {
+        const BuildingData& b = pair.second;
+        GhostBuildingData gd;
+        gd.stats = b.stats;
+        gd.grid_pos = b.grid_pos;
+        gd.team_id = b.team_id;
+        ghost_buildings[b.id] = gd;
+    }
+
+    // 2. 清理已经被摧毁但处于玩家视野中的残影
+    // GPU到CPU拿图像极其耗时，所以这里用 0.5秒 执行一次（节流）
+    ghost_cleanup_timer += (float)p_delta;
+    if (ghost_cleanup_timer >= 0.5f) {
+        ghost_cleanup_timer = 0.0f;
+
+        if (fog_manager) {
+            Ref<Texture2D> live_tex = fog_manager->get_live_texture();
+            if (live_tex.is_valid()) {
+                // 基于 vpc_live 读取玩家是否有这里的视野
+                Ref<Image> live_img = live_tex->get_image();
+                if (live_img.is_valid() && !live_img->is_empty()) {
+                    std::vector<int> ghosts_to_remove;
+                    Vector2 cell_sz = Vector2(flow_field_manager->get_cell_size());
+                    Vector2 map_size = fog_manager->get_map_size();
+                    Vector2 map_pos = fog_manager->get_map_pos();
+
+                    int img_w = live_img->get_width();
+                    int img_h = live_img->get_height();
+
+                    for (const auto& pair : ghost_buildings) {
+                        int b_id = pair.first;
+
+                        // 真实建筑存活着，直接跳过（它的隐藏交由Shader负责）
+                        if (buildings.find(b_id) != buildings.end()) continue;
+
+                        const GhostBuildingData& g = pair.second;
+                        Vector2 fp_size = Vector2(g.stats->get_footprint()) * cell_sz;
+                        Vector2 center = Vector2(g.grid_pos) * cell_sz + fp_size * 0.5f;
+
+                        // 根据坐标映射到 vpc_live 像素坐标
+                        Vector2 fog_uv = (center - map_pos) / map_size;
+                        int px = Math::clamp(int(fog_uv.x * img_w), 0, img_w - 1);
+                        int py = Math::clamp(int(fog_uv.y * img_h), 0, img_h - 1);
+
+                        // 拿取该坐标处的迷雾颜色
+                        Color c = live_img->get_pixel(px, py);
+
+                        // 如果红色通道大于 0.1 说明此处没有迷雾（玩家看到了这个格子）
+                        // 既然它没有在 buildings 里，意味着建筑已经被拔除了，我们需要永久忘掉这个残影
+                        if (c.r > 0.1f) {
+                            ghosts_to_remove.push_back(b_id);
+                        }
+                    }
+
+                    // 擦除记忆中的建筑
+                    for (int id : ghosts_to_remove) {
+                        ghost_buildings.erase(id);
+                    }
+                }
+            }
+        }
+    }
+}
+
 void BuildingManager::register_building_type(String p_name, String p_path) {
     Ref<BuildingStats> stats = BuildingLoader::load_from_txt(p_path);
     if (stats.is_null()) return;
@@ -271,7 +373,7 @@ void BuildingManager::register_building_type(String p_name, String p_path) {
     Ref<ShaderMaterial> mat;
     mat.instantiate();
     if (building_shader.is_null()) {
-        building_shader = ResourceLoader::get_singleton()->load("res://shader/unit_shader.gdshader");
+        building_shader = ResourceLoader::get_singleton()->load("res://shader/building_shader.gdshader");
     }
     mat->set_shader(building_shader);
     mat->set_shader_parameter("albedo_texture", tex);
@@ -307,7 +409,7 @@ void BuildingManager::register_building_type(String p_name, String p_path) {
     Ref<ShaderMaterial> s_mat;
     s_mat.instantiate();
     if (shadow_shader.is_null()) {
-        shadow_shader = ResourceLoader::get_singleton()->load("res://shader/unit_shadow.gdshader");
+        shadow_shader = ResourceLoader::get_singleton()->load("res://shader/building_shadow.gdshader");
     }
     s_mat->set_shader(shadow_shader);
     s_mat->set_shader_parameter("albedo_texture", tex);
@@ -322,6 +424,40 @@ void BuildingManager::register_building_type(String p_name, String p_path) {
 
     s_mmi->set_material_override(s_mat);
     shadow_renderers[s_ptr] = s_mmi;
+
+    // --- C. 初始化残影渲染器 ---
+    MultiMeshInstance3D* g_mmi = memnew(MultiMeshInstance3D);
+    g_mmi->set_name(p_name + "_Ghost");
+    add_child(g_mmi);
+
+    Ref<MultiMesh> g_mm;
+    g_mm.instantiate();
+    g_mm->set_transform_format(MultiMesh::TRANSFORM_3D);
+    g_mm->set_use_colors(true);
+    g_mm->set_use_custom_data(false); // 【修改点 2】禁用 custom_data，节约内存与总线带宽，因为第一帧已在 Shader 写死
+
+    Ref<QuadMesh> g_qmesh;
+    g_qmesh.instantiate();
+    g_qmesh->set_size(qmesh->get_size());
+    g_mm->set_mesh(g_qmesh);
+    g_mmi->set_multimesh(g_mm);
+
+    Ref<ShaderMaterial> g_mat;
+    g_mat.instantiate();
+    if (ghost_shader.is_null()) {
+        ghost_shader = ResourceLoader::get_singleton()->load("res://shader/ghost_building_shader.gdshader");
+    }
+    g_mat->set_shader(ghost_shader);
+    g_mat->set_shader_parameter("albedo_texture", tex);
+    g_mat->set_shader_parameter("h_frames", stats->get_h_frames());
+    g_mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    g_mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+    g_mat->set_shader_parameter("tex_history", fog_manager->get_history_texture());
+    g_mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+    g_mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+
+    g_mmi->set_material_override(g_mat);
+    ghost_renderers[s_ptr] = g_mmi;
 }
 
 bool BuildingManager::is_area_clear(Vector2i p_grid_pos, Ref<BuildingStats> p_stats) {

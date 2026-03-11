@@ -34,6 +34,7 @@ namespace godot {
         std::vector<String> production_queue; 
         float unit_production_timer = 0.0f; 
 
+
         float current_dying_time = 0.0f;
     };
 

@@ -22,6 +22,12 @@ namespace godot {
     class SelectionManager;
     class AttackManager;
 
+    struct GhostBuildingData {
+        Ref<BuildingStats> stats;
+        Vector2i grid_pos;
+        int team_id;
+    };
+
     class BuildingManager : public Node3D {
         GDCLASS(BuildingManager, Node3D)
 
@@ -48,6 +54,14 @@ namespace godot {
         // 分组缓存
         std::unordered_map<BuildingStats*, std::vector<int>> type_grouping_cache;
 
+        // --- 残影渲染器 ---
+        std::unordered_map<int, GhostBuildingData> ghost_buildings;
+        std::unordered_map<BuildingStats*, MultiMeshInstance3D*> ghost_renderers;
+        Ref<Shader> ghost_shader;
+        std::unordered_map<BuildingStats*, std::vector<int>> ghost_grouping_cache;
+
+        float ghost_cleanup_timer = 0.0f; // 限制 CPU 抓取屏幕的频率
+
     protected:
         static void _bind_methods();
 
@@ -68,6 +82,7 @@ namespace godot {
         void update_multimesh_buffer(double p_delta, float p_alpha, SelectionManager* p_selection_manager);
 
         void handle_dead_buildings(double p_delta);
+        void maintain_ghosts(double p_delta);
 
         // 注册建筑：从 txt 加载配置并缓存
         void register_building_type(String p_name, String p_path);

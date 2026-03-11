@@ -19,6 +19,14 @@ void FogManager::setup_fog(Vector2 p_map_pos, Vector2 p_map_size, Ref<Texture2D>
     vpc_live->set_use_hdr_2d(false); // 只需要灰度图，关掉HDR省性能
     add_child(vpc_live);
 
+    // 【新增】配置全局光亮层，为了使其垫底，最早被加入
+    global_light_rect = memnew(ColorRect);
+    global_light_rect->set_size(Vector2(fog_resolution, fog_resolution));
+    global_light_rect->set_color(Color(1.0f, 1.0f, 1.0f, 1.0f)); // 纯白，代表全局视野
+    global_light_rect->hide();
+    vpc_live->add_child(global_light_rect);
+    set_fog_mode(fog_mode);
+
     // 2. 在 vpc_live 中添加 2D 相机，对齐 0-1 空间
     Camera2D* cam = memnew(Camera2D);
     cam->set_anchor_mode(Camera2D::ANCHOR_MODE_FIXED_TOP_LEFT);
@@ -124,4 +132,40 @@ void FogManager::update_vision(const std::vector<Vector2>& p_positions, const st
 Ref<Texture2D> FogManager::get_live_texture() const { return vpc_live->get_texture(); }
 Ref<Texture2D> FogManager::get_history_texture() const { return vpc_history->get_texture(); }
 
-void FogManager::_bind_methods() {}
+void FogManager::set_fog_mode(FogMode p_mode) {
+    fog_mode = p_mode;
+
+    // 如果还没有 setup 过（例如 Editor 阶段改属性时），只保留状态即可
+    if (!vpc_live || !global_light_rect) return;
+
+    switch (fog_mode) {
+    case FOG_NONE:
+        global_light_rect->show(); // 铺上一层白底，强制全图亮起
+        vpc_live->set_clear_mode(SubViewport::CLEAR_MODE_ALWAYS);
+        break;
+    case FOG_LIGHT:
+        global_light_rect->hide();
+        vpc_live->set_clear_mode(SubViewport::CLEAR_MODE_NEVER); // 从不清理，玩家走过的地方白色圆圈会一直保留
+        break;
+    case FOG_HEAVY:
+        global_light_rect->hide();
+        vpc_live->set_clear_mode(SubViewport::CLEAR_MODE_ALWAYS); // 每帧清理，仅留下当前回合画的白圈
+        break;
+    }
+}
+
+FogManager::FogMode FogManager::get_fog_mode() const {
+    return fog_mode;
+}
+
+void FogManager::_bind_methods() {
+    ClassDB::bind_method(D_METHOD("set_fog_mode", "mode"), &FogManager::set_fog_mode);
+    ClassDB::bind_method(D_METHOD("get_fog_mode"), &FogManager::get_fog_mode);
+
+    // 绑定至 Godot Editor: 将会出现一个下拉选单 [None, Light, Heavy]
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "fog_mode", PROPERTY_HINT_ENUM, "None,Light,Heavy"), "set_fog_mode", "get_fog_mode");
+
+    BIND_ENUM_CONSTANT(FOG_NONE);
+    BIND_ENUM_CONSTANT(FOG_LIGHT);
+    BIND_ENUM_CONSTANT(FOG_HEAVY);
+}
