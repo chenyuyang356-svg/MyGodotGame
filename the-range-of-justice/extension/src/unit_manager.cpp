@@ -5,6 +5,7 @@
 #include <queue>
 
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/classes/dir_access.hpp>
 
 using namespace godot;
 
@@ -824,14 +825,17 @@ void UnitManager::set_fog_manager(Node* p_node) {
     fog_manager = Object::cast_to<FogManager>(p_node);
 }
 
-void UnitManager::register_unit_type(String p_name, String p_path) {
-    Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(p_path);
-    if (stats.is_null()) return; 
-    unit_types_cache[p_name] = stats;
+void UnitManager::_internal_register_stats(Ref<UnitStats> p_stats) {
+    String p_name = p_stats->unit_name;
+    UnitStats* stats_ptr = p_stats.ptr();
 
-    UnitStats* stats_ptr = stats.ptr();
-  
+    // 存入缓存
+    unit_types_cache[p_name] = p_stats;
+
+    // 如果该类型的渲染器已存在则跳过（避免重复注册）
     if (type_renderers.find(stats_ptr) != type_renderers.end()) return;
+
+    // --- 以下是原 register_unit_type 里的渲染初始化代码 ---
 
     MultiMeshInstance3D* mmi = memnew(MultiMeshInstance3D);
     mmi->set_name(p_name + "_Renderer");
@@ -847,9 +851,9 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     Ref<QuadMesh> qmesh;
     qmesh.instantiate();
 
-    Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(stats->get_texture_path());
+    Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(p_stats->get_texture_path());
     if (tex.is_valid()) {
-        Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
+        Vector2 frame_size = tex->get_size() / Vector2(p_stats->get_h_frames(), p_stats->get_v_frames());
         qmesh->set_size(frame_size);
     }
     mm->set_mesh(qmesh);
@@ -861,8 +865,8 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
         unit_shader = ResourceLoader::get_singleton()->load("res://shader/unit_shader.gdshader");
     }
     mat->set_shader(unit_shader);
-    mat->set_shader_parameter("h_frames", stats->get_h_frames());
-    mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    mat->set_shader_parameter("h_frames", p_stats->get_h_frames());
+    mat->set_shader_parameter("v_frames", p_stats->get_v_frames());
     mat->set_shader_parameter("albedo_texture", tex);
     // 传入实时视野贴图
     mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
@@ -887,7 +891,7 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     Ref<QuadMesh> s_qmesh;
     s_qmesh.instantiate();
     if (tex.is_valid()) {
-        Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
+        Vector2 frame_size = tex->get_size() / Vector2(p_stats->get_h_frames(), p_stats->get_v_frames());
         s_qmesh->set_size(frame_size);
     }
     s_mm->set_mesh(s_qmesh);
@@ -900,8 +904,8 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     }
     s_mat->set_shader(shadow_shader);
     s_mat->set_shader_parameter("albedo_texture", tex);
-    s_mat->set_shader_parameter("h_frames", stats->get_h_frames());
-    s_mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    s_mat->set_shader_parameter("h_frames", p_stats->get_h_frames());
+    s_mat->set_shader_parameter("v_frames", p_stats->get_v_frames());
     // 传入实时视野贴图
     s_mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
     // 传入地图尺寸
@@ -912,6 +916,47 @@ void UnitManager::register_unit_type(String p_name, String p_path) {
     s_mmi->set_material_override(s_mat);
 
     shadow_renderers[stats_ptr] = s_mmi;
+}
+
+
+void UnitManager::register_unit_type(String p_name, String p_path) {
+    Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(p_path);
+    if (stats.is_null()) return;
+
+    // 如果文件中没写名字，则使用手动输入的 p_name
+    if (stats->unit_name.is_empty()) {
+        stats->unit_name = p_name;
+    }
+
+    _internal_register_stats(stats);
+}
+
+void UnitManager::register_units_from_dir(String p_dir_path) {
+    Ref<DirAccess> dir = DirAccess::open(p_dir_path);
+    if (dir.is_null()) {
+        UtilityFunctions::print("[UnitManager] Error: Cannot open directory: ", p_dir_path);
+        return;
+    }
+
+    dir->list_dir_begin();
+    String file_name = dir->get_next();
+
+    while (file_name != "") {
+        // 只处理 .txt 配置文件
+        if (!dir->current_is_dir() && file_name.ends_with(".txt")) {
+            String full_path = p_dir_path.path_join(file_name);
+            Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(full_path);
+
+            if (stats.is_valid() && !stats->unit_name.is_empty()) {
+                _internal_register_stats(stats);
+                UtilityFunctions::print("[UnitManager] Auto registered unit: ", stats->unit_name, " from ", file_name);
+            }
+            else {
+                UtilityFunctions::print("[UnitManager] Warning: Failed to load unit from ", file_name, " (Missing unit_name?)");
+            }
+        }
+        file_name = dir->get_next();
+    }
 }
 
 int UnitManager::spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_team_id, int p_forced_id) {
@@ -1016,6 +1061,7 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_group_manager", "node"), &UnitManager::set_group_manager);
     ClassDB::bind_method(D_METHOD("set_attack_manager", "node"), &UnitManager::set_attack_manager);
     ClassDB::bind_method(D_METHOD("register_unit_type", "name", "path"), &UnitManager::register_unit_type);
+    ClassDB::bind_method(D_METHOD("register_units_from_dir", "dir_path"), &UnitManager::register_units_from_dir);
     ClassDB::bind_method(D_METHOD("get_unit_aggro_range", "unit_id"), &UnitManager::get_unit_aggro_range);
     ClassDB::bind_method(D_METHOD("get_unit_attack_range", "unit_id"), &UnitManager::get_unit_attack_range);
     

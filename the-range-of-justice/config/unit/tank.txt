@@ -2,6 +2,7 @@
 # 坦克单位配置文件 (Marine)
 #########################################
 
+unit_name = Tank
 # --- Survival (生存) ---
 health_max       = 75.0
 health_regen     = 0.5

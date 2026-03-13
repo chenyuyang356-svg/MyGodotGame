@@ -1,3 +1,4 @@
+unit_name = TinyGunboat
 # --- Survival (生存) ---
 health_max       = 30.0
 health_regen     = 0.5

@@ -85,7 +85,9 @@ namespace godot {
         void maintain_ghosts(double p_delta);
 
         // 注册建筑：从 txt 加载配置并缓存
+        void _internal_register_building(Ref<BuildingStats> p_stats);
         void register_building_type(String p_name, String p_path);
+        void register_buildings_from_dir(String p_dir_path);
 
         // 检查某个区域是否可以放置该种类的建筑 (含双重范围逻辑)
         bool is_area_clear(Vector2i p_grid_pos, Ref<BuildingStats> p_stats);

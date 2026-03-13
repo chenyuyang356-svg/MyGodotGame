@@ -18,6 +18,7 @@ namespace godot {
         int projectile_type = PROJECTILE_BULLET;
 
         // === 通用属性 ===
+        String projectile_name = "new_projectile";
         float speed = 20.0f;
         float damage = 10.0f;
         String visual_path = "";
@@ -47,6 +48,10 @@ namespace godot {
             ClassDB::bind_method(D_METHOD("get_projectile_type"), &ProjectileStats::get_projectile_type);
             ClassDB::bind_method(D_METHOD("set_projectile_type", "type"), &ProjectileStats::set_projectile_type);
             ADD_PROPERTY(PropertyInfo(Variant::INT, "projectile_type"), "set_projectile_type", "get_projectile_type");
+
+            ClassDB::bind_method(D_METHOD("get_projectile_name"), &ProjectileStats::get_projectile_name);
+            ClassDB::bind_method(D_METHOD("set_projectile_name", "name"), &ProjectileStats::set_projectile_name);
+            ADD_PROPERTY(PropertyInfo(Variant::STRING, "projectile_name"), "set_projectile_name", "get_projectile_name");
 
             // 2.速度
             ClassDB::bind_method(D_METHOD("get_speed"), &ProjectileStats::get_speed);
@@ -104,6 +109,9 @@ namespace godot {
 
         int get_projectile_type() const { return projectile_type; }
         void set_projectile_type(int p_type) { projectile_type = p_type; }
+
+        String get_projectile_name() const { return projectile_name; }
+        void set_projectile_name(const String& p_name) { projectile_name = p_name; }
 
         float get_speed() const { return speed; }
         void set_speed(float p_speed) { speed = p_speed; }

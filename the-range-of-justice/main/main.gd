@@ -37,24 +37,9 @@ func _ready() -> void:
 	
 	GlobalGameManager.setup_system(width, height, cell_size, grid_origin)
 	
-	unit_manager.register_unit_type("Tank", "res://config/unit/tank.txt")
-	unit_manager.register_unit_type("TinyTank", "res://config/unit/tiny_tank.txt")
-	unit_manager.register_unit_type("HeavyTank", "res://config/unit/heavy_tank.txt")
-	
-	unit_manager.register_unit_type("Fighter", "res://config/unit/fighter.txt")
-	unit_manager.register_unit_type("Helicopter", "res://config/unit/helicopter.txt")
-	unit_manager.register_unit_type("AttackHelicopter", "res://config/unit/attack_helicopter.txt")
-	
-	unit_manager.register_unit_type("TinyGunboat", "res://config/unit/tiny_gunboat.txt")
-	unit_manager.register_unit_type("Gunboat", "res://config/unit/gunboat.txt")
-	unit_manager.register_unit_type("Battleship", "res://config/unit/battleship.txt")
-	
-	building_manager.register_building_type("HumanBarrack", "res://config/building/human_barrack.txt")
-	building_manager.register_building_type("Collector", "res://config/building/collector.txt")
-	building_manager.register_building_type("Shipyard", "res://config/building/shipyard.txt")
-	
-	projectile_manager.register_projectile_type("MarineBullet", "res://config/projectile/marine_bullet.txt")
-	projectile_manager.register_projectile_type("Missile", "res://config/projectile/missile.txt")
+	unit_manager.register_units_from_dir("res://config/unit/")
+	building_manager.register_buildings_from_dir("res://config/building/")
+	projectile_manager.register_projectiles_from_dir("res://config/projectile/")
 	
 	for x in range(used_rect.position.x, used_rect.end.x):
 		for y in range(used_rect.position.y, used_rect.end.y):

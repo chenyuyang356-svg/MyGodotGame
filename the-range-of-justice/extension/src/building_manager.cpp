@@ -4,6 +4,7 @@
 #include "selection_manager.h"
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/classes/image.hpp>
+#include <godot_cpp/classes/dir_access.hpp>
 
 using namespace godot;
 
@@ -338,12 +339,10 @@ void BuildingManager::maintain_ghosts(double p_delta) {
     }
 }
 
-void BuildingManager::register_building_type(String p_name, String p_path) {
-    Ref<BuildingStats> stats = BuildingLoader::load_from_txt(p_path);
-    if (stats.is_null()) return;
-
-    building_types_cache[p_name] = stats;
-    BuildingStats* s_ptr = stats.ptr();
+void BuildingManager::_internal_register_building(Ref<BuildingStats> p_stats) {
+    String p_name = p_stats->get_building_name();
+    building_types_cache[p_name] = p_stats;
+    BuildingStats* s_ptr = p_stats.ptr();
 
     if (type_renderers.count(s_ptr)) return;
 
@@ -361,9 +360,9 @@ void BuildingManager::register_building_type(String p_name, String p_path) {
     Ref<QuadMesh> qmesh;
     qmesh.instantiate();
 
-    Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(stats->get_texture_path());
+    Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(p_stats->get_texture_path());
     if (tex.is_valid()) {
-        Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
+        Vector2 frame_size = tex->get_size() / Vector2(p_stats->get_h_frames(), p_stats->get_v_frames());
         qmesh->set_size(frame_size);
     }
     mm->set_mesh(qmesh);
@@ -377,8 +376,8 @@ void BuildingManager::register_building_type(String p_name, String p_path) {
     }
     mat->set_shader(building_shader);
     mat->set_shader_parameter("albedo_texture", tex);
-    mat->set_shader_parameter("h_frames", stats->get_h_frames());
-    mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    mat->set_shader_parameter("h_frames", p_stats->get_h_frames());
+    mat->set_shader_parameter("v_frames", p_stats->get_v_frames());
     // 传入实时视野贴图
     mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
     // 传入地图尺寸
@@ -413,8 +412,8 @@ void BuildingManager::register_building_type(String p_name, String p_path) {
     }
     s_mat->set_shader(shadow_shader);
     s_mat->set_shader_parameter("albedo_texture", tex);
-    s_mat->set_shader_parameter("h_frames", stats->get_h_frames());
-    s_mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    s_mat->set_shader_parameter("h_frames", p_stats->get_h_frames());
+    s_mat->set_shader_parameter("v_frames", p_stats->get_v_frames());
     // 传入实时视野贴图
     s_mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
     // 传入地图尺寸
@@ -434,7 +433,7 @@ void BuildingManager::register_building_type(String p_name, String p_path) {
     g_mm.instantiate();
     g_mm->set_transform_format(MultiMesh::TRANSFORM_3D);
     g_mm->set_use_colors(true);
-    g_mm->set_use_custom_data(false); // 【修改点 2】禁用 custom_data，节约内存与总线带宽，因为第一帧已在 Shader 写死
+    g_mm->set_use_custom_data(false); // 禁用 custom_data，节约内存与总线带宽，因为第一帧已在 Shader 写死
 
     Ref<QuadMesh> g_qmesh;
     g_qmesh.instantiate();
@@ -449,8 +448,8 @@ void BuildingManager::register_building_type(String p_name, String p_path) {
     }
     g_mat->set_shader(ghost_shader);
     g_mat->set_shader_parameter("albedo_texture", tex);
-    g_mat->set_shader_parameter("h_frames", stats->get_h_frames());
-    g_mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    g_mat->set_shader_parameter("h_frames", p_stats->get_h_frames());
+    g_mat->set_shader_parameter("v_frames", p_stats->get_v_frames());
     g_mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
     g_mat->set_shader_parameter("tex_history", fog_manager->get_history_texture());
     g_mat->set_shader_parameter("map_size", fog_manager->get_map_size());
@@ -458,6 +457,31 @@ void BuildingManager::register_building_type(String p_name, String p_path) {
 
     g_mmi->set_material_override(g_mat);
     ghost_renderers[s_ptr] = g_mmi;
+}
+
+void BuildingManager::register_building_type(String p_name, String p_path) {
+    Ref<BuildingStats> stats = BuildingLoader::load_from_txt(p_path);
+    if (stats.is_null()) return;
+    if (stats->get_building_name().is_empty()) stats->set_building_name(p_name);
+    _internal_register_building(stats);
+}
+
+void BuildingManager::register_buildings_from_dir(String p_dir_path) {
+    Ref<DirAccess> dir = DirAccess::open(p_dir_path);
+    if (dir.is_null()) return;
+
+    dir->list_dir_begin();
+    String file_name = dir->get_next();
+    while (file_name != "") {
+        if (!dir->current_is_dir() && file_name.ends_with(".txt")) {
+            String full_path = p_dir_path.path_join(file_name);
+            Ref<BuildingStats> stats = BuildingLoader::load_from_txt(full_path);
+            if (stats.is_valid() && !stats->get_building_name().is_empty()) {
+                _internal_register_building(stats);
+            }
+        }
+        file_name = dir->get_next();
+    }
 }
 
 bool BuildingManager::is_area_clear(Vector2i p_grid_pos, Ref<BuildingStats> p_stats) {
@@ -691,6 +715,8 @@ PackedStringArray BuildingManager::get_registered_building_types() const {
 
 void BuildingManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("register_building_type", "name", "path"), &BuildingManager::register_building_type);
+    ClassDB::bind_method(D_METHOD("register_buildings_from_dir", "path"), &BuildingManager::register_buildings_from_dir);
+
     ClassDB::bind_method(D_METHOD("place_building_by_type", "type_name", "grid_pos", "team_id"), &BuildingManager::place_building_by_type);
     ClassDB::bind_method(D_METHOD("is_area_clear", "grid_pos", "building_stats"), &BuildingManager::is_area_clear);
 

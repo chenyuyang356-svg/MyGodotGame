@@ -133,6 +133,9 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, Ref<UnitStats> p_t
         else if (key == "texture_path") {
             stats->set(key, value_str);
         }
+        else if (key == "unit_name") {
+            stats->set(key, value_str);
+        }
 
         // 3. [修改]：更严谨地处理数值转换 (保持不变)
         else {

@@ -17,6 +17,7 @@ namespace godot {
         GDCLASS(UnitStats, Resource)
 
     public:
+        String unit_name = "new_unit";
         // --- 生存 ---
         float health_max = 100.0f;
         float health_regen = 1.0f;
@@ -68,6 +69,8 @@ namespace godot {
         ~UnitStats() {}
 
         // --- Getters / Setters ---
+        void set_unit_name(const String p_name) { unit_name = p_name; }
+        String get_unit_name() const { return unit_name; }
 
         void set_health_max(float p_value) { health_max = p_value; }
         float get_health_max() const { return health_max; }

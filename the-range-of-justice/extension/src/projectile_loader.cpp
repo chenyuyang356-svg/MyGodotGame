@@ -46,6 +46,9 @@ Ref<ProjectileStats> ProjectileLoader::load_stats_from_txt(String p_path, Ref<Pr
             stats->set(key, _parse_enum(key, value_str));
         }
         // 2. 处理字符串（如模型/特效路径）
+        else if (key == "projectile_name") {
+            stats->set(key, value_str);
+        }
         else if (key == "visual_path") {
             stats->set(key, value_str);
         }

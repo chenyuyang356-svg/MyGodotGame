@@ -2,6 +2,7 @@
 # 战斗机单位配置文件 (Marine)
 #########################################
 
+unit_name = Fighter
 # --- Survival (生存) ---
 health_max       = 45.0
 health_regen     = 0.5

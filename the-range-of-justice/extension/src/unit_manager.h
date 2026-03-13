@@ -150,7 +150,9 @@ namespace godot {
 		void set_group_manager(Node* p_node);
 		void set_fog_manager(Node* p_node);
 
+		void _internal_register_stats(Ref<UnitStats> p_stats);
 		void register_unit_type(String p_name, String p_path);
+		void register_units_from_dir(String p_dir_path);
 		int spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_team_id, int p_forced_id = -1);
 
 		void set_control_group(int p_index, const std::vector<int>& p_unit_ids);

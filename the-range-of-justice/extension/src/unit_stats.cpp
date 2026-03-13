@@ -29,6 +29,9 @@ void UnitStats::_bind_methods() {
     BIND_BITFIELD_FLAG(TAG_HERO);
 
     // 2. 绑定属性 (修复了 suffix:s 的位置)
+    ClassDB::bind_method(D_METHOD("set_unit_name", "value"), &UnitStats::set_unit_name);
+    ClassDB::bind_method(D_METHOD("get_unit_name"), &UnitStats::get_unit_name);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "unit_name"), "set_unit_name", "get_unit_name");
 
     ADD_GROUP("Survival", "");
     ClassDB::bind_method(D_METHOD("set_health_max", "value"), &UnitStats::set_health_max);

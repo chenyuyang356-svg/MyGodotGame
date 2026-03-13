@@ -1,3 +1,4 @@
+unit_name = Gunboat
 # --- Survival (生存) ---
 health_max       = 60.0
 health_regen     = 0.5

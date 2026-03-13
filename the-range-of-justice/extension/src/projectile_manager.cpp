@@ -2,12 +2,15 @@
 #include "unit_manager.h"   
 #include "attack_manager.h" 
 #include "projectile_loader.h"
+
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/dir_access.hpp>
 
 using namespace godot;
 
 void ProjectileManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("register_projectile_type", "type_name", "config_path"), &ProjectileManager::register_projectile_type);
+    ClassDB::bind_method(D_METHOD("register_projectiles_from_dir", "path"), &ProjectileManager::register_projectiles_from_dir);
 
     // 更新绑定的参数列表
     ClassDB::bind_method(D_METHOD("spawn_projectile",
@@ -63,23 +66,14 @@ void ProjectileManager::spawn_projectile(
 ProjectileManager::ProjectileManager() {}
 ProjectileManager::~ProjectileManager() {}
 
-void ProjectileManager::register_projectile_type(String p_type_name, String p_config_path) {
-    // 1. 加载配置资源
-    Ref<ProjectileStats> stats = ProjectileLoader::load_stats_from_txt(p_config_path);
+void ProjectileManager::_internal_register_projectile(Ref<ProjectileStats> p_stats) {
+    String p_type_name = p_stats->get_projectile_name();
+    projectile_templates[p_type_name] = p_stats;
+    ProjectileStats* stats_ptr = p_stats.ptr();
 
-    if (stats.is_null()) {
-        UtilityFunctions::printerr(">>> [ProjectileManager] 注册失败，无法加载配置: ", p_config_path);
-        return;
-    }
-
-    // 2. 缓存 Stats 引用
-    projectile_templates[p_type_name] = stats;
-    ProjectileStats* stats_ptr = stats.ptr();
-
-    // 3. 检查是否已经为该指针创建过渲染器（防止重复注册）
     if (type_renderers.find(stats_ptr) != type_renderers.end()) return;
 
-    // --- 4. 创建主渲染器 (MultiMeshInstance3D) ---
+    // ---  创建主渲染器 (MultiMeshInstance3D) ---
     MultiMeshInstance3D* mmi = memnew(MultiMeshInstance3D);
     mmi->set_name(p_type_name + "_Renderer");
     add_child(mmi);
@@ -95,10 +89,10 @@ void ProjectileManager::register_projectile_type(String p_type_name, String p_co
     Ref<QuadMesh> qmesh;
     qmesh.instantiate();
 
-    Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(stats->get_visual_path());
+    Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(p_stats->get_visual_path());
     if (tex.is_valid()) {
         // 单帧宽度 = 总宽度 / 横向帧数
-        Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
+        Vector2 frame_size = tex->get_size() / Vector2(p_stats->get_h_frames(), p_stats->get_v_frames());
         qmesh->set_size(frame_size);
     }
     else {
@@ -115,13 +109,13 @@ void ProjectileManager::register_projectile_type(String p_type_name, String p_co
     mat.instantiate();
     mat->set_shader(projectile_shader);
     mat->set_shader_parameter("albedo_texture", tex);
-    mat->set_shader_parameter("h_frames", stats->get_h_frames());
-    mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    mat->set_shader_parameter("h_frames", p_stats->get_h_frames());
+    mat->set_shader_parameter("v_frames", p_stats->get_v_frames());
 
     mmi->set_material_override(mat);
     type_renderers[stats_ptr] = mmi;
 
-    // --- 5. 创建影子渲染器 (Shadows) ---
+    // ---  创建影子渲染器 (Shadows) ---
     MultiMeshInstance3D* s_mmi = memnew(MultiMeshInstance3D);
     s_mmi->set_name(p_type_name + "_Shadows");
     add_child(s_mmi);
@@ -140,13 +134,38 @@ void ProjectileManager::register_projectile_type(String p_type_name, String p_co
     s_mat.instantiate();
     s_mat->set_shader(shadow_shader);
     s_mat->set_shader_parameter("albedo_texture", tex);
-    s_mat->set_shader_parameter("h_frames", stats->get_h_frames());
-    s_mat->set_shader_parameter("v_frames", stats->get_v_frames());
+    s_mat->set_shader_parameter("h_frames", p_stats->get_h_frames());
+    s_mat->set_shader_parameter("v_frames", p_stats->get_v_frames());
 
     s_mmi->set_material_override(s_mat);
     shadow_renderers[stats_ptr] = s_mmi;
 
     UtilityFunctions::print(">>> [ProjectileManager] 成功注册投射物渲染器: ", p_type_name);
+}
+
+void ProjectileManager::register_projectile_type(String p_type_name, String p_config_path) {
+    Ref<ProjectileStats> stats = ProjectileLoader::load_stats_from_txt(p_config_path);
+    if (stats.is_null()) return;
+    if (stats->get_projectile_name().is_empty()) stats->set_projectile_name(p_type_name);
+    _internal_register_projectile(stats);
+}
+
+void ProjectileManager::register_projectiles_from_dir(String p_dir_path) {
+    Ref<DirAccess> dir = DirAccess::open(p_dir_path);
+    if (dir.is_null()) return;
+
+    dir->list_dir_begin();
+    String file_name = dir->get_next();
+    while (file_name != "") {
+        if (!dir->current_is_dir() && file_name.ends_with(".txt")) {
+            String full_path = p_dir_path.path_join(file_name);
+            Ref<ProjectileStats> stats = ProjectileLoader::load_stats_from_txt(full_path);
+            if (stats.is_valid() && !stats->get_projectile_name().is_empty()) {
+                _internal_register_projectile(stats);
+            }
+        }
+        file_name = dir->get_next();
+    }
 }
 
 void ProjectileManager::setup(UnitManager* p_um, AttackManager* p_am) {

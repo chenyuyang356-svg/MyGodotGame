@@ -93,6 +93,9 @@ namespace godot {
         );
         virtual void _physics_process(double p_delta) override;
         void update_render_buffer(double p_delta);
+
+        void _internal_register_projectile(Ref<ProjectileStats> p_stats);
         void register_projectile_type(String p_type_name, String p_config_path);
+        void register_projectiles_from_dir(String p_dir_path);
     };
 }
