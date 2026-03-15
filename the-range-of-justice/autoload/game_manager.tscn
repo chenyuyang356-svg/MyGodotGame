@@ -1,3 +1,7 @@
 [gd_scene format=3 uid="uid://cwdgep2fl8ooa"]
 
+[ext_resource type="Resource" uid="uid://bocilgpa805r2" path="res://asset/map/map_01/map_01_data.tres" id="1_fjyxg"]
+[ext_resource type="Resource" uid="uid://b08hovw5fofwn" path="res://asset/map/map_02/map_02_data.tres" id="2_lb6xn"]
+
 [node name="GameManager" type="GameManager" unique_id=260287225]
+available_maps = Array[Resource]([ExtResource("1_fjyxg"), ExtResource("2_lb6xn")])

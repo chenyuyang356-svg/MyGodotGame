@@ -64,6 +64,10 @@ void UnitStats::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::INT, "target_priority", PROPERTY_HINT_ENUM, "Closest,Lowest HP,Highest Value"), "set_target_priority", "get_target_priority");
 
     ADD_GROUP("Movement", "");
+    ClassDB::bind_method(D_METHOD("set_mass", "value"), &UnitStats::set_mass);
+    ClassDB::bind_method(D_METHOD("get_mass"), &UnitStats::get_mass);
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "mass"), "set_mass", "get_mass");
+
     ClassDB::bind_method(D_METHOD("set_move_speed", "value"), &UnitStats::set_move_speed);
     ClassDB::bind_method(D_METHOD("get_move_speed"), &UnitStats::get_move_speed);
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "move_speed"), "set_move_speed", "get_move_speed");

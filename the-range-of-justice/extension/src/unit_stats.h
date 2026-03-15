@@ -31,6 +31,7 @@ namespace godot {
         std::vector<WeaponStats> weapons;
 
         // --- 移动 ---
+        float mass = 1.0f;
         float move_speed = 200.0f;
         float acceleration = 1000.0f;      
         float turn_speed = 5.0f;
@@ -89,6 +90,9 @@ namespace godot {
 
         void set_target_priority(TargetPriority p_value) { target_priority = p_value; }
         TargetPriority get_target_priority() const { return target_priority; }
+
+        void set_mass(float p_value) { mass = p_value; }
+        float get_mass() const { return mass; }
 
         void set_move_speed(float p_value) { move_speed = p_value; }
         float get_move_speed() const { return move_speed; }

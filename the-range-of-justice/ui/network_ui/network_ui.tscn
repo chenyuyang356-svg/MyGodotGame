@@ -2,10 +2,75 @@
 
 [ext_resource type="Script" uid="uid://dt8fo8njh081d" path="res://ui/network_ui/network_ui.gd" id="1_3q5o4"]
 
-[node name="NetworkUI" type="CanvasLayer" unique_id=774892550]
+[node name="NetworkUI" type="Control" unique_id=2050431705]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 script = ExtResource("1_3q5o4")
 
-[node name="PanelContainer" type="PanelContainer" parent="." unique_id=392281971]
+[node name="Panel_Connection" type="PanelContainer" parent="." unique_id=201819681]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -55.0
+offset_top = -99.0
+offset_right = 55.0
+offset_bottom = 99.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel_Connection" unique_id=1054894841]
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Panel_Connection/VBoxContainer" unique_id=546501738]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel_Connection/VBoxContainer/HBoxContainer" unique_id=761828632]
+layout_mode = 2
+text = "IP:"
+
+[node name="LineEdit_IP" type="LineEdit" parent="Panel_Connection/VBoxContainer/HBoxContainer" unique_id=1225207256]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "127.0.0.1"
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="Panel_Connection/VBoxContainer" unique_id=254247753]
+layout_mode = 2
+size_flags_horizontal = 8
+
+[node name="Label" type="Label" parent="Panel_Connection/VBoxContainer/HBoxContainer2" unique_id=419196873]
+layout_mode = 2
+text = "Port:"
+
+[node name="LineEdit_Port" type="LineEdit" parent="Panel_Connection/VBoxContainer/HBoxContainer2" unique_id=246175222]
+layout_mode = 2
+text = "7777"
+
+[node name="Label" type="Label" parent="Panel_Connection/VBoxContainer" unique_id=576446050]
+layout_mode = 2
+text = "Name:"
+
+[node name="LineEdit_Name" type="LineEdit" parent="Panel_Connection/VBoxContainer" unique_id=565665321]
+layout_mode = 2
+
+[node name="Button_Host" type="Button" parent="Panel_Connection/VBoxContainer" unique_id=1218555685]
+layout_mode = 2
+text = "Host"
+
+[node name="Button_Join" type="Button" parent="Panel_Connection/VBoxContainer" unique_id=1779476235]
+layout_mode = 2
+text = "Join"
+
+[node name="Panel_Lobby" type="PanelContainer" parent="." unique_id=1931718696]
+layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -18,41 +83,65 @@ offset_bottom = 20.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer" unique_id=1584820436]
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel_Lobby" unique_id=124404884]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="PanelContainer/VBoxContainer" unique_id=1822272640]
-layout_mode = 2
-text = "联机菜单"
-
-[node name="HSeparator" type="HSeparator" parent="PanelContainer/VBoxContainer" unique_id=97911646]
+[node name="HBoxContainer" type="HBoxContainer" parent="Panel_Lobby/VBoxContainer" unique_id=1730826948]
 layout_mode = 2
 
-[node name="IPInput" type="LineEdit" parent="PanelContainer/VBoxContainer" unique_id=1852948974]
+[node name="Label" type="Label" parent="Panel_Lobby/VBoxContainer/HBoxContainer" unique_id=1222700354]
 layout_mode = 2
-text = "127.0.0.1"
+text = "地图选择:"
 
-[node name="PortInput" type="LineEdit" parent="PanelContainer/VBoxContainer" unique_id=1742663110]
-layout_mode = 2
-text = "7777"
-
-[node name="HostButton" type="Button" parent="PanelContainer/VBoxContainer" unique_id=1785186198]
-layout_mode = 2
-text = "创建房间 (Host)"
-
-[node name="JoinButton" type="Button" parent="PanelContainer/VBoxContainer" unique_id=1419614433]
-layout_mode = 2
-text = "加入房间 (Join)"
-
-[node name="BackButton" type="Button" parent="PanelContainer/VBoxContainer" unique_id=13526796]
-layout_mode = 2
-text = "返回 (back)"
-
-[node name="StartGameButton" type="Button" parent="PanelContainer/VBoxContainer" unique_id=1288703374]
-layout_mode = 2
-text = "开始游戏 (Start)"
-
-[node name="StatusLabel" type="Label" parent="PanelContainer/VBoxContainer" unique_id=1928627364]
+[node name="OptionButton_Map" type="OptionButton" parent="Panel_Lobby/VBoxContainer/HBoxContainer" unique_id=416202341]
 layout_mode = 2
 
-[connection signal="pressed" from="PanelContainer/VBoxContainer/BackButton" to="." method="_on_back_pressed"]
+[node name="MapPreviewContainer" type="CenterContainer" parent="Panel_Lobby/VBoxContainer" unique_id=433795785]
+layout_mode = 2
+
+[node name="SubViewportContainer" type="SubViewportContainer" parent="Panel_Lobby/VBoxContainer/MapPreviewContainer" unique_id=1418187492]
+custom_minimum_size = Vector2(1200, 900)
+layout_mode = 2
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="Panel_Lobby/VBoxContainer/MapPreviewContainer/SubViewportContainer" unique_id=1900680070]
+disable_3d = true
+transparent_bg = true
+handle_input_locally = false
+size = Vector2i(1200, 900)
+render_target_update_mode = 4
+
+[node name="PreviewRoot" type="Node2D" parent="Panel_Lobby/VBoxContainer/MapPreviewContainer/SubViewportContainer/SubViewport" unique_id=362845949]
+
+[node name="VBoxContainer_Players" type="VBoxContainer" parent="Panel_Lobby/VBoxContainer" unique_id=584034508]
+layout_mode = 2
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="Panel_Lobby/VBoxContainer" unique_id=1297717147]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel_Lobby/VBoxContainer/HBoxContainer2" unique_id=2098284433]
+layout_mode = 2
+text = "队伍:"
+
+[node name="SpinBox_Team" type="SpinBox" parent="Panel_Lobby/VBoxContainer/HBoxContainer2" unique_id=498970368]
+layout_mode = 2
+min_value = 1.0
+value = 1.0
+
+[node name="Label2" type="Label" parent="Panel_Lobby/VBoxContainer/HBoxContainer2" unique_id=451379851]
+layout_mode = 2
+text = "出生点:"
+
+[node name="SpinBox_Spawn" type="SpinBox" parent="Panel_Lobby/VBoxContainer/HBoxContainer2" unique_id=136340072]
+layout_mode = 2
+min_value = 1.0
+value = 1.0
+
+[node name="Button_StartGame" type="Button" parent="Panel_Lobby/VBoxContainer" unique_id=452154077]
+layout_mode = 2
+text = "开始游戏"
+
+[connection signal="pressed" from="Panel_Connection/VBoxContainer/Button_Host" to="." method="_on_Button_Host_pressed"]
+[connection signal="pressed" from="Panel_Connection/VBoxContainer/Button_Join" to="." method="_on_Button_Join_pressed"]
+[connection signal="item_selected" from="Panel_Lobby/VBoxContainer/HBoxContainer/OptionButton_Map" to="." method="_on_OptionButton_Map_item_selected"]
+[connection signal="pressed" from="Panel_Lobby/VBoxContainer/Button_StartGame" to="." method="_on_Button_StartGame_pressed"]

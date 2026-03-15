@@ -1,6 +1,7 @@
 #pragma once
 
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/classes/dir_access.hpp>
 
 #include "game_manager.h"
 
@@ -73,6 +74,21 @@ GameManager::GameManager() {
 	reg_sync_config["call_local"] = true; // 确保服务器本地也更新 map
 	rpc_config("rpc_client_on_player_registered", reg_sync_config);
 	rpc_config("rpc_client_spawn_projectile", reg_sync_config);
+
+	// 大厅设置同步 (any_peer -> server)
+	Dictionary lobby_req;
+	lobby_req["rpc_mode"] = MultiplayerAPI::RPC_MODE_ANY_PEER;
+	lobby_req["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
+	lobby_req["call_local"] = true;
+	rpc_config("rpc_server_update_player_settings", lobby_req);
+	rpc_config("rpc_server_set_map", lobby_req);
+
+	// 大厅数据广播 (server -> all)
+	Dictionary lobby_sync;
+	lobby_sync["rpc_mode"] = MultiplayerAPI::RPC_MODE_AUTHORITY;
+	lobby_sync["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
+	lobby_sync["call_local"] = true;
+	rpc_config("rpc_client_sync_lobby", lobby_sync);
 }
 
 GameManager::~GameManager() {}
@@ -237,7 +253,7 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 	building_manager->set_economy_manager(economy_manager);
 	building_manager->set_fog_manager(fog_manager);
 
-	selection_manager->set_team_id(peer_to_team_map[get_multiplayer()->get_unique_id()]);
+	selection_manager->set_team_id(players_settings[get_multiplayer()->get_unique_id()].team_id);
 
 	attack_manager->set_building_manager(building_manager);
 	attack_manager->set_projectile_manager(projectile_manager);
@@ -263,7 +279,7 @@ void GameManager::host_game(int p_port) {
 	get_multiplayer()->set_multiplayer_peer(peer);
 
 	//主机自己永远占据 Pear ID 1 和 Team 1
-	register_player(1, 1);
+	register_player(1, 1, local_player_name);
 	UtilityFunctions::print("Server started on port: ", p_port);
 }
 
@@ -281,21 +297,122 @@ void GameManager::join_game(String p_address, int p_port) {
 
 void GameManager::host_start_game() {
 	if (!is_server_authority()) return;
-	// 广播给所有客户端加载游戏场景
-	rpc("rpc_client_load_game", "res://main/main.tscn");
+
+	// 准备最终的配置数据包
+	Dictionary final_configs;
+	for (const auto& E : players_settings) {
+		Dictionary d;
+		d["team"] = E.value.team_id;
+		d["spawn"] = E.value.spawn_id;
+		final_configs[E.key] = d;
+	}
+
+	// 广播：加载地图索引为 X 的地图，并传入配置
+	rpc("rpc_client_load_game", selected_map_index, final_configs);
 }
 
-void GameManager::register_player(int p_peer_id, int p_team_id) {
-	// 建立网络连接 ID 和游戏内 ID 的映射
-	peer_to_team_map[p_peer_id] = p_team_id;
-	UtilityFunctions::print("Registered Peer: ", p_peer_id, " to Team: ", p_team_id);
+void GameManager::register_player(int p_peer_id, int p_team_id, String p_name) {
+	PlayerSettings& s = players_settings[p_peer_id];
+	s.team_id = p_team_id;
+	s.spawn_id = p_team_id; // 默认出生点跟队伍一致
+	s.name = p_name;
+	UtilityFunctions::print("Registered Peer: ", p_peer_id, " Name: ", p_name, " to Team: ", p_team_id);
 }
 
-void GameManager::rpc_client_load_game(const String& p_scene_path) {
-	get_tree()->change_scene_to_file(p_scene_path);
+void GameManager::load_available_maps() {
+	available_maps.clear();
+	Ref<DirAccess> dir = DirAccess::open("res://asset/map");
+	if (dir.is_valid()) {
+		dir->list_dir_begin();
+		String folder_name = dir->get_next();
+		while (!folder_name.is_empty()) {
+			// 忽略 "." 和 ".." 以及非文件夹
+			if (dir->current_is_dir() && !folder_name.begins_with(".")) {
+				// 拼接路径，例如: res://asset/map/map_01/map_01_data.tres
+				String map_path = "res://asset/map/" + folder_name + "/" + folder_name + "_data.tres";
+
+				if (ResourceLoader::get_singleton()->exists(map_path)) {
+					Ref<Resource> map_res = ResourceLoader::get_singleton()->load(map_path);
+					if (map_res.is_valid()) {
+						available_maps.push_back(map_res);
+						UtilityFunctions::print("Loaded map: ", map_path);
+					}
+				}
+			}
+			folder_name = dir->get_next();
+		}
+	}
+	else {
+		UtilityFunctions::print("Failed to open map directory.");
+	}
 }
 
-void GameManager::rpc_server_request_registration(int p_team_id) {
+void GameManager::rpc_server_set_map(int p_index) {
+	if (!get_multiplayer()->is_server()) return;
+	selected_map_index = p_index;
+
+	// 广播当前状态
+	Dictionary all_configs;
+	// 将现有的 players_settings 转为 Dictionary 方便传输
+	for (const auto& E : players_settings) {
+		Dictionary d;
+		d["team"] = E.value.team_id;
+		d["spawn"] = E.value.spawn_id;
+		d["name"] = E.value.name;
+		all_configs[E.key] = d;
+	}
+	rpc("rpc_client_sync_lobby", selected_map_index, all_configs);
+}
+
+void GameManager::rpc_server_update_player_settings(int p_team, int p_spawn) {
+	int sender_id = get_multiplayer()->get_remote_sender_id();
+
+	PlayerSettings& s = players_settings[sender_id];
+	s.team_id = p_team;
+	s.spawn_id = p_spawn;
+
+	// 更新后广播
+	rpc_server_set_map(selected_map_index);
+}
+
+void GameManager::rpc_client_sync_lobby(int p_map_idx, Dictionary p_all_settings) {
+	selected_map_index = p_map_idx;
+
+	// 更新本地缓存
+	Array keys = p_all_settings.keys();
+	for (int i = 0; i < keys.size(); i++) {
+		int peer_id = keys[i];
+		Dictionary d = p_all_settings[peer_id];
+		players_settings[peer_id].team_id = d["team"];
+		players_settings[peer_id].spawn_id = d["spawn"];
+		players_settings[peer_id].name = d["name"];
+	}
+
+	// 发出信号给 GDScript UI 刷新显示
+	emit_signal("lobby_updated");
+}
+
+void GameManager::rpc_client_load_game(int p_map_idx, Dictionary p_player_configs) {
+	selected_map_index = p_map_idx;
+	// 更新本地配置
+	Array keys = p_player_configs.keys();
+	for (int i = 0; i < keys.size(); i++) {
+		int peer_id = keys[i];
+		Dictionary d = p_player_configs[peer_id];
+		players_settings[peer_id].team_id = d["team"];
+		players_settings[peer_id].spawn_id = d["spawn"];
+	}
+	local_spawn = players_settings[get_multiplayer()->get_unique_id()].spawn_id;
+
+	// 获取地图资源路径
+	if (selected_map_index >= available_maps.size()) return;
+	Ref<Resource> map_res = available_maps[selected_map_index];
+
+	String scene_path = "res://main/main.tscn"; // 你的主游戏主循环场景
+	get_tree()->change_scene_to_file(scene_path);
+}
+
+void GameManager::rpc_server_request_registration(int p_team_id, String p_name) {
 	if (!get_multiplayer()->is_server()) return;
 
 	int sender_id = get_multiplayer()->get_remote_sender_id();
@@ -303,26 +420,14 @@ void GameManager::rpc_server_request_registration(int p_team_id) {
 
 	// 如果没有指定队伍，则自动分配队伍
 	if (desired_team_id == 0) {
-		desired_team_id = peer_to_team_map.size() + 1;
+		desired_team_id = players_settings.size() + 1;
 	}
-	register_player(sender_id, desired_team_id);
+	register_player(sender_id, desired_team_id, p_name);
 
-	// 通知玩家注册成功
-	rpc("rpc_client_on_player_registered", sender_id, desired_team_id);
-
-	// 增量同步：把已经存在的其他玩家信息发给新加入的玩家
-	for (const auto& pair : peer_to_team_map) {
-		if (pair.first != sender_id) {
-			rpc_id(sender_id, "rpc_client_on_player_registered", pair.first, pair.second);
-		}
-	}
+	rpc_server_set_map(selected_map_index);
 }
 
 void GameManager::rpc_client_on_player_registered(int p_peer_id, int p_team_id) {
-	peer_to_team_map[p_peer_id] = p_team_id;
-	UtilityFunctions::print("Sync: Player ", p_peer_id, " is on Team ", p_team_id);
-
-	// 客户端注册成功后初始化阵营 ID
 	if (p_peer_id == get_multiplayer()->get_unique_id()) {
 		if (selection_manager) {
 			selection_manager->set_team_id(p_team_id);
@@ -526,8 +631,9 @@ void GameManager::rpc_server_request_produce_unit(int p_building_id, String p_un
 		sender_team = selection_manager->get_team_id();
 	}
 	else {
-		if (peer_to_team_map.find(sender_id) != peer_to_team_map.end()) {
-			sender_team = peer_to_team_map[sender_id];
+		// 使用 players_settings 检查
+		if (players_settings.has(sender_id)) {
+			sender_team = players_settings[sender_id].team_id;
 		}
 		else {
 			return; // 未识别的玩家
@@ -656,7 +762,7 @@ void GameManager::_on_connected_to_server() {
 	UtilityFunctions::print("Client: Connected to server. My ID: ", my_id);
 
 	int desired_team = 0;
-	rpc_id(1, "rpc_server_request_registration", desired_team);
+	rpc_id(1, "rpc_server_request_registration", desired_team, local_player_name);
 }
 
 // godot绑定
@@ -676,11 +782,19 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("join_game", "address", "port"), &GameManager::join_game);
 
 	ClassDB::bind_method(D_METHOD("host_start_game"), &GameManager::host_start_game);
-	ClassDB::bind_method(D_METHOD("rpc_client_load_game", "scene_path"), &GameManager::rpc_client_load_game);
-	ClassDB::bind_method(D_METHOD("rpc_server_request_registration", "team_id"), &GameManager::rpc_server_request_registration);
+	ClassDB::bind_method(D_METHOD("rpc_server_set_map", "index"), &GameManager::rpc_server_set_map);
+	ClassDB::bind_method(D_METHOD("rpc_server_update_player_settings", "team", "spawn"), &GameManager::rpc_server_update_player_settings);
+	ClassDB::bind_method(D_METHOD("rpc_client_sync_lobby", "map_idx", "settings"), &GameManager::rpc_client_sync_lobby);
+	ClassDB::bind_method(D_METHOD("rpc_client_load_game", "map_idx", "configs"), &GameManager::rpc_client_load_game);
+	ClassDB::bind_method(D_METHOD("rpc_server_request_registration", "team_id", "player_name"), &GameManager::rpc_server_request_registration);
 	ClassDB::bind_method(D_METHOD("rpc_client_on_player_registered", "peer_id", "team_id"), &GameManager::rpc_client_on_player_registered);
 
-	ClassDB::bind_method(D_METHOD("register_player", "peer_id", "team_id"), &GameManager::register_player);
+	ClassDB::bind_method(D_METHOD("register_player", "peer_id", "team_id", "player_name"), &GameManager::register_player);
+	ClassDB::bind_method(D_METHOD("load_available_maps"), &GameManager::load_available_maps);
+	ClassDB::bind_method(D_METHOD("set_available_maps", "maps"), &GameManager::set_available_maps);
+	ClassDB::bind_method(D_METHOD("get_available_maps"), &GameManager::get_available_maps);
+
+	ClassDB::bind_method(D_METHOD("get_all_player_settings"), &GameManager::get_all_player_settings);
 
 	ClassDB::bind_method(D_METHOD("rpc_server_receive_move", "ids", "pos"), &GameManager::rpc_server_receive_move);
 	ClassDB::bind_method(D_METHOD("rpc_server_receive_attack_unit", "ids", "target_id"), &GameManager::rpc_server_receive_attack_unit);
@@ -728,4 +842,19 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_logic_tick_rate", "logic_tick_rate"), &GameManager::set_logic_tick_rate);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "logic_tick_rate"), "set_logic_tick_rate", "get_logic_tick_rate");
 
+	ClassDB::bind_method(D_METHOD("get_selected_map_index"), &GameManager::get_selected_map_index);
+	ClassDB::bind_method(D_METHOD("set_selected_map_index", "selected_map_index"), &GameManager::set_selected_map_index);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "selected_map_index"), "set_selected_map_index", "get_selected_map_index");
+
+	ClassDB::bind_method(D_METHOD("get_local_spawn"), &GameManager::get_local_spawn);
+	ClassDB::bind_method(D_METHOD("set_local_spawn", "local_spawn"), &GameManager::set_local_spawn);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "local_spawn"), "set_local_spawn", "get_local_spawn");
+
+	ClassDB::bind_method(D_METHOD("set_local_player_name", "name"), &GameManager::set_local_player_name);
+	ClassDB::bind_method(D_METHOD("get_local_player_name"), &GameManager::get_local_player_name);
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "local_player_name"), "set_local_player_name", "get_local_player_name");
+
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "available_maps", PROPERTY_HINT_NONE, "24/17:Resource"), "set_available_maps", "get_available_maps");
+
+	ADD_SIGNAL(MethodInfo("lobby_updated"));
 }

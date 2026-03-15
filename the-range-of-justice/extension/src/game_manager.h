@@ -6,6 +6,8 @@
 #include <godot_cpp/classes/e_net_multiplayer_peer.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
+#include <godot_cpp/templates/hash_map.hpp>
+
 
 #include "unit_manager.h"
 #include "building_manager.h"
@@ -19,6 +21,12 @@
 #include "fog_manager.h"
 
 namespace godot {
+
+	struct PlayerSettings {
+		int team_id = 1;
+		int spawn_id = 1;
+		String name = "Player";
+	};
 
 	class GameManager : public Node2D {
 		GDCLASS(GameManager, Node2D)
@@ -48,7 +56,15 @@ namespace godot {
 		int32_t server_port = 7777;
 		String server_address = "127.0.0.1";
 
-		std::unordered_map<int, int> peer_to_team_map; // Key: PeerID, Value: TeamID
+
+		// --- 新增地图与大厅数据 ---
+		TypedArray<Resource> available_maps;
+		int selected_map_index = 0;
+		int local_spawn = 0;
+		String local_player_name = "Player";
+
+		// 使用 Godot 的 HashMap 方便存储 peer_id -> settings
+		HashMap<int, PlayerSettings> players_settings;
 
 	protected:
 		static void _bind_methods();
@@ -77,14 +93,31 @@ namespace godot {
 		void host_game(int p_port);
 		void join_game(String p_address, int p_port);
 
-		void rpc_client_load_game(const String& p_scene_path);
-		void rpc_server_request_registration(int p_team_id);
+		void rpc_client_load_game(int p_map_idx, Dictionary p_player_configs);
+		void rpc_server_request_registration(int p_team_id, String p_name);
 		void rpc_client_on_player_registered(int p_peer_id, int p_team_id);
 		void host_start_game(); // 主机点击“开始游戏”时调用
 
-		void register_player(int p_peer_id, int p_team_id);
+		void register_player(int p_peer_id, int p_team_id, String p_name);
+		void set_available_maps(TypedArray<Resource> p_maps) { available_maps = p_maps; }
+		TypedArray<Resource> get_available_maps() { return available_maps; }
+		void load_available_maps();
 
-		
+		void rpc_server_set_map(int p_index);
+		void rpc_server_update_player_settings(int p_team, int p_spawn);
+		void rpc_client_sync_lobby(int p_map_idx, Dictionary p_all_settings);
+
+		Dictionary get_all_player_settings() {
+			Dictionary res;
+			for (const auto& E : players_settings) {
+				Dictionary d;
+				d["team"] = E.value.team_id;
+				d["spawn"] = E.value.spawn_id;
+				d["name"] = E.value.name;
+				res[E.key] = d;
+			}
+			return res;
+		}
 
 		// --- RPC 指令接口 (客户端发送，服务器执行) ---
 		// 在 Godot 4 C++ 中，RPC 函数名通常和普通函数一样，但在绑定时指定权限
@@ -150,6 +183,15 @@ namespace godot {
 
 		double get_logic_tick_rate() { return logic_tick_rate; }
 		void set_logic_tick_rate(double p_value) { logic_tick_rate = p_value; }
+
+		int get_selected_map_index() { return selected_map_index; }
+		void set_selected_map_index(int p_value) { selected_map_index = p_value; }
+
+		int get_local_spawn() const { return local_spawn; }
+		void set_local_spawn(int p_value) { local_spawn = p_value; }
+
+		String get_local_player_name() const { return local_player_name; }
+		void set_local_player_name(const String& p_name) { local_player_name = p_name; }
 	};
 
 }

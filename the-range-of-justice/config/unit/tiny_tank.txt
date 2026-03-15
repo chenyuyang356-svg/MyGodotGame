@@ -24,12 +24,13 @@ target_priority  = Closest
 weapon = MarineBullet, 5.0, 250.0, 0.3, 1200.0, 0.0
 
 # --- Movement (移动与碰撞) ---
+mass             = 0.5
 move_speed       = 175.0
-acceleration     = 150.0
+acceleration     = 120.0
 turn_speed       = 0.8
 turn_acceleration= 1.0
 # [关键] 碰撞半径
-collision_radius = 24.0
+collision_radius = 28.0
 # 枚举可选: Ground, Air, Sea, Hover
 base_height = 0.0
 move_type        = Ground

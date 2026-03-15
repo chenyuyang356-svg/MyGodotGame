@@ -62,9 +62,10 @@ namespace godot {
 
         int get_nav_type() {
             if (stats->move_type == MOVE_GROUND) { return NAV_LAND; }
-            if (stats->move_type == MOVE_SEA) { return NAV_SEA; }
-            if (stats->move_type == MOVE_AIR) { return NAV_MAX; }
-            if (stats->move_type == MOVE_HOVER) { return NAV_HOVER; }
+            else if (stats->move_type == MOVE_SEA) { return NAV_SEA; }
+            else if (stats->move_type == MOVE_AIR) { return NAV_MAX; }
+            else if (stats->move_type == MOVE_HOVER) { return NAV_HOVER; }
+            else { return NAV_LAND; }
         }
 
         int get_squared_radius() {

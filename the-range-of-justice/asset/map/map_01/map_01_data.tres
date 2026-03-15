@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="MapResource" format=3 uid="uid://bocilgpa805r2"]
+
+[ext_resource type="Script" uid="uid://dr1j7u4rpupdv" path="res://asset/map/map_resource.gd" id="1_bbhey"]
+[ext_resource type="PackedScene" uid="uid://0hxvt74ik5hm" path="res://asset/map/map_01/map_01.tscn" id="1_l0hxs"]
+
+[resource]
+script = ExtResource("1_bbhey")
+map_name = "地图01"
+map_scene = ExtResource("1_l0hxs")
+metadata/_custom_type_script = "uid://dr1j7u4rpupdv"

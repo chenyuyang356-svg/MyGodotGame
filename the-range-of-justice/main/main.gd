@@ -1,7 +1,39 @@
 extends Node
 
 func _ready() -> void:
-	var tile_map_layer: TileMapLayer = $TileMapLayer
+	var map_idx = GlobalGameManager.selected_map_index
+	var map_res = GlobalGameManager.available_maps[map_idx]
+	
+	if map_res:
+		setup_game_with_map(map_res)
+
+func setup_game_with_map(map_res: MapResource) -> void:
+	# 1. 实例化地图场景
+	var map_instance = map_res.map_scene.instantiate()
+	add_child(map_instance)
+	
+	# 2. 获取 TileMapLayer (假设它是场景根节点或者叫这个名字)
+	var tile_map_layer: TileMapLayer = null
+	if map_instance is TileMapLayer:
+		tile_map_layer = map_instance
+	else:
+		tile_map_layer = map_instance.get_node("TileMapLayer")
+	
+	if not tile_map_layer:
+		push_error("地图场景中未找到 TileMapLayer")
+		return
+	
+	# 3. 提取出生点坐标
+	var spawn_positions: Dictionary = {} # key: spawn_id, value: Vector2
+	var spawn_points_node = map_instance.get_node_or_null("SpawnPoints")
+	
+	if spawn_points_node:
+		for marker in spawn_points_node.get_children():
+			if marker is Marker2D:
+				var spawn_id = marker.name.to_int()
+				spawn_positions[spawn_id] = marker.global_position
+	
+	
 	var map_manager: MapManager = $MapManager
 	var unit_manager: UnitManager = $UnitManager
 	var building_manager: BuildingManager = $BuildingManager
@@ -22,9 +54,12 @@ func _ready() -> void:
 	var main_camera: Camera3D = $Camera3D
 	
 	$ProjectileManager.setup($UnitManager, $AttackManager)
-	map_manager.load_from_tilemap(tile_map_layer)
-	tile_map_layer.hide()
 	
+	# 初始化 3D 渲染渲染
+	map_manager.load_from_tilemap(tile_map_layer)
+	tile_map_layer.hide() # 隐藏 2D，只看 MapManager 渲染的 3D
+	
+	# 初始化全局管理类
 	GlobalGameManager.set_building_manager(building_manager)
 	GlobalGameManager.set_unit_manager(unit_manager)
 	GlobalGameManager.set_flow_field_manager(flow_field_manager)
@@ -35,72 +70,123 @@ func _ready() -> void:
 	GlobalGameManager.set_economy_manager(economy_manager)
 	GlobalGameManager.set_fog_manager(fog_manager)
 	
+	# 设置流场系统尺寸
 	GlobalGameManager.setup_system(width, height, cell_size, grid_origin)
 	
+	# 注册配置（这部分建议放在 GlobalGameManager 的 init 里只运行一次）
 	unit_manager.register_units_from_dir("res://config/unit/")
 	building_manager.register_buildings_from_dir("res://config/building/")
 	projectile_manager.register_projectiles_from_dir("res://config/projectile/")
 	
+	# --- 遍历 TileMap 填充元数据和代价地图 ---
 	for x in range(used_rect.position.x, used_rect.end.x):
 		for y in range(used_rect.position.y, used_rect.end.y):
 			var coords: Vector2i = Vector2i(x, y)
 			var data = tile_map_layer.get_cell_tile_data(coords)
+			if not data: continue
+			
+			# 资源标记
 			if data.get_custom_data("IsResource"):
 				flow_field_manager.set_cell_meta_data(coords, 1, true)
-	
-	#NAV_LAND
-	for x in range(used_rect.position.x, used_rect.end.x):
-		for y in range(used_rect.position.y, used_rect.end.y):
-			var coords: Vector2i = Vector2i(x, y)
-			var data = tile_map_layer.get_cell_tile_data(coords)
-			if data == null or data.get_custom_data("IsWall") or data.get_custom_data("IsSea"):
+			
+			# NAV_LAND (Index 0)
+			if data.get_custom_data("IsWall") or data.get_custom_data("IsSea"):
 				flow_field_manager.init_cost(coords, 255, 0)
 			else:
-				flow_field_manager.init_cost(coords, 1, 0)
+				# 基础权重 1，靠近障碍物（Wall/Sea）设为 30 实现避让边缘
+				var is_near_obstacle = false
 				for dx in range(-1, 2):
 					for dy in range(-1, 2):
-						if Vector2i(dx, dy) != Vector2i.ZERO:
-							var neighbor_data = tile_map_layer.get_cell_tile_data(coords + Vector2i(dx, dy))
-							if neighbor_data == null or neighbor_data.get_custom_data("IsWall") or data.get_custom_data("IsSea"):
-								flow_field_manager.init_cost(coords, 30, 0)
-								continue
-	
-	#NAV_SEA
-	for x in range(used_rect.position.x, used_rect.end.x):
-		for y in range(used_rect.position.y, used_rect.end.y):
-			var coords: Vector2i = Vector2i(x, y)
-			var data = tile_map_layer.get_cell_tile_data(coords)
-			if data == null or (!data.get_custom_data("IsSea")):
+						if Vector2i(dx, dy) == Vector2i.ZERO: continue
+						var n_data = tile_map_layer.get_cell_tile_data(coords + Vector2i(dx, dy))
+						if n_data == null or n_data.get_custom_data("IsWall") or n_data.get_custom_data("IsSea"):
+							is_near_obstacle = true
+							break
+				flow_field_manager.init_cost(coords, 30 if is_near_obstacle else 1, 0)
+
+			# NAV_SEA (Index 1)
+			if not data.get_custom_data("IsSea"):
 				flow_field_manager.init_cost(coords, 255, 1)
 			else:
-				flow_field_manager.init_cost(coords, 1, 1)
+				var is_near_land = false
 				for dx in range(-1, 2):
 					for dy in range(-1, 2):
-						if Vector2i(dx, dy) != Vector2i.ZERO:
-							var neighbor_data = tile_map_layer.get_cell_tile_data(coords + Vector2i(dx, dy))
-							if neighbor_data == null or (not data.get_custom_data("IsSea")):
-								flow_field_manager.init_cost(coords, 30, 1)
-								continue
+						if Vector2i(dx, dy) == Vector2i.ZERO: continue
+						var n_data = tile_map_layer.get_cell_tile_data(coords + Vector2i(dx, dy))
+						if n_data == null or not n_data.get_custom_data("IsSea"):
+							is_near_land = true
+							break
+				flow_field_manager.init_cost(coords, 30 if is_near_land else 1, 1)
+
+
+	var players_settings: Dictionary = GlobalGameManager.get_all_player_settings()
 	
-	var active_unit_ids: Array = []
+	# 初始化玩家经济
+	var initialized_teams =[]
+	for peer_id in players_settings.keys():
+		var team_id = players_settings[peer_id]["team"]
+		if not team_id in initialized_teams:
+			economy_manager.set_balance(team_id, map_res.initial_gold)
+			initialized_teams.append(team_id)
 	
-	for x in range(2):
-		for y in range(2):
-			#var id1 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y), 2)
-			#var id2 = unit_manager.spawn_unit_by_type("Fighter", -32 * Vector2(x, y) + Vector2(2000, 2000), 2)
-			
-			GlobalGameManager.rpc_server_request_spawn_unit("Helicopter", -32 * Vector2(x, y), 1)
-			GlobalGameManager.rpc_server_request_spawn_unit("Helicopter", -32 * Vector2(x, y) + Vector2(0, 500), 2)
-			GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(11000, 3500), 2)
-			
-			#active_unit_ids.append(id1)
-			#active_unit_ids.append(id2)
-		
-	economy_manager.set_balance(1, 5000)
-	economy_manager.set_balance(2, 5000)
-			
+	# 设置本地视野相机
+	var local_peer_id = multiplayer.get_unique_id()
+	var local_spawn_id = 1
+	
+	# 获取自己选择的出生点
+	if players_settings.has(local_peer_id):
+		local_spawn_id = players_settings[local_peer_id]["spawn"]
+	
+	var camera_start_pos: Vector2 = Vector2.ZERO
+	if spawn_positions.has(local_spawn_id):
+		camera_start_pos = spawn_positions[local_spawn_id]
+	else:
+		# 如果超出了出生点数量，就把视野放在一号出生点 (如果有的话)
+		print("本地出生点 ", local_spawn_id, " 无效，相机重置到 1 号出生点")
+		if spawn_positions.has(1):
+			camera_start_pos = spawn_positions[1]
+		elif spawn_positions.size() > 0:
+			# 如果连1号都没有，强制给第一个可用的
+			camera_start_pos = spawn_positions.values()[0]
+
+	main_camera.set_map_limits(used_rect, cell_size)
+	main_camera.global_position.x = camera_start_pos.x
+	main_camera.global_position.z = camera_start_pos.y
+	
+	# 3. 生成初始单位 (仅由主机/服务器执行)
+	if multiplayer.is_server():
+		spawn_initial_units(spawn_positions, players_settings)
+		spawn_test_units()
+
 	if debug_draw != null:
 		debug_draw.unit_manager = unit_manager
 		debug_draw.camera = main_camera
-		debug_draw.unit_ids_to_draw = active_unit_ids
-	
+
+
+func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictionary):
+	for peer_id in players_settings.keys():
+		var p_info = players_settings[peer_id]
+		var team_id = p_info["team"]
+		var spawn_id = p_info["spawn"]
+		
+		# 只有玩家选择的 spawn_id 在地图里真实存在时，才为他生成单位
+		if spawn_positions.has(spawn_id):
+			var pos = spawn_positions[spawn_id]
+			# 在基地旁边生成坦克 (注意传递的是 team_id，让单位归属于该阵营)
+			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(100, 100), team_id)
+			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(-100, 100), team_id)
+			
+			# 如果是陆地地图，生成防空
+			GlobalGameManager.rpc_server_request_spawn_unit("Fighter", pos + Vector2(0, -150), team_id)
+		else:
+			print("Peer: ", peer_id, " (Team: ", team_id, ") 的出生点 ", spawn_id, " 无效，不生成初始单位。")
+
+
+func spawn_test_units():
+	for x in range(2):
+		for y in range(2):
+			#GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y), 1)
+			#GlobalGameManager.rpc_server_request_spawn_unit("AttackHelicopter", -32 * Vector2(x, y), 1)
+			#GlobalGameManager.rpc_server_request_spawn_unit("Helicopter", -32 * Vector2(x, y) + Vector2(0, 1000), 2)
+			#GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(11000, 3500), 2)
+			continue

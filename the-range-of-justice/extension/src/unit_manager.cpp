@@ -331,13 +331,15 @@ std::vector<int> UnitManager::get_units_of_type_in_area(Ref<UnitStats> p_stats, 
     
     for (int nx = unit_grid_rect_pos.x; nx <= unit_grid_rect_end.x; ++nx) {
         for (int ny = unit_grid_rect_pos.y; ny <= unit_grid_rect_end.y; ++ny) {
-            int grid_idx = ny * unit_grid_width + nx;
-            const auto& cell = unit_grid[grid_idx];
-            for (int unit_idx : cell) {
-                UnitData& unit = units[unit_idx];
-                if (p_rect.has_point(unit.position)) {
-                    if (unit.stats == p_stats && unit.team_id == p_team_id) {
-                        result.push_back(unit.id);
+            if (nx >= 0 && nx <= unit_grid_width && ny >= 0 && ny <= unit_grid_height) {
+                int grid_idx = ny * unit_grid_width + nx;
+                const auto& cell = unit_grid[grid_idx];
+                for (int unit_idx : cell) {
+                    UnitData& unit = units[unit_idx];
+                    if (p_rect.has_point(unit.position)) {
+                        if (unit.stats == p_stats && unit.team_id == p_team_id) {
+                            result.push_back(unit.id);
+                        }
                     }
                 }
             }
@@ -354,13 +356,15 @@ std::vector<int> UnitManager::get_units_in_box(Rect2 p_box, int p_team_id) {
 
     for (int nx = unit_grid_rect_pos.x; nx <= unit_grid_rect_end.x; ++nx) {
         for (int ny = unit_grid_rect_pos.y; ny <= unit_grid_rect_end.y; ++ny) {
-            int grid_idx = ny * unit_grid_width + nx;
-            const auto& cell = unit_grid[grid_idx];
-            for (int unit_idx : cell) {
-                UnitData& unit = units[unit_idx];
-                if (p_box.has_point(unit.position)) {
-                    if (unit.team_id == p_team_id) {
-                        result.push_back(unit.id);
+            if (nx >= 0 && nx <= unit_grid_width && ny >= 0 && ny <= unit_grid_height) {
+                int grid_idx = ny * unit_grid_width + nx;
+                const auto& cell = unit_grid[grid_idx];
+                for (int unit_idx : cell) {
+                    UnitData& unit = units[unit_idx];
+                    if (p_box.has_point(unit.position)) {
+                        if (unit.team_id == p_team_id) {
+                            result.push_back(unit.id);
+                        }
                     }
                 }
             }
@@ -517,7 +521,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     float max_speed = (p_unit.stats)->get_move_speed();
     float accel = p_unit.stats->get_acceleration();
 
-    Vector2 desired_velocity = (p_unit.velocity + force * p_delta).limit_length(max_speed);
+    Vector2 desired_velocity = (p_unit.velocity + force / p_unit.stats->get_mass() * p_delta).limit_length(max_speed);
 
     if (desired_velocity.length_squared() > velocity_threshold_squared) {
         float target_angle = desired_velocity.angle();
