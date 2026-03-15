@@ -3,6 +3,7 @@
 #include <godot_cpp/classes/ref.hpp>
 #include "unit_stats.h"
 #include "game_definitions.h"
+#include "weapon_data.h"
 
 namespace godot {
     enum UnitState {
@@ -52,7 +53,8 @@ namespace godot {
 
         int team_id = 0;
         int target_id = -1;
-        std::vector<float> weapon_cooldowns;
+        std::vector<float> weapon_cooldowns; //改为只有不独立于单位的武器才使用
+        std::vector<WeaponData> weapons; // 这些是单位装载的独立武器
 
         bool is_patrolling = false;
         std::vector<Vector2> patrol_waypoints;

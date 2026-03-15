@@ -18,6 +18,8 @@ script = ExtResource("2_4dugh")
 
 [node name="FogManager" type="FogManager" parent="." unique_id=2033803442]
 
+[node name="WeaponManager" type="WeaponManager" parent="." unique_id=1922983484]
+
 [node name="ProjectileManager" type="ProjectileManager" parent="." unique_id=1838151014]
 
 [node name="AttackManager" type="AttackManager" parent="." unique_id=906319522]

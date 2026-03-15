@@ -2,9 +2,11 @@
 #include <vector>
 #include <godot_cpp/classes/resource.hpp>
 #include "game_definitions.h" // 引入枚举定义
+#include "weapon_stats.h"
 
 namespace godot {
-    struct WeaponStats {
+    //目前这个结构体是供非独立武器使用的
+    struct Weapon {
         String projectile_type_name; // 发射的子弹视觉类型（用于在 ProjectileManager 查找模型）
         float damage = 10.0f;        // 武器伤害
         float attack_range = 100.0f; // 武器射程
@@ -28,7 +30,8 @@ namespace godot {
         // --- 攻击 ---
         TargetPriority target_priority = PRIORITY_CLOSEST;
         bool can_fire_on_move = false;
-        std::vector<WeaponStats> weapons;
+        std::vector<Weapon> weapons; // 这些是不独立于单位的武器
+        std::vector<WeaponMount> weapon_mounts; // 替换原来的 std::vector<WeaponStats> weapons;
 
         // --- 移动 ---
         float mass = 1.0f;

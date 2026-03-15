@@ -68,7 +68,7 @@ int UnitLoader::_parse_bitfield(String p_value) {
     return result;
 }
 
-Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, Ref<UnitStats> p_target) {
+Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, WeaponManager* p_weapon_manager, Ref<UnitStats> p_target) {
     Ref<UnitStats> stats = p_target;
     if (stats.is_null()) {
         stats.instantiate();
@@ -113,7 +113,7 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, Ref<UnitStats> p_t
             // 解析由逗号分隔的武器字符串，例如: "Bullet, 15.0, 200.0, 0.5, 500.0, 0.0"
             PackedStringArray parts = value_str.split(",");
             if (parts.size() >= 4) {
-                WeaponStats w;
+                Weapon w;
                 w.projectile_type_name = parts[0].strip_edges();
                 w.damage = parts[1].to_float();
                 w.attack_range = parts[2].to_float();
@@ -127,7 +127,36 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, Ref<UnitStats> p_t
                 UtilityFunctions::print("[UnitLoader] 成功为单位挂载武器: ", w.projectile_type_name, " 伤害: ", w.damage);
             }
         }
-            
+        
+        else if (key == "weapon_mount") {
+            // 解析格式修改为: "武器名称, 本地偏移X, 本地偏移Y"
+            // 例如: "HeavyCannon, 10.0, 0.0"
+            PackedStringArray parts = value_str.split(",");
+            if (parts.size() >= 1) {
+                String w_name = parts[0].strip_edges();
+                Ref<WeaponStats> w_stats = p_weapon_manager->get_weapon(w_name);
+
+                if (w_stats.is_valid()) {
+                    WeaponMount mount;
+                    mount.weapon_resource = w_stats;
+
+                    // 解析局部位移 (可选参数，默认为 0,0)
+                    if (parts.size() >= 3) {
+                        mount.local_position = Vector2(parts[1].to_float(), parts[2].to_float());
+                    }
+                    else {
+                        mount.local_position = Vector2(0, 0);
+                    }
+
+                    stats->weapon_mounts.push_back(mount);
+                    UtilityFunctions::print("[UnitLoader] 成功为单位挂载武器: ", w_name, " 偏移: ", mount.local_position);
+                }
+                else {
+                    UtilityFunctions::print("[UnitLoader] Error: 未找到武器资源 '", w_name, "' (请确保该武器名称存在并在单位前完成加载)");
+                }
+            }
+        }
+
     
         // 2. [新增/修改]：显式处理字符串类型的 key
         else if (key == "texture_path") {
@@ -157,6 +186,4 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, Ref<UnitStats> p_t
     return stats;
 }
 
-void UnitLoader::_bind_methods() {
-    ClassDB::bind_static_method("UnitLoader", D_METHOD("load_stats_from_txt", "path", "target_resource"), &UnitLoader::load_stats_from_txt, DEFVAL(Variant()));
-}
+void UnitLoader::_bind_methods() {}

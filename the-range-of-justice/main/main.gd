@@ -44,6 +44,7 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	var attack_manager: AttackManager = $AttackManager
 	var economy_manager: EconomyManager = $EconomyManager
 	var fog_manager: FogManager = $FogManager
+	var weapon_manager: WeaponManager = $WeaponManager
 	
 	var cell_size: Vector2i = tile_map_layer.tile_set.tile_size
 	var used_rect: Rect2i = tile_map_layer.get_used_rect()
@@ -69,11 +70,13 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	GlobalGameManager.set_projectile_manager(projectile_manager)
 	GlobalGameManager.set_economy_manager(economy_manager)
 	GlobalGameManager.set_fog_manager(fog_manager)
+	GlobalGameManager.set_weapon_manager(weapon_manager)
 	
 	# 设置流场系统尺寸
 	GlobalGameManager.setup_system(width, height, cell_size, grid_origin)
 	
 	# 注册配置（这部分建议放在 GlobalGameManager 的 init 里只运行一次）
+	weapon_manager.register_weapons_from_dir("res://config/weapon/")
 	unit_manager.register_units_from_dir("res://config/unit/")
 	building_manager.register_buildings_from_dir("res://config/building/")
 	projectile_manager.register_projectiles_from_dir("res://config/projectile/")

@@ -1,3 +1,4 @@
+#pragma once
 #include "unit_manager.h"
 #include "attack_manager.h"
 #include "selection_manager.h"
@@ -98,6 +99,15 @@ int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_t
     new_unit.height = p_stats->base_height;
     new_unit.stats = p_stats; 
     new_unit.weapon_cooldowns.resize(p_stats->weapons.size(), 0.0f);
+
+    new_unit.weapons.clear();
+    for (const auto& mount : p_stats->weapon_mounts) {
+        WeaponData wd;
+        wd.stats = mount.weapon_resource;
+        wd.local_position = mount.local_position;
+        new_unit.weapons.push_back(wd);
+    }
+
 
     new_unit.team_id = p_team_id; 
 
@@ -398,6 +408,10 @@ void UnitManager::physics_update(double p_delta) {
         unit.prev_height = unit.height;
         unit.prev_rotation = unit.rotation;
 
+        for (auto& weapon : unit.weapons) {
+            weapon.prev_rotation = weapon.rotation;
+        }
+
         update_state(unit);
         update_velocity(unit, p_delta);
         move(unit, p_delta);
@@ -405,6 +419,11 @@ void UnitManager::physics_update(double p_delta) {
         unit.next_position = unit.position;
         unit.next_height = unit.height;
         unit.next_rotation = unit.rotation;
+
+        for (auto& weapon : unit.weapons) {
+            weapon.update(unit.rotation, p_delta);
+            weapon.next_rotation = weapon.rotation;
+        }
     }
 }
 
@@ -829,6 +848,10 @@ void UnitManager::set_fog_manager(Node* p_node) {
     fog_manager = Object::cast_to<FogManager>(p_node);
 }
 
+void UnitManager::set_weapon_manager(Node* p_node) {
+    weapon_manager = Object::cast_to<WeaponManager>(p_node);
+}
+
 void UnitManager::_internal_register_stats(Ref<UnitStats> p_stats) {
     String p_name = p_stats->unit_name;
     UnitStats* stats_ptr = p_stats.ptr();
@@ -924,7 +947,7 @@ void UnitManager::_internal_register_stats(Ref<UnitStats> p_stats) {
 
 
 void UnitManager::register_unit_type(String p_name, String p_path) {
-    Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(p_path);
+    Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(p_path, weapon_manager);
     if (stats.is_null()) return;
 
     // 如果文件中没写名字，则使用手动输入的 p_name
@@ -949,7 +972,7 @@ void UnitManager::register_units_from_dir(String p_dir_path) {
         // 只处理 .txt 配置文件
         if (!dir->current_is_dir() && file_name.ends_with(".txt")) {
             String full_path = p_dir_path.path_join(file_name);
-            Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(full_path);
+            Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(full_path, weapon_manager);
 
             if (stats.is_valid() && !stats->unit_name.is_empty()) {
                 _internal_register_stats(stats);

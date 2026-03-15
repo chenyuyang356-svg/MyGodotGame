@@ -29,6 +29,7 @@
 #include "fog_manager.h"
 #include "unit_loader.h"
 #include "unit_data.h"
+#include "weapon_manager.h"
 
 namespace godot {
 	class AttackManager; // 前向声明
@@ -45,6 +46,7 @@ namespace godot {
 		FlowFieldManager *flow_field_manager;
 		GroupManager* group_manager;
 		FogManager* fog_manager;
+		WeaponManager* weapon_manager;
 		std::unordered_map<int, size_t> id_to_index;
 		int next_unit_id = 0;
 
@@ -149,6 +151,7 @@ namespace godot {
 		void set_flow_field_manager(Node* p_node);
 		void set_group_manager(Node* p_node);
 		void set_fog_manager(Node* p_node);
+		void set_weapon_manager(Node* p_node);
 
 		void _internal_register_stats(Ref<UnitStats> p_stats);
 		void register_unit_type(String p_name, String p_path);

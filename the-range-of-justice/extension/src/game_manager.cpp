@@ -158,6 +158,7 @@ void GameManager::_process(double p_delta) {
 	// 驱动底层 MultiMesh 实例，让显卡去画出介于 prev 和 next 之间的平滑位置
 	unit_manager->update_multimesh_buffer(p_delta, alpha, selection_manager);
 	building_manager->update_multimesh_buffer(p_delta, alpha, selection_manager);
+	weapon_manager->update_multimesh_buffer(p_delta, alpha, unit_manager, building_manager, selection_manager);
 }
 
 void GameManager::update_group(double p_delta) {
@@ -241,12 +242,16 @@ void godot::GameManager::set_fog_manager(Node* p_node) {
 	fog_manager = Object::cast_to<FogManager>(p_node);
 }
 
+void GameManager::set_weapon_manager(Node* p_node) {
+	weapon_manager = Object::cast_to<WeaponManager>(p_node);
+}
 
 void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin) {
 	unit_manager->set_flow_field_manager(flow_field_manager);
 	unit_manager->set_group_manager(group_manager);
 	unit_manager->set_fog_manager(fog_manager);
 	unit_manager->set_attack_manager(attack_manager);
+	unit_manager->set_weapon_manager(weapon_manager);
 
 	building_manager->set_flow_field_manager(flow_field_manager);
 	building_manager->set_unit_manager(unit_manager);
@@ -264,6 +269,7 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 	fog_manager->setup_fog(map_pos, map_size, brush);
 
 	unit_manager->setup_system(p_width, p_height, p_cell_size, p_origin);
+	weapon_manager->setup_system(fog_manager);
 	is_setup = true;
 }
 
@@ -460,12 +466,19 @@ void GameManager::broadcast_network_snapshot() {
 	int unit_count = (int)unit_manager->units.size();
 	int bld_count = (int)building_manager->buildings.size();
 
+	// 1. 预先计算单位部分需要的总内存大小
+	int total_unit_bytes = 0;
+	for (const auto& unit : unit_manager->units) {
+		// 基础25字节 + 武器数量标记(1字节) + 每把武器的旋转角度(4字节 * 武器数)
+		total_unit_bytes += 25 + 1 + unit.weapons.size() * 4;
+	}
+
 	// 预分配内存：
-	// 单位头(4) + (每个单位 25 字节) + 建筑头(4) + (每个建筑 9 字节)
-	data.resize(4 + unit_count * 25 + 4 + bld_count * 9);
+	// 单位头(4) + (所有单位的总字节数) + 建筑头(4) + (每个建筑 9 字节)
+	data.resize(4 + total_unit_bytes + 4 + bld_count * 9);
 
 	int offset = 0;
-	// 1. 写入单位
+	// 2. 写入单位
 	data.encode_s32(offset, unit_count);
 	offset += 4;
 	for (const auto& unit : unit_manager->units) {
@@ -477,9 +490,19 @@ void GameManager::broadcast_network_snapshot() {
 		data.encode_float(offset + 20, unit.current_health);
 		data.set(offset + 24, (uint8_t)unit.state);
 		offset += 25;
+
+		// --- 写入武器的朝向同步数据 ---
+		uint8_t weapon_count = (uint8_t)unit.weapons.size();
+		data.set(offset, weapon_count);
+		offset += 1;
+
+		for (const auto& weapon : unit.weapons) {
+			data.encode_float(offset, weapon.rotation);
+			offset += 4;
+		}
 	}
 
-	// 2. 写入建筑 (新增)
+	// 3. 写入建筑
 	data.encode_s32(offset, bld_count);
 	offset += 4;
 	for (const auto& pair : building_manager->buildings) {
@@ -504,7 +527,7 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 	offset += 4;
 
 	for (int i = 0; i < unit_count; i++) {
-		if (offset + 21 > p_raw_data.size()) break;
+		if (offset + 25 > p_raw_data.size()) break; // 基础长度边界检查
 
 		int id = p_raw_data.decode_s32(offset);
 		float px = p_raw_data.decode_float(offset + 4);
@@ -515,6 +538,20 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 		uint8_t state = p_raw_data.get(offset + 24);
 		offset += 25;
 
+		// --- 读取武器的朝向同步数据 ---
+		if (offset + 1 > p_raw_data.size()) break;
+		uint8_t weapon_count = p_raw_data.get(offset);
+		offset += 1;
+
+		std::vector<float> weapon_rotations;
+		weapon_rotations.reserve(weapon_count);
+		for (int w = 0; w < weapon_count; ++w) {
+			if (offset + 4 > p_raw_data.size()) break;
+			weapon_rotations.push_back(p_raw_data.decode_float(offset));
+			offset += 4;
+		}
+
+		// --- 应用数据 ---
 		int idx = unit_manager->get_unit_index_by_id(id);
 		if (idx != -1) {
 			UnitData& unit = unit_manager->units[idx];
@@ -523,33 +560,23 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 			unit.prev_rotation = unit.next_rotation;
 			unit.prev_height = unit.next_height;
 
-			// 设置新的目标
+			// 设置新的单位目标
 			unit.position = Vector2(px, py);
 			unit.next_position = Vector2(px, py);
 			unit.next_rotation = rot;
 			unit.next_height = height;
 			unit.current_health = health;
 			unit.state = (UnitState)state;
-		}
-	}
 
-	// 2. 解析建筑 
-	if (offset + 4 <= p_raw_data.size()) {
-		int bld_count = p_raw_data.decode_s32(offset);
-		offset += 4;
+			// 设置新的武器目标
+			int sync_count = Math::min((int)weapon_rotations.size(), (int)unit.weapons.size());
+			for (int w = 0; w < sync_count; ++w) {
+				WeaponData& weapon = unit.weapons[w];
 
-		for (int i = 0; i < bld_count; i++) {
-			if (offset + 9 > p_raw_data.size()) break;
-
-			int id = p_raw_data.decode_s32(offset);
-			float health = p_raw_data.decode_float(offset + 4);
-			uint8_t state = p_raw_data.get(offset + 8);
-			offset += 9;
-
-			if (building_manager->buildings.count(id)) {
-				BuildingData& b = building_manager->buildings[id];
-				b.current_health = health;
-				b.state = (BuildingState)state;
+				// 同步物理帧和逻辑帧差值逻辑
+				weapon.prev_rotation = weapon.next_rotation;
+				weapon.rotation = weapon_rotations[w];
+				weapon.next_rotation = weapon_rotations[w];
 			}
 		}
 	}
@@ -776,6 +803,7 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_attack_manager", "node"), &GameManager::set_attack_manager);
 	ClassDB::bind_method(D_METHOD("set_projectile_manager", "node"), &GameManager::set_projectile_manager);
 	ClassDB::bind_method(D_METHOD("set_fog_manager", "node"), &GameManager::set_fog_manager);
+	ClassDB::bind_method(D_METHOD("set_weapon_manager", "node"), &GameManager::set_weapon_manager);
 	ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &GameManager::setup_system);
 
 	ClassDB::bind_method(D_METHOD("host_game", "port"), &GameManager::host_game);

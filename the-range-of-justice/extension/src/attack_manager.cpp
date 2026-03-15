@@ -231,7 +231,7 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
     if (dist_sq <= atk_range * atk_range) {
         if (p_unit.stats->get_can_fire_on_move()) {
             for (size_t i = 0; i < p_unit.stats->weapons.size(); ++i) {
-                const WeaponStats& weapon = p_unit.stats->weapons[i];
+                const Weapon& weapon = p_unit.stats->weapons[i];
                 float real_weapon_range = weapon.attack_range + p_unit.stats->get_collision_radius() + target_radius;
 
                 // 检查目标是否在这把武器的射程之内
@@ -291,7 +291,7 @@ void AttackManager::_handle_attacking(UnitData& p_unit, double p_delta) {
     // 遍历该单位挂载的所有武器
     if (p_unit.stats.is_valid()) {
         for (size_t i = 0; i < p_unit.stats->weapons.size(); ++i) {
-            const WeaponStats& weapon = p_unit.stats->weapons[i];
+            const Weapon& weapon = p_unit.stats->weapons[i];
 
             // 计算这把武器的实际攻击距离（武器基础射程 + 双方碰撞半径）
             float real_range = weapon.attack_range + p_unit.stats->get_collision_radius() + target_radius;
@@ -353,7 +353,7 @@ void AttackManager::_handle_moving(UnitData& p_unit) {
 
                 // 遍历所有武器进行移动射击判定
                 for (size_t i = 0; i < p_unit.stats->weapons.size(); ++i) {
-                    const WeaponStats& weapon = p_unit.stats->weapons[i];
+                    const Weapon& weapon = p_unit.stats->weapons[i];
                     float real_weapon_range = weapon.attack_range + p_unit.stats->get_collision_radius() + target_radius;
 
                     // 检查这把特定武器是否够得着
@@ -469,7 +469,7 @@ bool AttackManager::_try_find_target_for_building(BuildingData& p_building) {
     return false;
 }
 
-void AttackManager::_execute_attack(UnitData& attacker, int target_id, bool target_is_building, const WeaponStats& weapon) {
+void AttackManager::_execute_attack(UnitData& attacker, int target_id, bool target_is_building, const Weapon& weapon) {
     float dmg = weapon.damage;
     float proj_speed = weapon.projectile_speed;
     float splash = weapon.splash_radius;

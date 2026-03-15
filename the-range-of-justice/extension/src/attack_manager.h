@@ -51,7 +51,7 @@ namespace godot {
         bool _is_target_valid(int p_target_id, bool p_is_building);
 
         //攻击逻辑
-        void _execute_attack(UnitData& attacker, int target_id, bool target_is_building, const WeaponStats& weapon);
+        void _execute_attack(UnitData& attacker, int target_id, bool target_is_building, const Weapon& weapon);
         void _execute_building_attack(BuildingData& attacker, int target_id, bool target_is_building);
 
         // 获取目标的位置和碰撞半径
