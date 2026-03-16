@@ -19,10 +19,7 @@ func _on_single_player_pressed():
 	GlobalGameManager.host_start_game()
 
 func _on_multiplayer_pressed():
-	# 进入联机 UI 界面
-	# 假设你把 NetworkUI 放在了主菜单的一个面板里
-	$NetworkUI.show()
-	menu_buttons.hide()
+	get_tree().change_scene_to_file("res://ui/network_ui/network_ui.tscn")
 
 func _on_options_button_pressed():
 	# 这里未来可以用来打开设置面板

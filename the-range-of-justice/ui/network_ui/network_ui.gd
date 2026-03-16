@@ -6,8 +6,11 @@ extends Control
 @onready var ip_input = $Panel_Connection/VBoxContainer/HBoxContainer/LineEdit_IP
 @onready var port_input = $Panel_Connection/VBoxContainer/HBoxContainer2/LineEdit_Port
 @onready var name_input = $Panel_Connection/VBoxContainer/LineEdit_Name
+@onready var btn_join = $Panel_Connection/VBoxContainer/Button_Join
+
 @onready var map_option = $Panel_Lobby/VBoxContainer/HBoxContainer/OptionButton_Map
 @onready var btn_start = $Panel_Lobby/VBoxContainer/Button_StartGame
+@onready var btn_disconnect = $Panel_Lobby/VBoxContainer/Button_Disconnect
 @onready var players_container = $Panel_Lobby/VBoxContainer/VBoxContainer_Players
 
 @onready var spin_team = $Panel_Lobby/VBoxContainer/HBoxContainer2/SpinBox_Team
@@ -21,6 +24,9 @@ var current_preview_map_idx: int = -1
 func _ready():
 	# 绑定 GlobalGameManager 的大厅刷新信号
 	GlobalGameManager.lobby_updated.connect(_on_lobby_updated)
+	GlobalGameManager.game_left.connect(_on_game_left)
+	
+	multiplayer.connected_to_server.connect(_on_connected_ok)
 	
 	# 初始化 UI
 	panel_connection.show()
@@ -29,6 +35,7 @@ func _ready():
 	# 监听本地设置变化，向服务器发送更新
 	spin_team.value_changed.connect(_on_local_settings_changed)
 	spin_spawn.value_changed.connect(_on_local_settings_changed)
+
 
 # ================= 1. 连接阶段 =================
 
@@ -57,8 +64,36 @@ func _on_Button_Join_pressed():
 	
 	GlobalGameManager.join_game(ip, port)
 	
-	# 客户端进大厅，禁用某些选项
+	btn_join.disabled = true
+	btn_join.text = "Connecting..."
+
+func _on_Button_Back_pressed():
+	get_tree().change_scene_to_file("res://ui/main menu/main_menu.tscn")
+
+func _on_Button_Disconnect_pressed():
+	# 通知 C++ 底层切断网络并清理数据，这会触发底层的 game_left 信号
+	GlobalGameManager.leave_game()
+
+func _on_connected_ok():
+	# 此时才是真正连上了服务器，切入大厅界面
 	enter_lobby(false)
+
+func _on_game_left():
+	# 切换 UI 面板
+	panel_lobby.hide()
+	panel_connection.show()
+	
+	btn_join.disabled = false
+	btn_join.text = "Join"
+	
+	# 清理玩家列表缓存
+	for child in players_container.get_children():
+		child.queue_free()
+		
+	# 清理地图预览缓存
+	for child in preview_root.get_children():
+		child.queue_free()
+	current_preview_map_idx = -1
 
 func enter_lobby(is_host: bool):
 	panel_connection.hide()

@@ -276,6 +276,13 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 
 // 房间/联机会话管理
 void GameManager::host_game(int p_port) {
+	// 如果已有连接，先将其关闭释放
+	if (get_multiplayer()->has_multiplayer_peer()) {
+		get_multiplayer()->set_multiplayer_peer(Ref<MultiplayerPeer>());
+	}
+	game_in_progress = false;
+	players_settings.clear();
+
 	Ref<ENetMultiplayerPeer> peer;
 	peer.instantiate();
 	Error err = peer->create_server(p_port);
@@ -291,6 +298,13 @@ void GameManager::host_game(int p_port) {
 }
 
 void GameManager::join_game(String p_address, int p_port) {
+	// 如果已有连接，先将其关闭释放
+	if (get_multiplayer()->has_multiplayer_peer()) {
+		get_multiplayer()->set_multiplayer_peer(Ref<MultiplayerPeer>());
+	}
+	game_in_progress = false;
+	players_settings.clear();
+
 	Ref<ENetMultiplayerPeer> peer;
 	peer.instantiate();
 	Error err = peer->create_client(p_address, p_port);
@@ -304,6 +318,14 @@ void GameManager::join_game(String p_address, int p_port) {
 
 void GameManager::host_start_game() {
 	if (!is_server_authority()) return;
+
+	game_in_progress = true; // 标记游戏已经开始
+
+	// 告诉底层网络：不再接受新连接！
+	Ref<MultiplayerPeer> peer = get_multiplayer()->get_multiplayer_peer();
+	if (peer.is_valid()) {
+		peer->set_refuse_new_connections(true);
+	}
 
 	// 准备最终的配置数据包
 	Dictionary final_configs;
@@ -834,6 +856,10 @@ void GameManager::_enter_tree() {
 	// 连接信号
 	get_multiplayer()->connect("peer_connected", Callable(this, "_on_peer_connected"));
 	get_multiplayer()->connect("connected_to_server", Callable(this, "_on_connected_to_server"));
+
+	get_multiplayer()->connect("peer_disconnected", Callable(this, "_on_peer_disconnected"));
+	get_multiplayer()->connect("server_disconnected", Callable(this, "_on_server_disconnected"));
+	get_multiplayer()->connect("connection_failed", Callable(this, "_on_connection_failed"));
 }
 
 // --- 服务器端触发 ---
@@ -849,6 +875,49 @@ void GameManager::_on_connected_to_server() {
 
 	int desired_team = 0;
 	rpc_id(1, "rpc_server_request_registration", desired_team, local_player_name);
+}
+
+void GameManager::leave_game() {
+	// 释放网络层
+	if (get_multiplayer()->has_multiplayer_peer()) {
+		get_multiplayer()->set_multiplayer_peer(Ref<MultiplayerPeer>());
+	}
+
+	players_settings.clear();
+	game_in_progress = false;
+	is_setup = false;
+
+	UtilityFunctions::print("Left game and disconnected network.");
+
+	// 发出自定义断开信号，供 GDScript 侧响应（如清理场景或切回主菜单）
+	emit_signal("game_left");
+}
+
+void GameManager::_on_peer_disconnected(int p_id) {
+	if (get_multiplayer()->is_server()) {
+		UtilityFunctions::print("Server: Peer disconnected: ", p_id);
+		players_settings.erase(p_id);
+
+		// 如果还没开始游戏，则刷新大厅信息广播给其它玩家
+		if (!game_in_progress) {
+			rpc_server_set_map(selected_map_index);
+		}
+	}
+	else {
+		UtilityFunctions::print("Client: Peer disconnected: ", p_id);
+	}
+}
+
+void GameManager::_on_server_disconnected() {
+	UtilityFunctions::print("Client: Server disconnected. Leaving game...");
+	// 房主断线，客户端自动退出清理
+	leave_game();
+}
+
+void GameManager::_on_connection_failed() {
+	UtilityFunctions::print("Client: Connection failed or rejected (Game already in progress).");
+	// 如果连接由于在游戏中被拒绝（或超时），则清理退出
+	leave_game();
 }
 
 // godot绑定
@@ -925,6 +994,12 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_peer_connected", "id"), &GameManager::_on_peer_connected);
 	ClassDB::bind_method(D_METHOD("_on_connected_to_server"), &GameManager::_on_connected_to_server);
 
+	ClassDB::bind_method(D_METHOD("leave_game"), &GameManager::leave_game);
+
+	ClassDB::bind_method(D_METHOD("_on_peer_disconnected", "id"), &GameManager::_on_peer_disconnected);
+	ClassDB::bind_method(D_METHOD("_on_server_disconnected"), &GameManager::_on_server_disconnected);
+	ClassDB::bind_method(D_METHOD("_on_connection_failed"), &GameManager::_on_connection_failed);
+
 	ClassDB::bind_method(D_METHOD("get_logic_tick_rate"), &GameManager::get_logic_tick_rate);
 	ClassDB::bind_method(D_METHOD("set_logic_tick_rate", "logic_tick_rate"), &GameManager::set_logic_tick_rate);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "logic_tick_rate"), "set_logic_tick_rate", "get_logic_tick_rate");
@@ -944,4 +1019,5 @@ void GameManager::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "available_maps", PROPERTY_HINT_NONE, "24/17:Resource"), "set_available_maps", "get_available_maps");
 
 	ADD_SIGNAL(MethodInfo("lobby_updated"));
+	ADD_SIGNAL(MethodInfo("game_left"));
 }

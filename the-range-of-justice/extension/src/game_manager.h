@@ -45,6 +45,7 @@ namespace godot {
 		WeaponManager* weapon_manager = nullptr;
 
 		bool is_setup = false;
+		bool game_in_progress = false;
 
 		// 逻辑 Tick 频率 (例如 20Hz)
 		double logic_tick_rate = 0.05;
@@ -95,6 +96,7 @@ namespace godot {
 		// --- 网络管理接口 ---
 		void host_game(int p_port);
 		void join_game(String p_address, int p_port);
+		void leave_game();
 
 		void rpc_client_load_game(int p_map_idx, Dictionary p_player_configs);
 		void rpc_server_request_registration(int p_team_id, String p_name);
@@ -183,6 +185,10 @@ namespace godot {
 		void _enter_tree() override;
 		void _on_peer_connected(int p_id);
 		void _on_connected_to_server();
+
+		void _on_peer_disconnected(int p_id); // 新增：玩家断开连接回调
+		void _on_server_disconnected(); // 新增：服务端关闭回调
+		void _on_connection_failed(); // 新增：连接被拒绝/失败回调
 
 		double get_logic_tick_rate() { return logic_tick_rate; }
 		void set_logic_tick_rate(double p_value) { logic_tick_rate = p_value; }

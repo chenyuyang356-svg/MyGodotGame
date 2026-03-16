@@ -4,7 +4,6 @@
 [ext_resource type="Theme" uid="uid://cpyg1yehfm7ug" path="res://ui/theme/main_menu.theme" id="1_cngla"]
 [ext_resource type="Texture2D" uid="uid://c1eqh0dj8lj01" path="res://icon.svg" id="1_w6cik"]
 [ext_resource type="PackedScene" uid="uid://dywbpnqknsp0r" path="res://ui/option menu/option_menu.tscn" id="4_sln25"]
-[ext_resource type="PackedScene" uid="uid://08rgqexg3d8r" path="res://ui/network_ui/network_ui.tscn" id="5_dv33c"]
 
 [node name="MainMenu" type="Control" unique_id=1229322745]
 layout_mode = 3
@@ -96,9 +95,6 @@ anchor_right = 0.0
 anchor_bottom = 0.0
 grow_horizontal = 1
 grow_vertical = 1
-
-[node name="NetworkUI" parent="." unique_id=774892550 instance=ExtResource("5_dv33c")]
-visible = false
 
 [connection signal="pressed" from="MainLayout/ContentVBox/MenuButtons/SinglePlayerButtonayButton" to="." method="_on_single_player_pressed"]
 [connection signal="pressed" from="MainLayout/ContentVBox/MenuButtons/MultiplayerButton" to="." method="_on_multiplayer_pressed"]

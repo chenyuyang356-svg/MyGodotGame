@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://08rgqexg3d8r"]
 
 [ext_resource type="Script" uid="uid://dt8fo8njh081d" path="res://ui/network_ui/network_ui.gd" id="1_3q5o4"]
+[ext_resource type="Texture2D" uid="uid://c1eqh0dj8lj01" path="res://icon.svg" id="2_njb74"]
 
 [node name="NetworkUI" type="Control" unique_id=2050431705]
 layout_mode = 3
@@ -11,8 +12,18 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_3q5o4")
 
+[node name="Background" type="TextureRect" parent="." unique_id=1486992035]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_njb74")
+expand_mode = 1
+stretch_mode = 6
+
 [node name="Panel_Connection" type="PanelContainer" parent="." unique_id=201819681]
-visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -68,6 +79,10 @@ text = "Host"
 [node name="Button_Join" type="Button" parent="Panel_Connection/VBoxContainer" unique_id=1779476235]
 layout_mode = 2
 text = "Join"
+
+[node name="Button_Back" type="Button" parent="Panel_Connection/VBoxContainer" unique_id=719287519]
+layout_mode = 2
+text = "Back"
 
 [node name="Panel_Lobby" type="PanelContainer" parent="." unique_id=1931718696]
 layout_mode = 1
@@ -141,7 +156,13 @@ value = 1.0
 layout_mode = 2
 text = "开始游戏"
 
+[node name="Button_Disconnect" type="Button" parent="Panel_Lobby/VBoxContainer" unique_id=2098324169]
+layout_mode = 2
+text = "断开连接"
+
 [connection signal="pressed" from="Panel_Connection/VBoxContainer/Button_Host" to="." method="_on_Button_Host_pressed"]
 [connection signal="pressed" from="Panel_Connection/VBoxContainer/Button_Join" to="." method="_on_Button_Join_pressed"]
+[connection signal="pressed" from="Panel_Connection/VBoxContainer/Button_Back" to="." method="_on_Button_Back_pressed"]
 [connection signal="item_selected" from="Panel_Lobby/VBoxContainer/HBoxContainer/OptionButton_Map" to="." method="_on_OptionButton_Map_item_selected"]
 [connection signal="pressed" from="Panel_Lobby/VBoxContainer/Button_StartGame" to="." method="_on_Button_StartGame_pressed"]
+[connection signal="pressed" from="Panel_Lobby/VBoxContainer/Button_Disconnect" to="." method="_on_Button_Disconnect_pressed"]
