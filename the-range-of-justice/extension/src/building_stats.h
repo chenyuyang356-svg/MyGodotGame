@@ -1,10 +1,14 @@
 #pragma once
 
+#include <vector>
+
 #include <godot_cpp/classes/resource.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
 #include <godot_cpp/core/class_db.hpp> 
+
+#include "weapon_stats.h"
 
 namespace godot {
 
@@ -73,6 +77,7 @@ namespace godot {
         ~BuildingStats();
 
         float sight_range = 700.0f;
+        std::vector<WeaponMount> weapon_mounts;
         // --- Getters & Setters ---
 
         // Base

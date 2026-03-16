@@ -33,10 +33,15 @@ namespace godot {
         FogManager* fog_manager = nullptr;
         Ref<Shader> unit_shader;
         Ref<Shader> shadow_shader;
+        Ref<Shader> ghost_shader;
 
         // 渲染器映射及分组缓存
         std::unordered_map<WeaponStats*, MultiMeshInstance3D*> weapon_renderers;
         std::unordered_map<WeaponStats*, MultiMeshInstance3D*> weapon_shadow_renderers;
+
+        std::unordered_map<WeaponStats*, MultiMeshInstance3D*> weapon_ghost_renderers;
+        std::unordered_map<WeaponStats*, std::vector<std::pair<int, int>>> building_weapon_grouping_cache;
+        std::unordered_map<WeaponStats*, std::vector<std::pair<int, int>>> ghost_weapon_grouping_cache;
         // 缓存：pair(单位/建筑的索引, 其对应的武器槽位索引)
         std::unordered_map<WeaponStats*, std::vector<std::pair<int, int>>> weapon_grouping_cache;
 

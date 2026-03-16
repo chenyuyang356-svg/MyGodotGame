@@ -27,6 +27,10 @@ void BuildingManager::set_fog_manager(Node* p_node) {
     fog_manager = Object::cast_to<FogManager>(p_node);
 }
 
+void BuildingManager::set_weapon_manager(Node* p_node) {
+    weapon_manager = Object::cast_to<WeaponManager>(p_node);
+}
+
 void BuildingManager::update(double p_delta) {
     handle_dead_buildings(p_delta);
 
@@ -34,6 +38,12 @@ void BuildingManager::update(double p_delta) {
         BuildingData& b = pair.second;
 
         if (b.state == BuildingState::DYING) continue;
+
+        for (auto& weapon : b.weapons) {
+            weapon.prev_rotation = weapon.rotation;
+            weapon.update(0.0f, p_delta);
+            weapon.next_rotation = weapon.rotation;
+        }
 
         // 逻辑 A：处理建筑自身的建造过程
         if (b.state == BuildingState::BUILDING) {
@@ -187,9 +197,12 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
             float duration = (float)frames / s_ptr->get_anim_fps();
             int frame_idx = (int)(Math::fmod(b.anim_time, duration) * s_ptr->get_anim_fps());
 
-            float modulate = 1.0f;
+            float modulate = 1.0;
             if (p_selection_manager->is_building_selected(b.id)) {
                 modulate = 1.5f;
+            }
+            else if (p_selection_manager->is_building_hovered(b.id)) {
+                modulate = 1.2f;
             }
             
             Color anim_data = Color((float)frame_idx, (float)row, modulate, 0);
@@ -281,6 +294,7 @@ void BuildingManager::maintain_ghosts(double p_delta) {
         gd.stats = b.stats;
         gd.grid_pos = b.grid_pos;
         gd.team_id = b.team_id;
+        gd.weapons = b.weapons;
         ghost_buildings[b.id] = gd;
     }
 
@@ -460,7 +474,7 @@ void BuildingManager::_internal_register_building(Ref<BuildingStats> p_stats) {
 }
 
 void BuildingManager::register_building_type(String p_name, String p_path) {
-    Ref<BuildingStats> stats = BuildingLoader::load_from_txt(p_path);
+    Ref<BuildingStats> stats = BuildingLoader::load_from_txt(p_path, weapon_manager);
     if (stats.is_null()) return;
     if (stats->get_building_name().is_empty()) stats->set_building_name(p_name);
     _internal_register_building(stats);
@@ -475,7 +489,7 @@ void BuildingManager::register_buildings_from_dir(String p_dir_path) {
     while (file_name != "") {
         if (!dir->current_is_dir() && file_name.ends_with(".txt")) {
             String full_path = p_dir_path.path_join(file_name);
-            Ref<BuildingStats> stats = BuildingLoader::load_from_txt(full_path);
+            Ref<BuildingStats> stats = BuildingLoader::load_from_txt(full_path, weapon_manager);
             if (stats.is_valid() && !stats->get_building_name().is_empty()) {
                 _internal_register_building(stats);
             }
@@ -617,6 +631,14 @@ int BuildingManager::place_building_by_type(String p_type_name, Vector2i p_grid_
     b.team_id = p_team_id;
     b.state = BuildingState::BUILDING;
     b.current_health = stats->get_health_max();
+
+    for (const auto& mount : stats->weapon_mounts) {
+        WeaponData wd;
+        wd.stats = mount.weapon_resource;
+        wd.local_position = mount.local_position;
+        b.weapons.push_back(wd);
+    }
+
     buildings[b_id] = b;
 
     // 2. 修改代价地图：注意这里只设置 Footprint 的格子

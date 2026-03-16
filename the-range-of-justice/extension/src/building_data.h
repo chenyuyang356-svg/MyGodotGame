@@ -3,6 +3,7 @@
 #include <godot_cpp/variant/vector2.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include "building_stats.h"
+#include "weapon_data.h"
 
 namespace godot {
     // 建筑状态机
@@ -29,6 +30,7 @@ namespace godot {
         int target_id = -1;
         bool target_is_building = false;
         float attack_cooldown = 0.0f;
+        std::vector<WeaponData> weapons;
 
         // 产兵
         std::vector<String> production_queue; 

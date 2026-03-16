@@ -43,6 +43,7 @@ namespace godot {
         bool is_unit_selected(int p_id) const { return selected_unit_ids.count(p_id); }
         bool is_unit_hovered(int p_id) const { return hovered_unit_id == p_id; }
         bool is_building_selected(int p_id) const { return selected_building_ids.count(p_id); }
+        bool is_building_hovered(int p_id) const { return hovered_building_id == p_id; }
 
         // 获取数据给 UI
         SelectionType get_selection_type() const { return current_selection_type; }

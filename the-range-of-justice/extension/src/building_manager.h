@@ -17,6 +17,7 @@
 #include "building_data.h"
 #include "economy_manager.h"
 #include "fog_manager.h"
+#include "weapon_manager.h"
 
 namespace godot {
     class SelectionManager;
@@ -26,6 +27,7 @@ namespace godot {
         Ref<BuildingStats> stats;
         Vector2i grid_pos;
         int team_id;
+        std::vector<WeaponData> weapons;
     };
 
     class BuildingManager : public Node3D {
@@ -39,6 +41,7 @@ namespace godot {
         UnitManager* unit_manager = nullptr;
         EconomyManager* economy_manager = nullptr;
         FogManager* fog_manager = nullptr;
+        WeaponManager* weapon_manager = nullptr;
 
         HashMap<String, Ref<BuildingStats>> building_types_cache;
         int next_building_id = 0;
@@ -55,7 +58,6 @@ namespace godot {
         std::unordered_map<BuildingStats*, std::vector<int>> type_grouping_cache;
 
         // --- 残影渲染器 ---
-        std::unordered_map<int, GhostBuildingData> ghost_buildings;
         std::unordered_map<BuildingStats*, MultiMeshInstance3D*> ghost_renderers;
         Ref<Shader> ghost_shader;
         std::unordered_map<BuildingStats*, std::vector<int>> ghost_grouping_cache;
@@ -67,6 +69,7 @@ namespace godot {
 
     public:
         std::unordered_map<int, BuildingData> buildings;
+        std::unordered_map<int, GhostBuildingData> ghost_buildings;
 
         BuildingManager();
         ~BuildingManager();
@@ -75,6 +78,7 @@ namespace godot {
         void set_unit_manager(Node* p_node);
         void set_economy_manager(Node* p_node);
         void set_fog_manager(Node* p_node);
+        void set_weapon_manager(Node* p_node);
 
         // --- 核心功能 ---
 
@@ -110,6 +114,7 @@ namespace godot {
         int get_building_team_id(int p_building_id) const;
         Vector2i get_building_grid_pos(int p_building_id) const;
         Ref<BuildingStats> get_building_stats(int p_building_id) const;
+        Vector2i get_cell_size() { return flow_field_manager->get_cell_size(); }
 
         // 返回所有已注册的建筑类型名称列表
         PackedStringArray get_registered_building_types() const;

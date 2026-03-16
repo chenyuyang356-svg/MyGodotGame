@@ -64,6 +64,8 @@ attack_damage=40.0
 attack_range=400.0
 # 攻击间隔 (单位: 秒)
 attack_interval=1.0
+# 格式: weapon_mount = [武器名称],[相对建筑中心的本地偏移X], [本地偏移Y]
+weapon_mount = HeavyCannon, 0.0, 0.0
 
 [Collector]
 # 采集资源类型: Gold, Wood, Energy 等

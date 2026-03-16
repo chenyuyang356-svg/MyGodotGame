@@ -1,6 +1,8 @@
-#include "building_loader.h"
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+
+#include "building_loader.h"
+#include "weapon_manager.h"
 
 using namespace godot;
 
@@ -13,7 +15,7 @@ Vector2i parse_v2i(String p_str) {
     return Vector2i(1, 1);
 }
 
-Ref<BuildingStats> BuildingLoader::load_from_txt(String p_path, Ref<BuildingStats> p_target) {
+Ref<BuildingStats> BuildingLoader::load_from_txt(String p_path, WeaponManager* p_weapon_manager, Ref<BuildingStats> p_target) {
     Ref<BuildingStats> stats = p_target;
     if (stats.is_null()) stats.instantiate();
 
@@ -62,6 +64,34 @@ Ref<BuildingStats> BuildingLoader::load_from_txt(String p_path, Ref<BuildingStat
                 unit_list[i] = unit_list[i].strip_edges();
             }
             stats->set_producible_units(unit_list);
+        }
+        else if (key == "weapon_mount") {
+            // 解析格式修改为: "武器名称, 本地偏移X, 本地偏移Y"
+            // 例如: "HeavyCannon, 10.0, 0.0"
+            PackedStringArray parts = val.split(",");
+            if (parts.size() >= 1) {
+                String w_name = parts[0].strip_edges();
+                Ref<WeaponStats> w_stats = p_weapon_manager->get_weapon(w_name);
+
+                if (w_stats.is_valid()) {
+                    WeaponMount mount;
+                    mount.weapon_resource = w_stats;
+
+                    // 解析局部位移 (可选参数，默认为 0,0)
+                    if (parts.size() >= 3) {
+                        mount.local_position = Vector2(parts[1].to_float(), parts[2].to_float());
+                    }
+                    else {
+                        mount.local_position = Vector2(0, 0);
+                    }
+
+                    stats->weapon_mounts.push_back(mount);
+                    UtilityFunctions::print("[UnitLoader] 成功为建筑挂载武器: ", w_name, " 偏移: ", mount.local_position);
+                }
+                else {
+                    UtilityFunctions::print("[UnitLoader] Error: 未找到武器资源 '", w_name, "' (请确保该武器名称存在并在建筑前完成加载)");
+                }
+            }
         }
         else if (key == "texture_path" || key == "building_name" || key == "resource_type") {
             stats->set(key, val);

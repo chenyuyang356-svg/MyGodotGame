@@ -22,6 +22,9 @@ WeaponManager::WeaponManager() {
     if (shadow_shader.is_null()) {
         shadow_shader = ResourceLoader::get_singleton()->load("res://shader/unit_shadow.gdshader");
     }
+    if (ghost_shader.is_null()) {
+        ghost_shader = ResourceLoader::get_singleton()->load("res://shader/ghost_building_shader.gdshader");
+    }
 }
 
 WeaponManager::~WeaponManager() {
@@ -55,101 +58,184 @@ void WeaponManager::setup_system(Node* p_fog_manager) {
             mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
         }
     }
+    for (auto& pair : weapon_ghost_renderers) {
+        Ref<ShaderMaterial> mat = pair.second->get_material_override();
+        if (mat.is_valid()) {
+            mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+            mat->set_shader_parameter("tex_history", fog_manager->get_history_texture());
+            mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+            mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+        }
+    }
 }
 
 void WeaponManager::update_multimesh_buffer(double p_delta, float p_alpha, UnitManager* p_unit_mgr, BuildingManager* p_bld_mgr, SelectionManager* p_sel_mgr) {
-    if (weapon_renderers.empty() || !p_unit_mgr) return;
+    if (weapon_renderers.empty()) return;
 
-    for (auto& pair : weapon_grouping_cache) {
-        pair.second.clear();
-    }
+    for (auto& pair : weapon_grouping_cache) pair.second.clear();
+    for (auto& pair : building_weapon_grouping_cache) pair.second.clear();
+    for (auto& pair : ghost_weapon_grouping_cache) pair.second.clear();
 
-    // 1. 扫描所有的 Unit 提取武器信息
-    for (int i = 0; i < p_unit_mgr->units.size(); ++i) {
-        UnitData& unit = p_unit_mgr->units[i];
-        for (int w = 0; w < unit.weapons.size(); ++w) {
-            WeaponStats* w_ptr = unit.weapons[w].stats.ptr();
-            if (w_ptr) {
-                weapon_grouping_cache[w_ptr].push_back({ i, w });
+    // 1. 扫描单位
+    if (p_unit_mgr) {
+        for (int i = 0; i < p_unit_mgr->units.size(); ++i) {
+            UnitData& unit = p_unit_mgr->units[i];
+            for (int w = 0; w < unit.weapons.size(); ++w) {
+                WeaponStats* w_ptr = unit.weapons[w].stats.ptr();
+                if (w_ptr) weapon_grouping_cache[w_ptr].push_back({ i, w });
             }
         }
     }
 
-    // 2. 扫描所有的 Building 提取武器信息 (目前占位，以后再处理)
-    /*
+    // 2. 扫描建筑与残影
     if (p_bld_mgr) {
-        // ... (待开发)
+        for (auto const& [b_id, b_data] : p_bld_mgr->buildings) {
+            for (int w = 0; w < b_data.weapons.size(); ++w) {
+                WeaponStats* w_ptr = b_data.weapons[w].stats.ptr();
+                if (w_ptr) building_weapon_grouping_cache[w_ptr].push_back({ b_id, w });
+            }
+        }
+        for (auto const& [b_id, g_data] : p_bld_mgr->ghost_buildings) {
+            for (int w = 0; w < g_data.weapons.size(); ++w) {
+                WeaponStats* w_ptr = g_data.weapons[w].stats.ptr();
+                if (w_ptr) ghost_weapon_grouping_cache[w_ptr].push_back({ b_id, w });
+            }
+        }
     }
-    */
 
-    // 3. 执行渲染更新
+    // 3. 执行主体与阴影渲染
     for (auto const& [w_ptr, mmi] : weapon_renderers) {
-        const auto& indices = weapon_grouping_cache[w_ptr];
-        int count = indices.size();
+        const auto& u_indices = weapon_grouping_cache[w_ptr];
+        const auto& b_indices = building_weapon_grouping_cache[w_ptr];
+        int u_count = u_indices.size();
+        int b_count = b_indices.size();
+        int total_count = u_count + b_count;
 
         Ref<MultiMesh> mm = mmi->get_multimesh();
-        if (mm->get_instance_count() != count) {
-            mm->set_instance_count(count);
-        }
+        if (mm->get_instance_count() != total_count) mm->set_instance_count(total_count);
 
         MultiMeshInstance3D* s_mmi = weapon_shadow_renderers[w_ptr];
         Ref<MultiMesh> s_mm = s_mmi->get_multimesh();
-        if (s_mm->get_instance_count() != count) {
-            s_mm->set_instance_count(count);
-        }
+        if (s_mm->get_instance_count() != total_count) s_mm->set_instance_count(total_count);
 
-        if (count == 0) continue;
+        if (total_count == 0) continue;
 
-        for (int i = 0; i < count; ++i) {
-            int u_idx = indices[i].first;
-            int w_idx = indices[i].second;
-
+        // A. 渲染单位的武器
+        for (int i = 0; i < u_count; ++i) {
+            int u_idx = u_indices[i].first;
+            int w_idx = u_indices[i].second;
             UnitData& unit = p_unit_mgr->units[u_idx];
             WeaponData& weapon = unit.weapons[w_idx];
+            weapon.anim_time += p_delta; // 【必须增加：驱动客户端动画】
 
-            Vector2 unit_visual_pos = UtilityFunctions::lerp(unit.prev_position, unit.next_position, p_alpha);
-            float unit_visual_height = UtilityFunctions::lerp(unit.prev_height, unit.next_height, p_alpha);
-            float unit_visual_rotation = UtilityFunctions::lerp_angle(unit.prev_rotation, unit.next_rotation, p_alpha);
-            float weapon_visual_rotation = UtilityFunctions::lerp_angle(weapon.prev_rotation, weapon.next_rotation, p_alpha);
+            Vector2 u_pos = UtilityFunctions::lerp(unit.prev_position, unit.next_position, p_alpha);
+            float u_h = UtilityFunctions::lerp(unit.prev_height, unit.next_height, p_alpha);
+            float u_rot = UtilityFunctions::lerp_angle(unit.prev_rotation, unit.next_rotation, p_alpha);
+            float w_rot = UtilityFunctions::lerp_angle(weapon.prev_rotation, weapon.next_rotation, p_alpha);
 
-            Vector2 rotated_offset = weapon.local_position.rotated(unit_visual_rotation);
-            Vector2 weapon_visual_pos = unit_visual_pos + rotated_offset;
-
-            float fake_depth_offset = weapon_visual_pos.y * 0.0001f;
-            Vector3 pos_3d = Vector3(weapon_visual_pos.x, unit_visual_height + fake_depth_offset + 0.1f, weapon_visual_pos.y - unit_visual_height);
+            Vector2 w_pos = u_pos + weapon.local_position.rotated(u_rot);
+            float fd = w_pos.y * 0.0001f;
 
             Transform3D xform;
-            xform.origin = pos_3d;
-            xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
-            xform.basis = xform.basis.rotated(Vector3(0, -1, 0), (weapon_visual_rotation + Math_PI / 2.0f));
+            xform.origin = Vector3(w_pos.x, u_h + fd + 0.1f, w_pos.y - u_h);
+            xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0).rotated(Vector3(0, -1, 0), w_rot + Math_PI / 2.0f);
             mm->set_instance_transform(i, xform);
 
-            int frames = (weapon.state == WEAPON_ATTACKING) ? w_ptr->get_attacking_frames() : w_ptr->get_idle_frames();
+            int fr = (weapon.state == WEAPON_ATTACKING) ? w_ptr->get_attacking_frames() : w_ptr->get_idle_frames();
             int row = (weapon.state == WEAPON_ATTACKING) ? w_ptr->get_attacking_row() : w_ptr->get_idle_row();
-            float duration = (float)frames / w_ptr->get_anim_fps();
-            int frame_idx = (int)(Math::fmod(weapon.anim_time, duration) * w_ptr->get_anim_fps());
-
-            float modulate = 1.0;
-            if (p_sel_mgr && p_sel_mgr->is_unit_selected(unit.id)) {
-                modulate = 1.5f;
+            float dur = (float)fr / w_ptr->get_anim_fps();
+            int f_idx = (int)(Math::fmod(weapon.anim_time, dur) * w_ptr->get_anim_fps());
+            float mod = 1.0;
+            if (p_sel_mgr->is_unit_selected(unit.id)) {
+                mod = 1.5f;
             }
-            else if (p_sel_mgr && p_sel_mgr->is_unit_hovered(unit.id)) {
-                modulate = 1.2f;
+            else if (p_sel_mgr->is_unit_hovered(unit.id)) {
+                mod = 1.2f;
             }
 
-            mm->set_instance_custom_data(i, Color(frame_idx, row, modulate, 0));
+            mm->set_instance_custom_data(i, Color(f_idx, row, mod, 0));
             mm->set_instance_color(i, get_team_color(unit.team_id));
 
-            // 更新阴影
-            Transform3D shadow_xform;
-            shadow_xform.origin = Vector3(weapon_visual_pos.x + 4.0f,
-                unit_visual_height + fake_depth_offset - 0.05f,
-                weapon_visual_pos.y + 4.0f);
-            shadow_xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
-            shadow_xform.basis = shadow_xform.basis.rotated(Vector3(0, -1, 0), (weapon_visual_rotation + Math_PI / 2.0f));
+            Transform3D s_xform = xform;
+            s_xform.origin = Vector3(w_pos.x + 4.0f, u_h + fd - 0.05f, w_pos.y + 4.0f);
+            s_mm->set_instance_transform(i, s_xform);
+            s_mm->set_instance_custom_data(i, Color(f_idx, row, 0, 0));
+        }
 
-            s_mm->set_instance_transform(i, shadow_xform);
-            s_mm->set_instance_custom_data(i, Color(frame_idx, row, 0, 0));
+        // B. 渲染建筑的武器
+        for (int i = 0; i < b_count; ++i) {
+            int mm_idx = u_count + i;
+            int b_id = b_indices[i].first;
+            int w_idx = b_indices[i].second;
+
+            BuildingData& b = p_bld_mgr->buildings[b_id];
+            WeaponData& weapon = b.weapons[w_idx];
+            weapon.anim_time += p_delta; // 【必须增加：驱动客户端动画】
+
+            Vector2 cell_sz = Vector2(p_bld_mgr->get_cell_size());
+            Vector2 fp_size = Vector2(b.stats->get_footprint()) * cell_sz;
+            Vector2 center = Vector2(b.grid_pos) * cell_sz + fp_size * 0.5f;
+
+            float w_rot = UtilityFunctions::lerp_angle(weapon.prev_rotation, weapon.next_rotation, p_alpha);
+            Vector2 w_pos = center + weapon.local_position; // 建筑不旋转，直接偏移
+            float fd = center.y * 0.0001f;
+
+            // 为了和建筑Shader兼容（不利用Z轴拔高），我们仅在Y轴拔高
+            Transform3D xform;
+            xform.origin = Vector3(w_pos.x, b.stats->get_base_height() + fd + 0.1f, w_pos.y);
+            xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0).rotated(Vector3(0, -1, 0), w_rot + Math_PI / 2.0f);
+            mm->set_instance_transform(mm_idx, xform);
+
+            int fr = (weapon.state == WEAPON_ATTACKING) ? w_ptr->get_attacking_frames() : w_ptr->get_idle_frames();
+            int row = (weapon.state == WEAPON_ATTACKING) ? w_ptr->get_attacking_row() : w_ptr->get_idle_row();
+            float dur = (float)fr / w_ptr->get_anim_fps();
+            int f_idx = (int)(Math::fmod(weapon.anim_time, dur) * w_ptr->get_anim_fps());
+            float mod = 1.0;
+            if (p_sel_mgr->is_building_selected(b.id)) {
+                mod = 1.5f;
+            }
+            else if (p_sel_mgr->is_building_hovered(b.id)) {
+                mod = 1.2f;
+            }
+
+            mm->set_instance_custom_data(mm_idx, Color(f_idx, row, mod, 0));
+            mm->set_instance_color(mm_idx, get_team_color(b.team_id));
+
+            Transform3D s_xform = xform;
+            s_xform.origin = Vector3(w_pos.x + 4.0f, b.stats->get_base_height() + fd - 0.05f, w_pos.y + 4.0f);
+            s_mm->set_instance_transform(mm_idx, s_xform);
+            s_mm->set_instance_custom_data(mm_idx, Color(f_idx, row, 0, 0));
+        }
+    }
+
+    // 4. 执行残影渲染
+    for (auto const& [w_ptr, g_mmi] : weapon_ghost_renderers) {
+        const auto& g_indices = ghost_weapon_grouping_cache[w_ptr];
+        int count = g_indices.size();
+
+        Ref<MultiMesh> g_mm = g_mmi->get_multimesh();
+        if (g_mm->get_instance_count() != count) g_mm->set_instance_count(count);
+
+        for (int i = 0; i < count; ++i) {
+            int b_id = g_indices[i].first;
+            int w_idx = g_indices[i].second;
+
+            const GhostBuildingData& g = p_bld_mgr->ghost_buildings[b_id];
+            const WeaponData& weapon = g.weapons[w_idx];
+
+            Vector2 cell_sz = Vector2(p_bld_mgr->get_cell_size());
+            Vector2 fp_size = Vector2(g.stats->get_footprint()) * cell_sz;
+            Vector2 center = Vector2(g.grid_pos) * cell_sz + fp_size * 0.5f;
+
+            Vector2 w_pos = center + weapon.local_position;
+            float fd = center.y * 0.0001f - 0.01f;
+
+            Transform3D xform;
+            xform.origin = Vector3(w_pos.x, g.stats->get_base_height() + fd, w_pos.y);
+            xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
+
+            g_mm->set_instance_transform(i, xform);
+            g_mm->set_instance_color(i, get_team_color(g.team_id));
         }
     }
 }
@@ -232,6 +318,41 @@ void WeaponManager::register_weapon(String p_name, String p_path) {
             }
             s_mmi->set_material_override(s_mat);
             weapon_shadow_renderers[stats_ptr] = s_mmi;
+
+            // 3. 残影 MultiMesh
+            MultiMeshInstance3D* g_mmi = memnew(MultiMeshInstance3D);
+            g_mmi->set_name(stats->get_weapon_name() + "_Ghost");
+            add_child(g_mmi);
+
+            Ref<MultiMesh> g_mm;
+            g_mm.instantiate();
+            g_mm->set_transform_format(MultiMesh::TRANSFORM_3D);
+            g_mm->set_use_colors(true);
+            g_mm->set_use_custom_data(false); // 残影只用首帧，禁用以节省带宽
+
+            Ref<QuadMesh> g_qmesh;
+            g_qmesh.instantiate();
+            if (tex.is_valid()) {
+                Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
+                g_qmesh->set_size(frame_size);
+            }
+            g_mm->set_mesh(g_qmesh);
+            g_mmi->set_multimesh(g_mm);
+
+            Ref<ShaderMaterial> g_mat;
+            g_mat.instantiate();
+            g_mat->set_shader(ghost_shader);
+            g_mat->set_shader_parameter("h_frames", stats->get_h_frames());
+            g_mat->set_shader_parameter("v_frames", stats->get_v_frames());
+            g_mat->set_shader_parameter("albedo_texture", tex);
+            if (fog_manager) {
+                g_mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+                g_mat->set_shader_parameter("tex_history", fog_manager->get_history_texture());
+                g_mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+                g_mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+            }
+            g_mmi->set_material_override(g_mat);
+            weapon_ghost_renderers[stats_ptr] = g_mmi;
         }
 
         UtilityFunctions::print("[WeaponManager] Registered weapon: ", stats->get_weapon_name());

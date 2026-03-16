@@ -257,6 +257,7 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 	building_manager->set_unit_manager(unit_manager);
 	building_manager->set_economy_manager(economy_manager);
 	building_manager->set_fog_manager(fog_manager);
+	building_manager->set_weapon_manager(weapon_manager);
 
 	selection_manager->set_team_id(players_settings[get_multiplayer()->get_unique_id()].team_id);
 
@@ -473,9 +474,15 @@ void GameManager::broadcast_network_snapshot() {
 		total_unit_bytes += 25 + 1 + unit.weapons.size() * 4;
 	}
 
-	// 预分配内存：
-	// 单位头(4) + (所有单位的总字节数) + 建筑头(4) + (每个建筑 9 字节)
-	data.resize(4 + total_unit_bytes + 4 + bld_count * 9);
+	// 2. 计算建筑所需的序列化内存
+	int total_bld_bytes = 0;
+	for (const auto& pair : building_manager->buildings) {
+		// 建筑基础 9 字节 + 武器数 1 字节 + (每个武器 4 字节)
+		total_bld_bytes += 9 + 1 + pair.second.weapons.size() * 4;
+	}
+
+	// 重新调整缓冲区大小
+	data.resize(4 + total_unit_bytes + 4 + total_bld_bytes);
 
 	int offset = 0;
 	// 2. 写入单位
@@ -511,6 +518,16 @@ void GameManager::broadcast_network_snapshot() {
 		data.encode_float(offset + 4, b.current_health); // 4 bytes
 		data.set(offset + 8, (uint8_t)b.state);      // 1 byte
 		offset += 9;
+
+		// 【新增】写入该建筑挂载的武器角度
+		uint8_t weapon_count = (uint8_t)b.weapons.size();
+		data.set(offset, weapon_count);
+		offset += 1;
+
+		for (const auto& weapon : b.weapons) {
+			data.encode_float(offset, weapon.rotation);
+			offset += 4;
+		}
 	}
 
 	rpc("rpc_client_receive_snapshot", data);
@@ -581,6 +598,48 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 		}
 	}
 
+	// 2. 解析建筑 
+	if (offset + 4 <= p_raw_data.size()) {
+		int bld_count = p_raw_data.decode_s32(offset);
+		offset += 4;
+
+		for (int i = 0; i < bld_count; i++) {
+			if (offset + 9 > p_raw_data.size()) break;
+
+			int id = p_raw_data.decode_s32(offset);
+			float health = p_raw_data.decode_float(offset + 4);
+			uint8_t state = p_raw_data.get(offset + 8);
+			offset += 9;
+
+			// 【新增】解析发过来的武器同步角度
+			if (offset + 1 > p_raw_data.size()) break;
+			uint8_t weapon_count = p_raw_data.get(offset);
+			offset += 1;
+
+			std::vector<float> weapon_rotations;
+			weapon_rotations.reserve(weapon_count);
+			for (int w = 0; w < weapon_count; ++w) {
+				if (offset + 4 > p_raw_data.size()) break;
+				weapon_rotations.push_back(p_raw_data.decode_float(offset));
+				offset += 4;
+			}
+
+			if (building_manager->buildings.count(id)) {
+				BuildingData& b = building_manager->buildings[id];
+				b.current_health = health;
+				b.state = (BuildingState)state;
+
+				// 【新增】应用武器插值数据
+				int sync_count = Math::min((int)weapon_rotations.size(), (int)b.weapons.size());
+				for (int w = 0; w < sync_count; ++w) {
+					WeaponData& weapon = b.weapons[w];
+					weapon.prev_rotation = weapon.next_rotation;
+					weapon.rotation = weapon_rotations[w];
+					weapon.next_rotation = weapon_rotations[w];
+				}
+			}
+		}
+	}
 
 	tick_accumulator = 0.0;
 }

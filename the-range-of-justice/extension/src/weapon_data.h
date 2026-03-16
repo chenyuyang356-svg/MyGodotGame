@@ -28,7 +28,7 @@ namespace godot {
 
         void update(float parent_rotation, double p_delta) {
             if (stats.is_null()) return;
-
+            
             // 1. 旋转更新逻辑
             if (stats->get_is_turret()) {
                 if (target_direction.length_squared() > 0.001f) {
@@ -49,7 +49,7 @@ namespace godot {
                 rotation = parent_rotation;
                 target_direction = Vector2(Math::cos(parent_rotation), Math::sin(parent_rotation));
             }
-
+            
             // 2. 冷却更新逻辑
             if (current_cooldown > 0.0f) {
                 current_cooldown -= p_delta;
