@@ -704,6 +704,7 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
             int u_idx = indices[i];
             UnitData& unit = units[u_idx];
 
+            // --- 更新单位渲染 ---
             Transform3D xform;
             Vector2 visual_position = UtilityFunctions::lerp(unit.prev_position, unit.next_position, p_alpha);
             float visual_height = UtilityFunctions::lerp(unit.prev_height, unit.next_height, p_alpha);
@@ -731,10 +732,14 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
                 modulate = 1.2f;
             }
 
+            if (unit.state == DYING) {
+                modulate = 1.0f - (unit.current_dying_time / unit.stats->get_dying_time()) * 0.5f;
+            }
+
             mm->set_instance_custom_data(i, Color(frame_idx, row, modulate, 0));
             mm->set_instance_color(i, get_team_color(unit.team_id));
 
-
+            // --- 更新影子渲染 ---
             Transform3D shadow_xform;
 
             float shadow_offset_x = 4.0f;  
@@ -769,14 +774,14 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
         float visual_height = UtilityFunctions::lerp(unit.prev_height, unit.next_height, p_alpha);
 
         // 2. 计算血条位置和大小
-        float offset_y = unit.stats->get_collision_radius() * 1.1f; // 每个兵种高度不同
-        float bar_width = unit.stats->get_collision_radius() * 1.9f;
+        float offset_y = unit.stats->get_collision_radius() * 1.5f; // 每个兵种高度不同
+        float bar_width = unit.stats->get_collision_radius() * 1.7f;
 
         Transform3D xform;
         // 这里的 Y 坐标加上了 offset_y
         Vector3 pos_3d = Vector3(visual_pos.x,
             visual_height + 10.0f,
-            visual_pos.y - visual_height - offset_y);
+            visual_pos.y - visual_height + offset_y);
         xform.origin = pos_3d;
 
         xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);

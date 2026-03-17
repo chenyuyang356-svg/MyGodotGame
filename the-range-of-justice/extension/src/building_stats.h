@@ -166,6 +166,9 @@ namespace godot {
 
         void set_working_row(int p_val) { working_row = p_val; }
         int get_working_row() const { return working_row; }
+
+        void set_dying_time(float p_val) { dying_time = p_val; }
+        float get_dying_time() const { return dying_time; }
     };
 
 }

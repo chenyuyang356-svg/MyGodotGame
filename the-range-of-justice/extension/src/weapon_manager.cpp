@@ -153,6 +153,10 @@ void WeaponManager::update_multimesh_buffer(double p_delta, float p_alpha, UnitM
                 mod = 1.2f;
             }
 
+            if (unit.state == DYING) {
+                mod = 1.0f - (unit.current_dying_time / unit.stats->get_dying_time()) * 0.5f;
+            }
+
             mm->set_instance_custom_data(i, Color(f_idx, row, mod, 0));
             mm->set_instance_color(i, get_team_color(unit.team_id));
 
@@ -196,6 +200,10 @@ void WeaponManager::update_multimesh_buffer(double p_delta, float p_alpha, UnitM
             }
             else if (p_sel_mgr->is_building_hovered(b.id)) {
                 mod = 1.2f;
+            }
+
+            if (b.state == BuildingState::DYING) {
+                mod = 1.0f - (b.current_dying_time / b.stats->get_dying_time()) * 0.5f;
             }
 
             mm->set_instance_custom_data(mm_idx, Color(f_idx, row, mod, 0));

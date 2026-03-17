@@ -64,6 +64,11 @@ namespace godot {
 
         float ghost_cleanup_timer = 0.0f; // 限制 CPU 抓取屏幕的频率
 
+        // --- 进度条渲染器 ---
+        MultiMeshInstance3D* global_progress_bar_renderer = nullptr;
+        Ref<Shader> progress_bar_shader;
+        void _setup_progress_bar_system();
+
     protected:
         static void _bind_methods();
 

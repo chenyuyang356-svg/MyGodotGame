@@ -31,6 +31,43 @@ void BuildingManager::set_weapon_manager(Node* p_node) {
     weapon_manager = Object::cast_to<WeaponManager>(p_node);
 }
 
+void BuildingManager::_setup_progress_bar_system() {
+    if (global_progress_bar_renderer) return;
+
+    global_progress_bar_renderer = memnew(MultiMeshInstance3D);
+    global_progress_bar_renderer->set_name("GlobalBuildingProgressBars");
+    add_child(global_progress_bar_renderer);
+
+    Ref<MultiMesh> mm;
+    mm.instantiate();
+    mm->set_transform_format(MultiMesh::TRANSFORM_3D);
+    mm->set_use_custom_data(true); // X: HP比例, Y: 状态预留
+    mm->set_use_colors(true);      // 队伍颜色
+
+    Ref<QuadMesh> mesh;
+    mesh.instantiate();
+    mesh->set_size(Vector2(1.0, 1.0));
+    mm->set_mesh(mesh);
+
+    global_progress_bar_renderer->set_multimesh(mm);
+
+    // 材质设置
+    Ref<ShaderMaterial> mat;
+    mat.instantiate();
+    if (progress_bar_shader.is_null()) {
+        progress_bar_shader = ResourceLoader::get_singleton()->load("res://shader/hp_bar.gdshader");
+    }
+
+    if (fog_manager) {
+        mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+        mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+        mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+    }
+    mat->set_shader(progress_bar_shader);
+
+    global_progress_bar_renderer->set_material_override(mat);
+}
+
 void BuildingManager::update(double p_delta) {
     handle_dead_buildings(p_delta);
 
@@ -50,17 +87,25 @@ void BuildingManager::update(double p_delta) {
             // 累加建造时间
             b.build_timer += (float)p_delta;
 
-            // 检查是否建造完成
             float required_time = b.stats->get_build_time();
+            float max_health = b.stats->get_health_max();
 
+            // --- 新增：按建造比例逐渐增加血量 ---
+            if (required_time > 0.0f) {
+                b.current_health = UtilityFunctions::clamp(
+                    max_health * (b.build_timer / required_time),
+                    1.0f, max_health
+                );
+            }
+            else {
+                b.current_health = max_health;
+            }
+
+            // 检查是否建造完成
             if (b.build_timer >= required_time) {
                 b.state = BuildingState::IDLE;
                 b.build_timer = 0.0f;
-
-                // 建造完成时可以触发一些逻辑，比如血量补满或发出信号
-                b.current_health = b.stats->get_health_max();
-
-                // UtilityFunctions::print("Building ", b.id, " constructed!");
+                b.current_health = max_health;
             }
 
             continue;
@@ -204,6 +249,10 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
             else if (p_selection_manager->is_building_hovered(b.id)) {
                 modulate = 1.2f;
             }
+
+            if (b.state == BuildingState::DYING) {
+                modulate = 1.0f - (b.current_dying_time / b.stats->get_dying_time()) * 0.5f;
+            }
             
             Color anim_data = Color((float)frame_idx, (float)row, modulate, 0);
             mm->set_instance_custom_data(i, anim_data);
@@ -215,7 +264,7 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
         }
     }
 
-    // ========== 新增：处理残影渲染 ==========
+    // ========== 处理残影渲染 ==========
     for (auto& pair : ghost_grouping_cache) pair.second.clear();
     for (auto const& [id, g_data] : ghost_buildings) {
         ghost_grouping_cache[g_data.stats.ptr()].push_back(id);
@@ -245,6 +294,96 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
             g_mm->set_instance_color(i, get_team_color(g.team_id));
             // 不需要再设置 custom_data，Shader 会强行调用第1帧
         }
+    }
+
+    // ========== 处理建筑进度条渲染 ==========
+    if (!global_progress_bar_renderer) {
+        _setup_progress_bar_system();
+    }
+
+    int progress_bar_count = buildings.size() * 2; // 血条+进度条
+    Ref<MultiMesh> progress_mm = global_progress_bar_renderer->get_multimesh();
+
+    if (progress_mm->get_instance_count() != progress_bar_count) {
+        progress_mm->set_instance_count(progress_bar_count);
+    }
+
+    int bar_idx = 0;
+    for (auto const& [id, b] : buildings) {
+        // 1. 获取基础视觉数据
+        Vector2 fp_size = Vector2(b.stats->get_footprint()) * cell_sz;
+        Vector2 center = Vector2(b.grid_pos) * cell_sz + fp_size * 0.5f;
+
+        // 2. 计算血条和进度条位置和大小
+        float hp_offset_y = fp_size.y * 0.7f;
+        float progress_offset_y = hp_offset_y + 5.0f;
+        float bar_width = fp_size.x * 0.8f; // 根据占地宽度决定血条长度
+
+        Transform3D hp_xform;
+        Vector3 hp_pos_3d = Vector3(
+            center.x,
+            10.0f, // 与兵种一致，稍微抬高 Z 深度以防止穿模
+            center.y + hp_offset_y
+        );
+        hp_xform.origin = hp_pos_3d;
+        hp_xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
+        hp_xform.basis = hp_xform.basis.scaled(Vector3(bar_width, 4.0, 4.0));
+
+        progress_mm->set_instance_transform(bar_idx, hp_xform);
+
+        Transform3D progress_xform;
+        Vector3 progress_pos_3d = Vector3(
+            center.x,
+            10.0f, // 与兵种一致，稍微抬高 Z 深度以防止穿模
+            center.y + progress_offset_y
+        );
+        progress_xform.origin = progress_pos_3d;
+        progress_xform.basis = hp_xform.basis;
+
+        progress_mm->set_instance_transform(bar_idx + 1, progress_xform);
+
+        // 3. 计算百分比
+        float max_health = b.stats->get_health_max();
+        float hp_ratio = max_health > 0.0f ? (b.current_health / max_health) : 1.0f;
+
+        bool is_barrack = (b.stats->get_building_type() == BUILDING_BARRACKS);
+        bool is_working = (b.state == BuildingState::WORKING);
+        float progress_ratio = 0.0f;
+        if (is_barrack && is_working) {
+            String unit_type = b.production_queue.front();
+            Ref<UnitStats> u_stats = unit_manager->get_unit_stats_by_type(unit_type);
+            if (u_stats.is_valid()) {
+                progress_ratio = b.unit_production_timer / u_stats->get_build_time();
+            }
+        }
+
+        // 4. 控制显示逻辑：建造中、受伤或被选中时显示
+        bool is_selected = p_selection_manager->is_building_selected(b.id);
+        bool is_damaged = hp_ratio < 0.99f;
+        bool is_building = (b.state == BuildingState::BUILDING);
+
+        if (!(is_selected || is_damaged)) {
+            // 如果不需要显示，将缩放归零
+            progress_mm->set_instance_transform(bar_idx, Transform3D().scaled(Vector3(0, 0, 0)));
+        }
+        else {
+            // 5. 传递数据给 Shader (X = 比例)
+            progress_mm->set_instance_custom_data(bar_idx, Color(hp_ratio, 0.0, 0.0, 0.0));
+            Color team_color = Color(1.0, 0.0, 0.0);
+            progress_mm->set_instance_color(bar_idx, team_color);
+        }
+
+        if (!(is_barrack && is_working)) {
+            // 如果不需要显示，将缩放归零
+            progress_mm->set_instance_transform(bar_idx + 1, Transform3D().scaled(Vector3(0, 0, 0)));
+        }
+        else {
+            // 5. 传递数据给 Shader (X = 比例)
+            progress_mm->set_instance_custom_data(bar_idx + 1, Color(progress_ratio, 0.0, 0.0, 0.0));
+            progress_mm->set_instance_color(bar_idx + 1, Color(0.0, 0.0, 1.0));
+        }
+
+        bar_idx += 2;
     }
 }
 
@@ -630,7 +769,7 @@ int BuildingManager::place_building_by_type(String p_type_name, Vector2i p_grid_
     b.stats = stats;
     b.team_id = p_team_id;
     b.state = BuildingState::BUILDING;
-    b.current_health = stats->get_health_max();
+    b.current_health = 1.0f;
 
     for (const auto& mount : stats->weapon_mounts) {
         WeaponData wd;

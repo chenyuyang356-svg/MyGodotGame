@@ -164,5 +164,8 @@ namespace godot {
         // 播放速度
         void set_anim_fps(int p_val) { anim_fps = p_val; }
         int get_anim_fps() const { return anim_fps; }
+
+        void set_dying_time(float p_val) { dying_time = p_val; }
+        float get_dying_time() const { return dying_time; }
     };
 }
