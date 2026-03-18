@@ -136,7 +136,7 @@ namespace godot {
 		Vector2 get_friction(UnitData& p_unit);
 		Vector2 get_force(UnitData& p_unit);
 		void stop_unit(UnitData& p_unit);
-		void update_state(UnitData& p_unit);
+		void update_state(UnitData& p_unit, double p_delta);
 		void update_velocity(UnitData& p_unit, double p_delta);
 		void move(UnitData& p_unit, double p_delta);
 

@@ -143,6 +143,8 @@ namespace godot {
         Vector2i get_cell_size();
 
         bool is_in_grid(Vector2i p_grid_pos);
+
+        bool is_path_clear(Vector2 p_start_world, Vector2 p_end_world, int p_nav_type);
     };
 
 

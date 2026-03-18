@@ -434,6 +434,60 @@ bool FlowFieldManager::is_in_grid(Vector2i p_grid_pos) {
     return (rx >= 0 && rx < width && ry >= 0 && ry < height);
 }
 
+bool FlowFieldManager::is_path_clear(Vector2 p_start_world, Vector2 p_end_world, int p_nav_type) {
+    if (p_nav_type < 0 || p_nav_type >= NAV_MAX) return false;
+
+    Vector2i start_grid = world_to_grid(p_start_world) - grid_origin;
+    Vector2i end_grid = world_to_grid(p_end_world) - grid_origin;
+
+    // 使用 DDA 算法遍历直线经过的所有格子
+    int x1 = start_grid.x;
+    int y1 = start_grid.y;
+    int x2 = end_grid.x;
+    int y2 = end_grid.y;
+
+    int dx = abs(x2 - x1);
+    int dy = abs(y2 - y1);
+    int x = x1;
+    int y = y1;
+    int n = 1 + dx + dy;
+    int x_inc = (x2 > x1) ? 1 : -1;
+    int y_inc = (y2 > y1) ? 1 : -1;
+    int error = dx - dy;
+    dx *= 2;
+    dy *= 2;
+
+    const std::vector<uint8_t>& cost_map = cost_maps[p_nav_type];
+
+    for (; n > 0; --n) {
+        // 边界检查
+        if (x >= 0 && x < width && y >= 0 && y < height) {
+            if (cost_map[y * width + x] == 255) {
+                return false; // 撞墙了
+            }
+        }
+        else {
+            return false; // 出界了
+        }
+
+        if (error > 0) {
+            x += x_inc;
+            error -= dy;
+        }
+        else if (error < 0) {
+            y += y_inc;
+            error += dx;
+        }
+        else { // 刚好经过对角点
+            x += x_inc;
+            y += y_inc;
+            error += dx - dy;
+            n--;
+        }
+    }
+    return true;
+}
+
 // 绑定方法，以便在 GDScript 中调用
 void FlowFieldManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("setup_grid", "width", "height", "grid_origin", "cell_size"), &FlowFieldManager::setup_grid);

@@ -99,6 +99,7 @@ int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_t
     new_unit.height = p_stats->base_height;
     new_unit.stats = p_stats; 
     new_unit.weapon_cooldowns.resize(p_stats->weapons.size(), 0.0f);
+    new_unit.path_recheck_timer = (float)(new_unit.id % 60) / 60.0f;
 
     new_unit.weapons.clear();
     for (const auto& mount : p_stats->weapon_mounts) {
@@ -185,11 +186,16 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
         if (it != id_to_index.end()) {
             UnitData& unit = units[it->second];
 
-            // --- 核心逻辑修改：根据单位自身的导航类型请求流场 ---
+            // --- 探测直线路径 ---
+            bool clear = flow_field_manager->is_path_clear(unit.position, p_target_world_pos, unit.get_nav_type());
+
+            unit.use_direct_path = clear;
+
+            // --- 根据单位自身的导航类型请求流场 ---
             // 假设 unit.nav_type 存储了该单位的移动类型 (NAV_LAND, NAV_SEA 等)
             int type = unit.get_nav_type();
 
-            if (type >= 0 && type < NAV_MAX) {
+            if (type >= 0 && type < NAV_MAX && (!clear)) {
                 if (!requested_types[type]) {
                     // 为该类型创建/获取流场，p_overwrite 设为 false 表示如果已存在则不重置
                     flow_field_manager->create_flow_field(target_grid_pos, type, false);
@@ -427,7 +433,7 @@ void UnitManager::physics_update(double p_delta) {
             weapon.prev_rotation = weapon.rotation;
         }
 
-        update_state(unit);
+        update_state(unit, p_delta);
         update_velocity(unit, p_delta);
         move(unit, p_delta);
 
@@ -449,6 +455,12 @@ Vector2 UnitManager::get_flow(UnitData& p_unit) {
         flow = (p_unit.target_pos - p_unit.position).normalized();
         return flow;
     }
+
+    // 如果标记为直线行驶
+    if (p_unit.use_direct_path) {
+        return (p_unit.target_pos - p_unit.position).normalized();
+    }
+
     flow = flow_field_manager->get_flow_direction(p_unit.position, p_unit.target_pos, p_unit.get_nav_type());
     return flow;
 }
@@ -520,7 +532,7 @@ void UnitManager::stop_unit(UnitData& p_unit) {
     }
 }
 
-void UnitManager::update_state(UnitData& p_unit) {
+void UnitManager::update_state(UnitData& p_unit, double p_delta) {
     switch (p_unit.state) {
     case IDLE:
         break;
@@ -548,6 +560,23 @@ void UnitManager::update_state(UnitData& p_unit) {
                 }
             }
         }
+
+        p_unit.path_recheck_timer += (float)p_delta; 
+        if (p_unit.path_recheck_timer >= 1.0) { // 每1.0秒检查一次
+            p_unit.path_recheck_timer = 0.0;
+
+            bool clear = flow_field_manager->is_path_clear(p_unit.position, p_unit.target_pos, p_unit.get_nav_type());
+
+            if (clear) {
+                p_unit.use_direct_path = true;
+            }
+            else {
+                // 直线被挡住了！切换回流场模式
+                p_unit.use_direct_path = false;
+                flow_field_manager->create_flow_field(p_unit.target_grid, p_unit.get_nav_type(), false);
+            }
+        }
+
         break;
     }
 }

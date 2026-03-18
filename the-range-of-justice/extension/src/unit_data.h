@@ -60,6 +60,9 @@ namespace godot {
         std::vector<Vector2> patrol_waypoints;
         int current_waypoint_idx = 0;
 
+        bool use_direct_path = false;
+        double path_recheck_timer = 0.0; // 移动中定期重新检查，防止新造的建筑挡路
+
         UnitData() : id(-1), state(IDLE), current_health(0) {}
 
         int get_nav_type() {
