@@ -1,0 +1,25 @@
+[gd_resource type="TileSet" format=3 uid="uid://s0ddo53xr76x"]
+
+[ext_resource type="Texture2D" uid="uid://b5homoc2mg5u0" path="res://asset/tileset/Tileset.png" id="1_ey8lu"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_rjwds"]
+texture = ExtResource("1_ey8lu")
+texture_region_size = Vector2i(256, 256)
+0:0/0 = 0
+0:1/0 = 0
+0:1/0/custom_data_0 = true
+0:2/0 = 0
+0:2/0/custom_data_1 = true
+0:3/0 = 0
+2:0/0 = 0
+2:0/0/custom_data_2 = true
+
+[resource]
+tile_size = Vector2i(256, 256)
+custom_data_layer_0/name = "IsWall"
+custom_data_layer_0/type = 1
+custom_data_layer_1/name = "IsSea"
+custom_data_layer_1/type = 1
+custom_data_layer_2/name = "IsResource"
+custom_data_layer_2/type = 1
+sources/1 = SubResource("TileSetAtlasSource_rjwds")

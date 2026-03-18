@@ -29,7 +29,7 @@ clearance=1,1
 
 [Visuals]
 # 纹理文件路径
-texture_path=res://asset/building/资源采集器.png
+texture_path=res://asset/building/collector.png
 # 图集分栏 (整个贴图有多少列和多少行)
 h_frames=1
 # 图集分栏

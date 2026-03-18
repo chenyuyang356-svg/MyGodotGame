@@ -169,6 +169,7 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
     if (p_unit_ids.is_empty()) return;
 
     Vector2i target_grid_pos = flow_field_manager->world_to_grid(p_target_world_pos);
+    int temp_gid = group_manager->create_temporary_group(p_target_world_pos);
 
     // 检查目标点是否在网格内
     if (!(flow_field_manager->is_in_grid(target_grid_pos))) return;
@@ -196,6 +197,13 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
                 }
             }
 
+            // 更新temp group
+            if (unit.temp_group_id != -1) {
+                group_manager->remove_unit_from_temp_group(unit.temp_group_id, unit.id);
+            }
+            group_manager->add_unit_to_temp_group(temp_gid, unit.id);
+            unit.temp_group_id = temp_gid;
+
             // --- 更新单位状态 ---
             unit.target_grid = target_grid_pos;
             unit.target_pos = p_target_world_pos;
@@ -204,8 +212,6 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
             unit.is_patrolling = false;
             unit.is_manual_target = false;
 
-            // 注意：如果单位正在移动中切换了目标，
-            // 它的 get_flow_direction 调用也需要传入 unit.nav_type
         }
     }
 }
@@ -224,6 +230,11 @@ void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints) {
         auto it = id_to_index.find(uid);
         if (it != id_to_index.end()) {
             UnitData& unit = units[it->second];
+
+            if (unit.temp_group_id != -1) {
+                group_manager->remove_unit_from_temp_group(unit.temp_group_id, unit.id);
+            }
+
             unit.is_patrolling = true;
             unit.patrol_waypoints = waypoints;
             unit.current_waypoint_idx = 0;
@@ -246,6 +257,10 @@ void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_
         auto it = id_to_index.find(uid);
         if (it != id_to_index.end()) {
             UnitData& unit = units[it->second];
+
+            if (unit.temp_group_id != -1) {
+                group_manager->remove_unit_from_temp_group(unit.temp_group_id, unit.id);
+            }
 
             // 1.       е  ƶ   Ѳ  ״̬
             unit.is_patrolling = false;
@@ -496,24 +511,41 @@ Vector2 UnitManager::get_force(UnitData& p_unit) {
     return force;
 }
 
+void UnitManager::stop_unit(UnitData& p_unit) {
+    p_unit.state = IDLE;
+    p_unit.velocity = Vector2(0, 0);
+    if (p_unit.temp_group_id != -1) {
+        group_manager->decrement_moving_count(p_unit.temp_group_id);
+        p_unit.temp_group_id = -1;
+    }
+}
+
 void UnitManager::update_state(UnitData& p_unit) {
     switch (p_unit.state) {
     case IDLE:
         break;
     case MOVING:
-        if ((p_unit.stats)->get_move_type() == MOVE_AIR) {
-            float desired_distance = 2 * p_unit.stats->collision_radius;
-            if ((p_unit.position).distance_squared_to(p_unit.target_pos) <= desired_distance * desired_distance) {
-                p_unit.state = IDLE;
-                p_unit.velocity = Vector2(0, 0);
-                group_manager->decrement_moving_count(p_unit.temp_group_id);
-            }
+        float desired_distance = 2.0f * p_unit.stats->collision_radius;
+        float soft_arrival_distance_squared = p_unit.stats->collision_radius * p_unit.stats->collision_radius * 
+            group_manager->get_temp_group(p_unit.temp_group_id)->get_idle_units_count();
+        float distance_squared = (p_unit.position).distance_squared_to(p_unit.target_pos);
+        if (distance_squared <= desired_distance * desired_distance) {
+            stop_unit(p_unit);
+            break;
         }
-        else {
-            if (flow_field_manager->get_integration(p_unit.position, p_unit.target_pos, p_unit.get_nav_type()) <= desired_integration) {
-                p_unit.state = IDLE;
-                p_unit.velocity = Vector2(0, 0);
-                group_manager->decrement_moving_count(p_unit.temp_group_id);
+        if (distance_squared <= soft_arrival_distance_squared ||
+            p_unit.velocity.length_squared() < velocity_threshold_squared * 5.0f) {
+            std::vector<int> ahead_units = get_nearby_units(p_unit.position, 3 * p_unit.stats->collision_radius);
+            for (int neighbor_idx : ahead_units) {
+                UnitData& neighbor = units[neighbor_idx];
+                if (neighbor.id != p_unit.id && neighbor.state == IDLE && neighbor.target_grid == p_unit.target_grid) {
+                    // 如果邻居已经停在目的地附近，且离我也很近
+                    if (neighbor.position.distance_squared_to(p_unit.target_pos) < distance_squared) {
+                        // 这里的逻辑：如果我的邻居比我更靠近目的地且它停下了，我也考虑停下
+                        stop_unit(p_unit);
+                        break;
+                    }
+                }
             }
         }
         break;

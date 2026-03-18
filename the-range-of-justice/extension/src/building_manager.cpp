@@ -315,7 +315,7 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
         Vector2 center = Vector2(b.grid_pos) * cell_sz + fp_size * 0.5f;
 
         // 2. 计算血条和进度条位置和大小
-        float hp_offset_y = fp_size.y * 0.7f;
+        float hp_offset_y = fp_size.y * 0.6f;
         float progress_offset_y = hp_offset_y + 5.0f;
         float bar_width = fp_size.x * 0.8f; // 根据占地宽度决定血条长度
 

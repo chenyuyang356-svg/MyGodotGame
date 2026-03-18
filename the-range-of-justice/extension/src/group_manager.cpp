@@ -25,6 +25,7 @@ void GroupManager::add_unit_to_temp_group(int p_gid, int p_unit_id) {
     if (it != temp_groups.end()) {
         it->second.unit_ids.push_back(p_unit_id);
         it->second.moving_units_count++;
+        it->second.units_count++;
     }
 }
 
@@ -35,6 +36,7 @@ void GroupManager::remove_unit_from_temp_group(int p_gid, int p_unit_id) {
         // 如果该单位是在移动中被移除（去新组），减少计数
         if (it->second.moving_units_count > 0) {
             it->second.moving_units_count--;
+            it->second.units_count--;
         }
     }
 }

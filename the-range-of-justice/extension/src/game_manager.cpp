@@ -106,6 +106,8 @@ void GameManager::_physics_process(double p_delta) {
 
 		building_manager->update(p_delta);
 
+		update_group(p_delta);
+
 		while (tick_accumulator >= logic_tick_rate) {
 
 			broadcast_network_snapshot();

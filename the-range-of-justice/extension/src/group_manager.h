@@ -12,6 +12,7 @@ namespace godot {
         int id = -1;
         std::vector<int> unit_ids;   // 存储单位 ID
         int moving_units_count = 0; // 正在移动的单位计数器
+        int units_count = 0;
         Vector2 target_pos;
 
         UnitGroup() { unit_ids.reserve(256); }
@@ -25,6 +26,10 @@ namespace godot {
                     return;
                 }
             }
+        }
+
+        int get_idle_units_count() {
+            return units_count - moving_units_count;
         }
     };
 

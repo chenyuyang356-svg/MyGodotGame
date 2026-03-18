@@ -3,7 +3,7 @@
 # 战列舰单位配置文件 (Marine)
 #########################################
 
-unit_name = BattleShip
+unit_name = Battleship
 # --- Survival (生存) ---
 health_max       = 90.0
 health_regen     = 0.5
