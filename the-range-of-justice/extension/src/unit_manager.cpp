@@ -411,40 +411,6 @@ void UnitManager::update(double p_delta) {
 
     handle_dead_unit(p_delta);
     update_spatial_grid();
-
-    // --- 动态密度图：加细采样 ---
-    density_update_timer += p_delta;
-    if (density_update_timer >= 0.5) { // 每0.5秒更新一次精细密度
-        density_update_timer = 0.0;
-
-        // 创建一个与流场分辨率完全一致的空 Map
-        int f_width = flow_field_manager->get_width();
-        int f_height = flow_field_manager->get_height();
-        std::vector<float> high_res_buffer(f_width * f_height, 0.0f);
-
-        Vector2i origin = flow_field_manager->get_grid_origin();
-
-        // 遍历所有单位，将其精确映射到流场分辨率的格子里
-        for (const auto& unit : units) {
-            if (unit.state == DYING) continue;
-
-            // 将世界坐标转为流场网格坐标
-            Vector2i f_grid = flow_field_manager->world_to_grid(unit.position) - origin;
-            Vector2i next_f_grid = flow_field_manager->world_to_grid(unit.position + (unit.velocity).normalized() *
-            (float)((flow_field_manager->get_cell_size()).x) ) - origin;
-
-            if (f_grid.x >= 0 && f_grid.x < f_width && f_grid.y >= 0 && f_grid.y < f_height) {
-                float radius = unit.stats->get_collision_radius() / 100.0f;
-                high_res_buffer[f_grid.y * f_width + f_grid.x] += radius * radius;
-                high_res_buffer[f_grid.y * f_width + f_grid.x] += 0.8 * radius * radius;
-            }
-        }
-
-        // 注入流场管理器
-        flow_field_manager->inject_density_and_blur(high_res_buffer);
-        // 触发重算
-        flow_field_manager->make_all_dirty();
-    }
 }
 
 void UnitManager::physics_update(double p_delta) {
@@ -562,6 +528,7 @@ void UnitManager::stop_unit(UnitData& p_unit) {
     p_unit.velocity = Vector2(0, 0);
     if (p_unit.temp_group_id != -1) {
         group_manager->decrement_moving_count(p_unit.temp_group_id);
+        p_unit.temp_group_id = -1;
     }
 }
 
@@ -570,13 +537,6 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
     case IDLE:
         break;
     case MOVING:
-        UnitGroup* group = group_manager->get_temp_group(p_unit.temp_group_id);
-        if (!group) {
-            // 如果组已经不存在了（被清理了），尝试停下或者重新寻找逻辑
-            stop_unit(p_unit);
-            break;
-        }
-
         float desired_distance = 2.0f * p_unit.stats->collision_radius;
         float soft_arrival_distance_squared = p_unit.stats->collision_radius * p_unit.stats->collision_radius * 
             group_manager->get_temp_group(p_unit.temp_group_id)->get_idle_units_count();
@@ -638,34 +598,10 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
         force = Vector2(0, 0);
     }
     
+    float max_speed = (p_unit.stats)->get_move_speed();
     float accel = p_unit.stats->get_acceleration();
 
-    float base_max_speed = (p_unit.stats)->get_move_speed();
-    float final_max_speed = base_max_speed;
-
-    // --- 群体速度补偿 (Rubber-banding) ---
-    if (p_unit.temp_group_id != -1 && p_unit.state == MOVING && p_unit.stats->get_move_type() != MOVE_AIR) {
-        UnitGroup* temp_group = group_manager->get_temp_group(p_unit.temp_group_id);
-        if (temp_group) {
-            float average_integration = temp_group->average_integration;
-            float my_integration = flow_field_manager->get_integration(p_unit.position, p_unit.target_pos, p_unit.get_nav_type());
-
-            // diff > 0 表示我离目标更远（落后了）
-            // diff < 0 表示我离目标更近（领先了）
-            float diff = my_integration - average_integration;
-
-            // 修正系数：每落后 100 像素，提速 20%
-            // 修正范围限制在 80% 到 120% 之间，防止速度过快或停下
-            float k = 0.02f; // 调节灵敏度
-            float speed_modifier = 1.0f + (diff * k);
-            speed_modifier = Math::clamp(speed_modifier, 0.8f, 1.2f);
-
-            final_max_speed = base_max_speed * speed_modifier;
-        }
-    }
-
-    // 使用 final_max_speed 代替原来的 stats->get_move_speed()
-    Vector2 desired_velocity = (p_unit.velocity + force / p_unit.stats->get_mass() * p_delta).limit_length(final_max_speed);
+    Vector2 desired_velocity = (p_unit.velocity + force / p_unit.stats->get_mass() * p_delta).limit_length(max_speed);
 
     if (desired_velocity.length_squared() > velocity_threshold_squared) {
         float target_angle = desired_velocity.angle();

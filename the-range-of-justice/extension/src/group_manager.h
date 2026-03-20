@@ -14,7 +14,6 @@ namespace godot {
         int moving_units_count = 0; // 正在移动的单位计数器
         int units_count = 0;
         Vector2 target_pos;
-        float average_integration;
 
         UnitGroup() { unit_ids.reserve(256); }
 

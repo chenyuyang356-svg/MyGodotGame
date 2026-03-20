@@ -94,7 +94,6 @@ void FlowFieldManager::setup_grid(int p_width, int p_height, Vector2i p_origin, 
     }
 
     metadata_grid.assign(size, CELL_META_NONE);
-    density_map.assign(size, 0.0f);
 }
 
 void FlowFieldManager::create_flow_field(Vector2i p_target_grid_pos, int p_nav_type, bool p_overwrite) {
@@ -249,16 +248,11 @@ void FlowFieldManager::compute_integration_field(FlowFieldKey p_key) {
                     // 如果是墙 (255)，不可通行
                     if (cell_cost == 255) continue;
 
-                    // --- 读取动态密度代价 ---
-                    float d_cost = density_map[neighbor_idx] * density_weight;
-                    d_cost = std::min(d_cost, max_density_cost); // 限制上限
-
                     // 计算移动代价：直线为 1.0，对角线为 1.414 (√2)
                     float move_dist = (x_off != 0 && y_off != 0) ? 1.414f : 1.0f;
-                    float total_cell_cost = (float)cell_cost + d_cost;
 
                     // 邻居的总代价 = 当前格子的总代价 + (移动距离 * 地形权重)
-                    float new_dist = current_dist + (move_dist * total_cell_cost);
+                    float new_dist = current_dist + (move_dist * (float)cell_cost);
 
                     // 如果找到更短路径，更新并入队
                     if (new_dist < field.integration_field[neighbor_idx]) {
@@ -272,135 +266,67 @@ void FlowFieldManager::compute_integration_field(FlowFieldKey p_key) {
 }
 
 void FlowFieldManager::compute_flow_directions(FlowFieldKey p_key) {
-    if (0){
-        auto it = flow_fields.find(p_key);
-        if (it == flow_fields.end()) return;
+    auto it = flow_fields.find(p_key);
+    if (it == flow_fields.end()) return;
 
-        FlowField& field = it->second;
-        const std::vector<uint8_t>& current_cost_map = cost_maps[p_key.nav_type];
+    FlowField& field = it->second;
+    const std::vector<uint8_t>& current_cost_map = cost_maps[p_key.nav_type];
 
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int current_idx = y * width + x;
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int current_idx = y * width + x;
 
-                // 如果当前格子本身是墙，方向设为零
-                if (current_cost_map[current_idx] == 255) {
-                    field.flow_directions[current_idx] = Vector2(0, 0);
-                    continue;
-                }
+            // 如果当前格子本身是墙，方向设为零
+            if (current_cost_map[current_idx] == 255) {
+                field.flow_directions[current_idx] = Vector2(0, 0);
+                continue;
+            }
 
-                float current_min = field.integration_field[current_idx];
-                Vector2 best_direction(0, 0);
+            float current_min = field.integration_field[current_idx];
+            Vector2 best_direction(0, 0);
 
-                // 检查 8 个方向的邻居
-                for (int x_off = -1; x_off <= 1; x_off++) {
-                    for (int y_off = -1; y_off <= 1; y_off++) {
-                        if (x_off == 0 && y_off == 0) continue;
+            // 检查 8 个方向的邻居
+            for (int x_off = -1; x_off <= 1; x_off++) {
+                for (int y_off = -1; y_off <= 1; y_off++) {
+                    if (x_off == 0 && y_off == 0) continue;
 
-                        int nx = x + x_off;
-                        int ny = y + y_off;
+                    int nx = x + x_off;
+                    int ny = y + y_off;
 
-                        // 1. 基础边界检查
-                        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                            int neighbor_idx = ny * width + nx;
+                    // 1. 基础边界检查
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                        int neighbor_idx = ny * width + nx;
 
-                            // 2. 墙壁检查：邻居不能是墙
-                            if (current_cost_map[neighbor_idx] == 255) continue;
+                        // 2. 墙壁检查：邻居不能是墙
+                        if (current_cost_map[neighbor_idx] == 255) continue;
 
-                            // 3. 墙角检测 (Corner Cutting Prevention)
-                            // 如果是寻找对角线邻居 (例如 x_off=1, y_off=1)
-                            if (x_off != 0 && y_off != 0) {
-                                // 检查侧向的两个格子是否为墙
-                                // 例如：要去右下角，必须保证 右边 和 下边 都不是墙
-                                int side_neighbor_x = y * width + (x + x_off);
-                                int side_neighbor_y = (y + y_off) * width + x;
+                        // 3. 墙角检测 (Corner Cutting Prevention)
+                        // 如果是寻找对角线邻居 (例如 x_off=1, y_off=1)
+                        if (x_off != 0 && y_off != 0) {
+                            // 检查侧向的两个格子是否为墙
+                            // 例如：要去右下角，必须保证 右边 和 下边 都不是墙
+                            int side_neighbor_x = y * width + (x + x_off);
+                            int side_neighbor_y = (y + y_off) * width + x;
 
-                                if (current_cost_map[side_neighbor_x] == 255 ||
-                                    current_cost_map[side_neighbor_y] == 255) {
-                                    continue; // 只要有一侧是墙，就不允许走对角线
-                                }
+                            if (current_cost_map[side_neighbor_x] == 255 ||
+                                current_cost_map[side_neighbor_y] == 255) {
+                                continue; // 只要有一侧是墙，就不允许走对角线
                             }
+                        }
 
-                            // 4. 寻找最小值
-                            float neighbor_val = field.integration_field[neighbor_idx];
-                            if (neighbor_val < current_min) {
-                                current_min = neighbor_val;
-                                // 方向向量 = 邻居位置 - 当前位置
-                                best_direction = Vector2((float)x_off, (float)y_off);
-                            }
+                        // 4. 寻找最小值
+                        float neighbor_val = field.integration_field[neighbor_idx];
+                        if (neighbor_val < current_min) {
+                            current_min = neighbor_val;
+                            // 方向向量 = 邻居位置 - 当前位置
+                            best_direction = Vector2((float)x_off, (float)y_off);
                         }
                     }
                 }
-
-                // 归一化方向向量，以便单位移动速度一致
-                field.flow_directions[current_idx] = best_direction.normalized();
             }
-        }
-    }
-    else {
-        auto it = flow_fields.find(p_key);
-        if (it == flow_fields.end()) return;
 
-        FlowField& field = it->second;
-        const std::vector<uint8_t>& cost_map = cost_maps[p_key.nav_type];
-
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int idx = y * width + x;
-
-                // 如果当前是墙，没必要计算
-                if (cost_map[idx] == 255) {
-                    field.flow_directions[idx] = Vector2(0, 0);
-                    continue;
-                }
-
-                // 获取 8 个邻居的集成值，如果是边界或墙，则使用“当前值 + 较大偏移”来产生排斥感
-                auto get_val = [&](int nx, int ny) -> float {
-                    if (nx < 0 || nx >= width || ny < 0 || ny >= height) return field.integration_field[idx] + 5.0f;
-                    int n_idx = ny * width + nx;
-                    if (cost_map[n_idx] == 255) return field.integration_field[idx] + 5.0f; // 给墙壁一个虚假的“高地”感
-                    return field.integration_field[n_idx];
-                    };
-
-                float vNW = get_val(x - 1, y - 1);
-                float vN = get_val(x, y - 1);
-                float vNE = get_val(x + 1, y - 1);
-                float vW = get_val(x - 1, y);
-                float vE = get_val(x + 1, y);
-                float vSW = get_val(x - 1, y + 1);
-                float vS = get_val(x, y + 1);
-                float vSE = get_val(x + 1, y + 1);
-
-                // 使用类似 Sobel 算子的加权梯度
-                // x 方向：左边 - 右边
-                float gx = (vNW + 2 * vW + vSW) - (vNE + 2 * vE + vSE);
-                // y 方向：上边 - 下边
-                float gy = (vNW + 2 * vN + vNE) - (vSW + 2 * vS + vSE);
-
-                Vector2 dir(gx, gy);
-
-                field.flow_directions[idx] = dir.normalized();
-            }
-        }
-    }
-}
-
-// 接收由 UnitManager 算好的精细密度图并进行模糊处理
-void FlowFieldManager::inject_density_and_blur(const std::vector<float>& p_raw_density) {
-    if (p_raw_density.size() != density_map.size()) return;
-
-    // 1. 记忆衰减 (30% 记忆，让路径切换平滑)
-    for (int i = 0; i < size; ++i) {
-        density_map[i] = density_map[i] * density_decay_factor + p_raw_density[i];
-    }
-
-    // 2. 均值模糊 (让“阻力”从中心扩散到周围格子)
-    std::vector<float> temp = density_map;
-    for (int y = 1; y < height - 1; ++y) {
-        for (int x = 1; x < width - 1; ++x) {
-            int idx = y * width + x;
-            float sum = temp[idx] + temp[idx - 1] + temp[idx + 1] + temp[idx - width] + temp[idx + width];
-            density_map[idx] = sum * 0.2f;
+            // 归一化方向向量，以便单位移动速度一致
+            field.flow_directions[current_idx] = best_direction.normalized();
         }
     }
 }
@@ -456,83 +382,31 @@ float FlowFieldManager::get_integration(Vector2 p_world_pos, Vector2 p_target_wo
 }
 
 Vector2 FlowFieldManager::get_flow_direction(Vector2 p_world_pos, Vector2 p_target_world_pos, int p_nav_type) {
-    // --- 1. 基础坐标与边界检查 (保留部分) ---
-    Vector2i grid_pos = world_to_grid(p_world_pos);
-    Vector2i relative_grid_pos = grid_pos - grid_origin;
-
+    Vector2i relative_grid_pos = world_to_grid(p_world_pos) - grid_origin;
+    Vector2i target_grid = world_to_grid(p_target_world_pos);
+    FlowFieldKey key = { target_grid, p_nav_type };
+    
     if (relative_grid_pos.x < 0 || relative_grid_pos.x >= width || relative_grid_pos.y < 0 || relative_grid_pos.y >= height) {
         return Vector2(0, 0);
     }
 
-    // --- 2. 流场查找与状态维护 (保留并整合部分) ---
-    Vector2i target_grid = world_to_grid(p_target_world_pos);
-    FlowFieldKey key = { target_grid, p_nav_type };
-
     auto it = flow_fields.find(key);
     if (it == flow_fields.end()) {
+        // 如果该目标的流场还没创建，返回零向量
         return Vector2(0, 0);
     }
 
-    FlowField& field = it->second;
+    FlowField &field = it->second;
     field.last_used_time = Time::get_singleton()->get_ticks_msec() / 1000.0;
 
-    // 如果流场标记为脏且未在计算队列中，则重新入队
     if (field.is_dirty && !field.is_computing) {
         calculation_queue.push(key);
         field.is_computing = true;
     }
 
-    // 如果流场正在计算中（尚未完成），先返回当前格子的原始方向（或零），避免空指针
-    if (field.is_computing && field.flow_directions.empty()) {
-        return Vector2(0, 0);
-    }
+    int index = relative_grid_pos.y * width + relative_grid_pos.x;
 
-    // --- 3. 双线性插值采样逻辑 (新增：解决摇摆核心) ---
-
-    // 计算相对于网格起点的浮点坐标 (单位：格)
-    // 例如：单位在 (10.5, 20.2)，格子大小 10，则结果为 (1.05, 2.02)
-    Vector2 f_relative = (p_world_pos - Vector2(grid_origin * cell_size)) / Vector2(cell_size);
-
-    // 将采样中心偏移半个格子，使得在格中心处权重最高，向四周平滑过渡
-    Vector2 sample_pos = f_relative - Vector2(0.5f, 0.5f);
-
-    int x0 = (int)Math::floor(sample_pos.x);
-    int y0 = (int)Math::floor(sample_pos.y);
-    int x1 = x0 + 1;
-    int y1 = y0 + 1;
-
-    // 计算插值权重 (0.0 ~ 1.0)
-    float tx = sample_pos.x - (float)x0;
-    float ty = sample_pos.y - (float)y0;
-
-    // 内部安全采样函数
-    auto get_dir_safe = [&](int gx, int gy) -> Vector2 {
-        if (gx < 0 || gx >= width || gy < 0 || gy >= height) {
-            // 如果越界，尝试采样最近的合法格子的方向，或者返回零
-            return Vector2(0, 0);
-        }
-        return field.flow_directions[gy * width + gx];
-        };
-
-    // 获取相邻 4 个格子的方向向量
-    Vector2 d00 = get_dir_safe(x0, y0);
-    Vector2 d10 = get_dir_safe(x1, y0);
-    Vector2 d01 = get_dir_safe(x0, y1);
-    Vector2 d11 = get_dir_safe(x1, y1);
-
-    // 进行双线性插值 (Bilinear Interpolation)
-    Vector2 top = d00.lerp(d10, tx);
-    Vector2 bottom = d01.lerp(d11, tx);
-    Vector2 final_dir = top.lerp(bottom, ty);
-
-    // 防止在四个方向完全抵消时（如死角）出现零向量报错
-    if (final_dir.length_squared() < 0.001f) {
-        // 回退到点采样
-        int safe_idx = relative_grid_pos.y * width + relative_grid_pos.x;
-        return field.flow_directions[safe_idx];
-    }
-
-    return final_dir.normalized();
+    return field.flow_directions[index];
 }
 
 Vector2i FlowFieldManager::world_to_grid(Vector2 p_world_pos) {
@@ -632,18 +506,4 @@ void FlowFieldManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("world_to_grid", "world_pos"), &FlowFieldManager::world_to_grid);
     ClassDB::bind_method(D_METHOD("get_grid_origin"), &FlowFieldManager::get_grid_origin);
     ClassDB::bind_method(D_METHOD("get_cell_size"), &FlowFieldManager::get_cell_size);
-
-    ClassDB::bind_method(D_METHOD("get_density_weight"), &FlowFieldManager::get_density_weight);
-    ClassDB::bind_method(D_METHOD("set_density_weight", "weight"), &FlowFieldManager::set_density_weight);
-
-    ClassDB::bind_method(D_METHOD("get_density_decay_factor"), &FlowFieldManager::get_density_decay_factor);
-    ClassDB::bind_method(D_METHOD("set_density_decay_factor", "factor"), &FlowFieldManager::set_density_decay_factor);
-
-    ClassDB::bind_method(D_METHOD("get_max_density_cost"), &FlowFieldManager::get_max_density_cost);
-    ClassDB::bind_method(D_METHOD("set_max_density_cost", "cost"), &FlowFieldManager::set_max_density_cost);
-
-    ADD_GROUP("Dynamic Flow Field", "");
-    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "density_weight", PROPERTY_HINT_RANGE, "0.0, 2.0, 0.01"), "set_density_weight", "get_density_weight");
-    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "density_decay_factor", PROPERTY_HINT_RANGE, "0.0, 1.0, 0.01"), "set_density_decay_factor", "get_density_decay_factor");
-    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "max_density_cost", PROPERTY_HINT_RANGE, "0.0, 1000.0, 1.0"), "set_max_density_cost", "get_max_density_cost");
 }
