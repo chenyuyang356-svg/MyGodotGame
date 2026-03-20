@@ -106,8 +106,6 @@ void GameManager::_physics_process(double p_delta) {
 
 		building_manager->update(p_delta);
 
-		update_group(p_delta);
-
 		while (tick_accumulator >= logic_tick_rate) {
 
 			broadcast_network_snapshot();
@@ -129,6 +127,8 @@ void GameManager::_process(double p_delta) {
 	if (!is_setup) return;
 
 	unit_manager->update(p_delta);
+
+	update_group(p_delta);
 	
 	// alpha 表示当前距离下一次网络数据包到达时间的百分比
 	// 如果由于网络抖动导致丢包，允许短暂地超量推测 (上限 1.2 倍)，防止画面卡顿
@@ -175,14 +175,39 @@ void GameManager::update_group(double p_delta) {
 			for (int unit_id : it->second.unit_ids) {
 				int index = unit_manager->get_unit_index_by_id(unit_id);
 				if (index >= 0) {
-					unit_manager->units[index].temp_group_id = -1;
+					if (unit_manager->units[index].temp_group_id == it->first) {
+						unit_manager->units[index].temp_group_id = -1;
+					}
 				}
 			}
 			it = group_manager->temp_groups.erase(it);
 		}
 		else {
+			it->second.average_integration = 0;
 			++it;
 		}
+	}
+
+	// 更新average_integration
+	std::vector<UnitData>& units = unit_manager->units;
+	for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
+		UnitData& unit = units[unit_idx];
+		if (unit.temp_group_id != -1) {
+			UnitGroup* temp_group = group_manager->get_temp_group(unit.temp_group_id);
+			if (temp_group) {
+				temp_group->average_integration +=
+					flow_field_manager->get_integration(unit.position, unit.target_pos, unit.get_nav_type());
+			}
+		}
+	}
+
+	it = group_manager->temp_groups.begin();
+	while (it != group_manager->temp_groups.end()) {
+		UnitGroup& temp_group = it->second;
+		if (temp_group.moving_units_count > 0) {
+			temp_group.average_integration /= temp_group.moving_units_count;
+		}
+		++it;
 	}
 }
 
