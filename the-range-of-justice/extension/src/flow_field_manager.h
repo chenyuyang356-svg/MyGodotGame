@@ -75,6 +75,11 @@ namespace godot {
 
         std::vector<uint32_t> metadata_grid; // 存储每个格子的元数据（位掩码）
 
+        std::vector<float> density_map;      // 存储每个格子的拥挤度
+        float density_weight = 0.3f; // 每个单位产生的额外代价权重
+        float density_decay_factor = 0.2f;
+        float max_density_cost = 100.0f;  // 动态代价上限，防止单位乱跑
+
     protected:
         static void _bind_methods();
 
@@ -121,6 +126,8 @@ namespace godot {
         // [核心] 计算指定目标的向量方向场 (Gradient)
         void compute_flow_directions(FlowFieldKey p_key);
 
+        void inject_density_and_blur(const std::vector<float>& p_raw_density);
+
         // --- 查询接口 (供单位调用) ---
 
         float get_cost(Vector2i p_grid_pos, int p_nav_type);
@@ -142,9 +149,23 @@ namespace godot {
 
         Vector2i get_cell_size();
 
+        int get_width() { return width; }
+        int get_height() { return height; }
+
         bool is_in_grid(Vector2i p_grid_pos);
 
         bool is_path_clear(Vector2 p_start_world, Vector2 p_end_world, int p_nav_type);
+
+
+        void set_density_weight(float p_val) { density_weight = p_val; }
+        float get_density_weight() const { return density_weight; }
+
+        void set_density_decay_factor(float p_val) { density_decay_factor = p_val; }
+        float get_density_decay_factor() const { return density_decay_factor; }
+
+        void set_max_density_cost(float p_val) { max_density_cost = p_val; }
+        float get_max_density_cost() const { return max_density_cost; }
+
     };
 
 
