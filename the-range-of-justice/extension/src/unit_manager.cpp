@@ -166,60 +166,103 @@ void UnitManager::handle_dead_unit(double p_delta) {
 
 // 3.指令下发
 void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos) {
-    if (!flow_field_manager) return;
-    if (p_unit_ids.is_empty()) return;
+    if (!flow_field_manager || p_unit_ids.is_empty()) return;
 
     Vector2i target_grid_pos = flow_field_manager->world_to_grid(p_target_world_pos);
-    int temp_gid = group_manager->create_temporary_group(p_target_world_pos);
-
-    // 检查目标点是否在网格内
     if (!(flow_field_manager->is_in_grid(target_grid_pos))) return;
 
-    // 记录这一批指令中已经请求过的导航类型，避免重复调用 create_flow_field
-    // 假设 NavigationType 枚举的最大值为 NAV_MAX
-    bool requested_types[NAV_MAX] = { false };
+    // 创建一个新的临时组 ID
+    int temp_gid = group_manager->create_temporary_group(p_target_world_pos);
+
+    // 1. 将选中的单位按高度分类
+    std::vector<int> ground_indices;
+    std::vector<int> air_indices;
 
     for (int i = 0; i < p_unit_ids.size(); i++) {
         int uid = p_unit_ids[i];
         auto it = id_to_index.find(uid);
-
         if (it != id_to_index.end()) {
-            UnitData& unit = units[it->second];
+            int unit_internal_idx = it->second;
+            if (units[unit_internal_idx].height > AIR_HEIGHT_THRESHOLD) {
+                air_indices.push_back(unit_internal_idx);
+            }
+            else {
+                ground_indices.push_back(unit_internal_idx);
+            }
+        }
+    }
 
-            // --- 探测直线路径 ---
-            bool clear = flow_field_manager->is_path_clear(unit.position, p_target_world_pos, unit.get_nav_type());
+    // 记录本批指令中已请求过的导航类型，避免重复触发流场计算
+    bool requested_types[NAV_MAX] = { false };
 
-            unit.use_direct_path = clear;
+    // 2. 定义处理阵型分配的 Lambda 闭包
+    auto process_sub_group = [&](const std::vector<int>& indices) {
+        int sub_count = indices.size();
+        if (sub_count == 0) return;
 
-            // --- 根据单位自身的导航类型请求流场 ---
-            // 假设 unit.nav_type 存储了该单位的移动类型 (NAV_LAND, NAV_SEA 等)
+        // 自动计算该子组的方阵列数
+        int cols = (int)Math::ceil(Math::sqrt((float)sub_count));
+        int rows = (sub_count + cols - 1) / cols;
+
+        for (int i = 0; i < sub_count; i++) {
+            UnitData& unit = units[indices[i]];
+
+            // --- A. 计算阵型偏移 (Target Position Offset) ---
+            float spacing = unit.stats->get_collision_radius();
+            int r = i / cols;
+            int c = i % cols;
+
+            Vector2 offset;
+            offset.x = (c - (cols - 1) * 0.5f) * spacing;
+            offset.y = (r - (rows - 1) * 0.5f) * spacing;
+
+            // 如果是地面单位，检查偏移后的目标点是否在墙里
+            if (unit.height <= AIR_HEIGHT_THRESHOLD) {
+                Vector2 pot_pos = p_target_world_pos + offset;
+                Vector2i pot_grid = flow_field_manager->world_to_grid(pot_pos);
+                if (flow_field_manager->get_cost(pot_grid, unit.get_nav_type()) == 255) {
+                    // 如果偏移点在墙内，简单处理：让该单位直接去点击的中心点
+                    offset = Vector2(0, 0);
+                }
+            }
+            unit.target_pos_offset = offset;
+
+            // --- B. 导航与流场逻辑 (基于原始 p_target_world_pos) 
+            // 调用探测函数
+            bool is_traversable = flow_field_manager->is_path_traversable(
+                unit.position, unit.target_pos, unit.get_nav_type(), density_limit
+            );
+            unit.use_direct_path = is_traversable;
+
             int type = unit.get_nav_type();
-
-            if (type >= 0 && type < NAV_MAX && (!clear)) {
+            if (type >= 0 && type < NAV_MAX && (!is_traversable)) {
                 if (!requested_types[type]) {
-                    // 为该类型创建/获取流场，p_overwrite 设为 false 表示如果已存在则不重置
+                    // 为该导航类型生成流场（所有同类型单位共享一个点击点流场）
                     flow_field_manager->create_flow_field(target_grid_pos, type, false);
                     requested_types[type] = true;
                 }
             }
 
-            // 更新temp group
+            // --- C. 更新组管理逻辑 ---
             if (unit.temp_group_id != -1) {
                 group_manager->remove_unit_from_temp_group(unit.temp_group_id, unit.id);
             }
             group_manager->add_unit_to_temp_group(temp_gid, unit.id);
             unit.temp_group_id = temp_gid;
 
-            // --- 更新单位状态 ---
+            // --- D. 更新单位状态属性 ---
             unit.target_grid = target_grid_pos;
-            unit.target_pos = p_target_world_pos;
+            unit.target_pos = p_target_world_pos; // 共享的流场目标点
             unit.state = MOVING;
             unit.target_id = -1;
             unit.is_patrolling = false;
             unit.is_manual_target = false;
-
         }
-    }
+        };
+
+    // 3. 分别对地面和空中组执行逻辑
+    process_sub_group(ground_indices);
+    process_sub_group(air_indices);
 }
 
 void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints) {
@@ -417,32 +460,47 @@ void UnitManager::update(double p_delta) {
     if (density_update_timer >= 0.5) { // 每0.5秒更新一次精细密度
         density_update_timer = 0.0;
 
-        // 创建一个与流场分辨率完全一致的空 Map
+        // 创建两个与流场分辨率完全一致的空 Map
         int f_width = flow_field_manager->get_width();
         int f_height = flow_field_manager->get_height();
-        std::vector<float> high_res_buffer(f_width * f_height, 0.0f);
+
+        std::vector<float> ground_buffer(f_width * f_height, 0.0f);
+        std::vector<float> air_buffer(f_width * f_height, 0.0f);
 
         Vector2i origin = flow_field_manager->get_grid_origin();
 
-        // 遍历所有单位，将其精确映射到流场分辨率的格子里
         for (const auto& unit : units) {
             if (unit.state == DYING) continue;
 
-            // 将世界坐标转为流场网格坐标
             Vector2i f_grid = flow_field_manager->world_to_grid(unit.position) - origin;
             Vector2i next_f_grid = flow_field_manager->world_to_grid(unit.position + (unit.velocity).normalized() *
-            (float)((flow_field_manager->get_cell_size()).x) ) - origin;
+                (float)((flow_field_manager->get_cell_size()).x)) - origin;
+            float k = (unit.state == IDLE) ? 5.0f : 1.0f;
+            float radius = unit.stats->get_collision_radius() / 100.0f;
 
             if (f_grid.x >= 0 && f_grid.x < f_width && f_grid.y >= 0 && f_grid.y < f_height) {
-                float radius = unit.stats->get_collision_radius() / 100.0f;
-                high_res_buffer[f_grid.y * f_width + f_grid.x] += radius * radius;
-                high_res_buffer[f_grid.y * f_width + f_grid.x] += 0.8 * radius * radius;
+                // 根据高度分流
+                if (unit.height > AIR_HEIGHT_THRESHOLD) {
+                    air_buffer[f_grid.y * f_width + f_grid.x] += radius * radius * k;
+                    if ((next_f_grid.x >= 0 && next_f_grid.x < f_width && next_f_grid.y >= 0 && next_f_grid.y < f_height) &&
+                        (next_f_grid != f_grid)) {
+                        air_buffer[next_f_grid.y * f_width + next_f_grid.x] += 0.8 * radius * radius * k;
+                    }
+                }
+                else {
+                    ground_buffer[f_grid.y * f_width + f_grid.x] += radius * radius * k;
+                    if ((next_f_grid.x >= 0 && next_f_grid.x < f_width && next_f_grid.y >= 0 && next_f_grid.y < f_height) &&
+                        (next_f_grid != f_grid)) {
+                        ground_buffer[next_f_grid.y * f_width + next_f_grid.x] += 0.8 * radius * radius * k;
+                    }
+                }
             }
         }
 
-        // 注入流场管理器
-        flow_field_manager->inject_density_and_blur(high_res_buffer);
-        // 触发重算
+        // 分别注入
+        flow_field_manager->inject_density_and_blur(0, ground_buffer);
+        flow_field_manager->inject_density_and_blur(1, air_buffer);
+
         flow_field_manager->make_all_dirty();
     }
 }
@@ -483,20 +541,43 @@ void UnitManager::physics_update(double p_delta) {
 }
 
 Vector2 UnitManager::get_flow(UnitData& p_unit) {
-    Vector2 flow;
-    // 空军直接飞直线；地面单位沿 FlowFieldManager 提供的梯度场移动（绕过障碍物）
-    if ((p_unit.stats)->get_move_type() == MOVE_AIR) {
-        flow = (p_unit.target_pos - p_unit.position).normalized();
-        return flow;
-    }
+    // 最终目的地（带偏移）
+    Vector2 final_target = p_unit.target_pos + p_unit.target_pos_offset;
+    Vector2 to_target = final_target - p_unit.position;
+    float dist_sq = to_target.length_squared();
 
-    // 如果标记为直线行驶
+    // 如果已经到达目的地（极近距离），不再受密度影响，防止最后一点路程反复横跳
+    if (dist_sq < 10.0f) return Vector2(0, 0);
+
+    Vector2 direct_dir = to_target.normalized();
+
+    // --- 密度避让逻辑 ---
+    int d_idx = (p_unit.height > 20.0f) ? 1 : 0; // 高度阈值判断
+
+    // 获取当前位置的密度梯度
+    Vector2 density_grad = flow_field_manager->get_density_gradient(p_unit.position, d_idx);
+    
+    // 计算避让向量：避让强度受 density_weight 控制
+    // 我们减去梯度向量（即沿着密度下降的方向走）
+    // 为了防止避让力太大导致单位乱跑，我们只取垂直于移动方向的分量（Steering）
+    Vector2 avoidance = - (density_grad.limit_length(5.0f));
+
+    // 权衡参数：你可以根据需要调整避让强度（建议 5.0 - 20.0 之间测试）
+    float avoidance_strength = 0.1f;
+
+    // 混合方向：原始方向 + 避让方向
+    Vector2 blended_dir = direct_dir + avoidance * avoidance_strength;
+
+    // 如果是飞行单位或者已经进入直线冲刺阶段
     if (p_unit.use_direct_path) {
-        return (p_unit.target_pos - p_unit.position).normalized();
+        return blended_dir.normalized();
     }
 
-    flow = flow_field_manager->get_flow_direction(p_unit.position, p_unit.target_pos, p_unit.get_nav_type());
-    return flow;
+    // 否则，使用流场方向
+    Vector2 flow_dir = flow_field_manager->get_flow_direction(p_unit.position, p_unit.target_pos, p_unit.get_nav_type());
+
+    // 即便是流场模式，也可以叠加一层轻微的即时避让，增强单位间的动态绕行感
+    return (flow_dir + avoidance * 0.02f).normalized();
 }
 
 Vector2 UnitManager::get_separation(UnitData& p_unit) {
@@ -581,7 +662,8 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
         float soft_arrival_distance_squared = p_unit.stats->collision_radius * p_unit.stats->collision_radius * 
             group_manager->get_temp_group(p_unit.temp_group_id)->get_idle_units_count();
         float distance_squared = (p_unit.position).distance_squared_to(p_unit.target_pos);
-        if (distance_squared <= desired_distance * desired_distance) {
+        float distance_squared_with_offset = (p_unit.position).distance_squared_to(p_unit.target_pos + p_unit.target_pos_offset); // 这里加上了offset
+        if (distance_squared_with_offset <= desired_distance * desired_distance) {
             stop_unit(p_unit);
             break;
         }
@@ -602,17 +684,23 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
         }
 
         p_unit.path_recheck_timer += (float)p_delta; 
-        if (p_unit.path_recheck_timer >= 1.0) { // 每1.0秒检查一次
+        if (p_unit.path_recheck_timer >= 0.8) { // 每0.8秒检查一次
             p_unit.path_recheck_timer = 0.0;
 
-            bool clear = flow_field_manager->is_path_clear(p_unit.position, p_unit.target_pos, p_unit.get_nav_type());
+            // 调用新的探测函数
+            bool is_traversable = flow_field_manager->is_path_traversable(
+                p_unit.position, p_unit.target_pos, p_unit.get_nav_type(), density_limit
+            );
 
-            if (clear) {
+            if (is_traversable) {
+                // 路径畅通，可以走直线
                 p_unit.use_direct_path = true;
             }
             else {
-                // 直线被挡住了！切换回流场模式
+                // 路径被墙或“人墙”挡住了！切回流场模式
                 p_unit.use_direct_path = false;
+
+                // 确保流场已请求（如果是空军，此处也会触发 NAV_AIR 的流场生成）
                 flow_field_manager->create_flow_field(p_unit.target_grid, p_unit.get_nav_type(), false);
             }
         }

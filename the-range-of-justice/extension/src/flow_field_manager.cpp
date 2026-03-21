@@ -94,7 +94,8 @@ void FlowFieldManager::setup_grid(int p_width, int p_height, Vector2i p_origin, 
     }
 
     metadata_grid.assign(size, CELL_META_NONE);
-    density_map.assign(size, 0.0f);
+    density_maps[0].assign(size, 0.0f);
+    density_maps[1].assign(size, 0.0f);
 }
 
 void FlowFieldManager::create_flow_field(Vector2i p_target_grid_pos, int p_nav_type, bool p_overwrite) {
@@ -214,6 +215,9 @@ void FlowFieldManager::compute_integration_field(FlowFieldKey p_key) {
     field.integration_field[target_idx] = 0.0f;
     pq.push({ 0.0f, target_idx });
 
+    int d_idx = (p_key.nav_type == NAV_AIR) ? 1 : 0;
+    const std::vector<float>& current_density = density_maps[d_idx];
+
     // 4. 开始扩散
     while (!pq.empty()) {
         CostIndexPair current = pq.top();
@@ -250,7 +254,7 @@ void FlowFieldManager::compute_integration_field(FlowFieldKey p_key) {
                     if (cell_cost == 255) continue;
 
                     // --- 读取动态密度代价 ---
-                    float d_cost = density_map[neighbor_idx] * density_weight;
+                    float d_cost = current_density[neighbor_idx] * density_weight;
                     d_cost = std::min(d_cost, max_density_cost); // 限制上限
 
                     // 计算移动代价：直线为 1.0，对角线为 1.414 (√2)
@@ -386,21 +390,22 @@ void FlowFieldManager::compute_flow_directions(FlowFieldKey p_key) {
 }
 
 // 接收由 UnitManager 算好的精细密度图并进行模糊处理
-void FlowFieldManager::inject_density_and_blur(const std::vector<float>& p_raw_density) {
-    if (p_raw_density.size() != density_map.size()) return;
+void FlowFieldManager::inject_density_and_blur(int p_map_idx, const std::vector<float>& p_raw_density) {
+    if (p_map_idx < 0 || p_map_idx > 1 || p_raw_density.size() != size) return;
 
-    // 1. 记忆衰减 (30% 记忆，让路径切换平滑)
+    std::vector<float>& d_map = density_maps[p_map_idx];
+
     for (int i = 0; i < size; ++i) {
-        density_map[i] = density_map[i] * density_decay_factor + p_raw_density[i];
+        d_map[i] = d_map[i] * density_decay_factor + p_raw_density[i];
     }
 
-    // 2. 均值模糊 (让“阻力”从中心扩散到周围格子)
-    std::vector<float> temp = density_map;
+    // 均值模糊
+    std::vector<float> temp = d_map;
     for (int y = 1; y < height - 1; ++y) {
         for (int x = 1; x < width - 1; ++x) {
             int idx = y * width + x;
             float sum = temp[idx] + temp[idx - 1] + temp[idx + 1] + temp[idx - width] + temp[idx + width];
-            density_map[idx] = sum * 0.2f;
+            d_map[idx] = sum * 0.2f;
         }
     }
 }
@@ -535,6 +540,26 @@ Vector2 FlowFieldManager::get_flow_direction(Vector2 p_world_pos, Vector2 p_targ
     return final_dir.normalized();
 }
 
+Vector2 FlowFieldManager::get_density_gradient(Vector2 p_world_pos, int p_map_idx)
+{
+    if (p_map_idx < 0 || p_map_idx > 1) return Vector2(0, 0);
+
+    Vector2i grid_pos = world_to_grid(p_world_pos) - grid_origin;
+    if (grid_pos.x < 1 || grid_pos.x >= width - 1 || grid_pos.y < 1 || grid_pos.y >= height - 1) {
+        return Vector2(0, 0);
+    }
+
+    const std::vector<float>& d_map = density_maps[p_map_idx];
+
+    // 使用中心差分法计算梯度
+    // gx = 右边密度 - 左边密度
+    // gy = 下边密度 - 上边密度
+    float gx = d_map[grid_pos.y * width + (grid_pos.x + 1)] - d_map[grid_pos.y * width + (grid_pos.x - 1)];
+    float gy = d_map[(grid_pos.y + 1) * width + grid_pos.x] - d_map[(grid_pos.y - 1) * width + grid_pos.x];
+
+    return Vector2(gx, gy);
+}
+
 Vector2i FlowFieldManager::world_to_grid(Vector2 p_world_pos) {
     int32_t gx = (int32_t)Math::floor(p_world_pos.x / (float)(cell_size.x));
     int32_t gy = (int32_t)Math::floor(p_world_pos.y / (float)(cell_size.y));
@@ -610,6 +635,60 @@ bool FlowFieldManager::is_path_clear(Vector2 p_start_world, Vector2 p_end_world,
             error += dx - dy;
             n--;
         }
+    }
+    return true;
+}
+
+bool FlowFieldManager::is_path_traversable(Vector2 p_start, Vector2 p_end, int p_nav_type, float p_max_density_threshold) {
+    if (p_nav_type < 0 || p_nav_type >= NAV_MAX) return false;
+
+    Vector2i start_grid = world_to_grid(p_start) - grid_origin;
+    Vector2i end_grid = world_to_grid(p_end) - grid_origin;
+
+    // DDA 算法基础变量
+    int x1 = start_grid.x, y1 = start_grid.y;
+    int x2 = end_grid.x, y2 = end_grid.y; // 这是目的地格子
+    int dx = abs(x2 - x1), dy = abs(y2 - y1);
+    int x = x1, y = y1;
+    int n = 1 + dx + dy;
+    int x_inc = (x2 > x1) ? 1 : -1, y_inc = (y2 > y1) ? 1 : -1;
+    int error = dx - dy;
+    dx *= 2; dy *= 2;
+
+    const std::vector<uint8_t>& cost_map = cost_maps[p_nav_type];
+    int d_idx = (p_nav_type == NAV_AIR) ? 1 : 0;
+    const std::vector<float>& d_map = density_maps[d_idx];
+
+    // 定义忽略密度的“安全区”半径（单位：格子数）
+    // 建议设为 2-3，这样单位在最后准备进入阵型位时不会被自己人挡住路径判定
+    const int SAFE_ZONE_RADIUS = 2;
+
+    for (; n > 0; --n) {
+        if (x >= 0 && x < width && y >= 0 && y < height) {
+            int idx = y * width + x;
+
+            // 1. 静态障碍检查：无论在哪，撞墙绝对不行
+            if (cost_map[idx] == 255) return false;
+
+            // 2. 目的地附近安全区判断
+            // 如果当前检查的格子坐标 (x, y) 距离目的地坐标 (x2, y2) 很近
+            bool is_near_destination = (abs(x - x2) <= SAFE_ZONE_RADIUS && abs(y - y2) <= SAFE_ZONE_RADIUS);
+
+            if (!is_near_destination) {
+                // 3. 动态密度检查：只有在安全区外才检测是否被“人墙”堵死
+                if (d_map[idx] > p_max_density_threshold) {
+                    return false;
+                }
+            }
+        }
+        else {
+            return false;
+        }
+
+        // DDA 步进逻辑
+        if (error > 0) { x += x_inc; error -= dy; }
+        else if (error < 0) { y += y_inc; error += dx; }
+        else { x += x_inc; y += y_inc; error += dx - dy; n--; }
     }
     return true;
 }

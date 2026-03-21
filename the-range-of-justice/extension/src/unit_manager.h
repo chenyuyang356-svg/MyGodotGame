@@ -95,6 +95,12 @@ namespace godot {
 
 		HashMap<String, Ref<UnitStats>> unit_types_cache;
 
+		const float AIR_HEIGHT_THRESHOLD = 20.0f; // 定义高度阈值
+
+		// 设定密度阈值：当格子里的密度值超过这个数时，认为“不可通行”
+		// 一个格子最多差不多能塞下六辆坦克
+		const float density_limit = 4.0f;
+
 	protected:
 		static void _bind_methods();
 

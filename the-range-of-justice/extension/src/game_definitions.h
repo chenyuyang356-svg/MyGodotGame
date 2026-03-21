@@ -45,6 +45,7 @@ namespace godot {
         NAV_LAND = 0,
         NAV_SEA = 1,
         NAV_HOVER = 2,
+        NAV_AIR = 3,
         NAV_MAX // 用于计数
     };
 

@@ -22,6 +22,7 @@ namespace godot {
         float rotation = 0.0f;          // 当前朝向 (弧度)
         float angular_velocity = 0.0f;      // 当前角速度
         Vector2 target_pos;		// 目标的世界坐标
+        Vector2 target_pos_offset = Vector2(0, 0);
         Vector2i target_grid;   // 目标的网格坐标（与流场坐标一致，不同于unit_grid中的坐标）
         bool is_manual_target = false;
         bool target_is_building = false;    // 标记当前目标是否为建筑
@@ -68,7 +69,7 @@ namespace godot {
         int get_nav_type() {
             if (stats->move_type == MOVE_GROUND) { return NAV_LAND; }
             else if (stats->move_type == MOVE_SEA) { return NAV_SEA; }
-            else if (stats->move_type == MOVE_AIR) { return NAV_MAX; }
+            else if (stats->move_type == MOVE_AIR) { return NAV_AIR; }
             else if (stats->move_type == MOVE_HOVER) { return NAV_HOVER; }
             else { return NAV_LAND; }
         }

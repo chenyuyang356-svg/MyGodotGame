@@ -188,10 +188,10 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 
 
 func spawn_test_units():
-	for x in range(10):
-		for y in range(10):
+	for x in range(15):
+		for y in range(15):
 			GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y), 1)
-			#GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y), 1)
+			GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Helicopter", -32 * Vector2(x, y) + Vector2(0, 1000), 2)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(11000, 3500), 2)
 			continue

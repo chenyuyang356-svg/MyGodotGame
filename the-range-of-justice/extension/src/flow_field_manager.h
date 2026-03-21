@@ -75,7 +75,8 @@ namespace godot {
 
         std::vector<uint32_t> metadata_grid; // 存储每个格子的元数据（位掩码）
 
-        std::vector<float> density_map;      // 存储每个格子的拥挤度
+        // 0: 地面/水面密度 (Ground/Sea), 1: 空中密度 (Air)
+        std::vector<float> density_maps[2];
         float density_weight = 0.3f; // 每个单位产生的额外代价权重
         float density_decay_factor = 0.2f;
         float max_density_cost = 100.0f;  // 动态代价上限，防止单位乱跑
@@ -126,7 +127,7 @@ namespace godot {
         // [核心] 计算指定目标的向量方向场 (Gradient)
         void compute_flow_directions(FlowFieldKey p_key);
 
-        void inject_density_and_blur(const std::vector<float>& p_raw_density);
+        void inject_density_and_blur(int p_map_idx, const std::vector<float>& p_raw_density);
 
         // --- 查询接口 (供单位调用) ---
 
@@ -139,6 +140,9 @@ namespace godot {
 
         // 根据世界坐标和目标坐标，获取该位置应有的移动方向向量
         Vector2 get_flow_direction(Vector2 p_world_pos, Vector2 p_target_world_pos, int p_nav_type);
+
+        // 根据世界坐标获取密度梯度向量（指向密度高的方向）
+        Vector2 get_density_gradient(Vector2 p_world_pos, int p_map_idx);
 
         // 将世界坐标转换为格点坐标
         Vector2i world_to_grid(Vector2 p_world_pos);
@@ -155,6 +159,7 @@ namespace godot {
         bool is_in_grid(Vector2i p_grid_pos);
 
         bool is_path_clear(Vector2 p_start_world, Vector2 p_end_world, int p_nav_type);
+        bool is_path_traversable(Vector2 p_start, Vector2 p_end, int p_nav_type, float p_max_density_threshold);
 
 
         void set_density_weight(float p_val) { density_weight = p_val; }
