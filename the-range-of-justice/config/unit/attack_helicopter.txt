@@ -23,12 +23,13 @@ weapon = Missile, 20.0, 400.0, 0.5, 600.0, 2.0
 weapon = MarineBullet, 10.0, 300.0, 0.2, 1200.0, 2.0
 
 # --- Movement (移动与碰撞) ---
-move_speed       = 250.0
-acceleration     = 1000.0
-turn_speed       = 2.0
-turn_acceleration= 10.0
+mass             = 1.5
+move_speed       = 200.0
+acceleration     = 7500.0
+turn_speed       = 3.0
+turn_acceleration= 8.0
 # [关键] 碰撞半径
-collision_radius = 30.0
+collision_radius = 36.0
 base_height = 50.0
 # 枚举可选: Ground, Air, Sea, Hover
 move_type        = Air

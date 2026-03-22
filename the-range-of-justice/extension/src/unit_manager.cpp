@@ -584,8 +584,13 @@ Vector2 UnitManager::get_separation(UnitData& p_unit) {
     bool is_IDLE = (p_unit.state == IDLE);
     Vector2 separation = Vector2(0, 0);
 
+    float collision_radius = p_unit.stats->get_collision_radius();
+    float search_radius = collision_radius * separation_radius_factor;
+    // 关键改进：确保搜索半径足以发现附近的大型单位
+    search_radius = Math::max(search_radius, collision_radius + 60.0f);
+
     // 扫描附近的单位，产生一个相反的推力。IDLE 状态的推力系数通常更高，以保持阵型。
-    for (int unit_idx : get_nearby_units(p_unit.position, ((p_unit.stats)->get_collision_radius()) * separation_radius_factor)) {
+    for (int unit_idx : get_nearby_units(p_unit.position, search_radius)) {
         const UnitData& nearby_unit = units[unit_idx];
 
         if ((p_unit.stats->move_type == MOVE_AIR) && (nearby_unit.stats->move_type != MOVE_AIR) ||
@@ -594,25 +599,31 @@ Vector2 UnitManager::get_separation(UnitData& p_unit) {
         }
 
         Vector2 radius_vector = nearby_unit.position - p_unit.position;
-        float length_squared = radius_vector.length_squared();
-        if (length_squared < 10e-12) {
-            continue;
-        }
-        if (is_IDLE) {
-            if (nearby_unit.state == IDLE) {
-                separation -= radius_vector / length_squared;
+        float dist_sq = radius_vector.length_squared();
+        float dist = Math::sqrt(dist_sq);
+
+        // 计算两个单位边缘之间的理想距离
+        float min_dist = (collision_radius + nearby_unit.stats->get_collision_radius()) * 1.1f;
+
+        if (dist < min_dist && dist > 0.001f) {
+            // 越拥挤，力越大
+            float k = 1.0f;
+            if (is_IDLE) {
+                if (nearby_unit.state != IDLE) {
+                    k = 2.0f;
+                }
+                else {
+                    k = 0.5f;
+                }
             }
             else {
-                separation -= 2 * radius_vector / length_squared;
+                if (nearby_unit.state == IDLE) {
+                    k = 0.5f;
+                }
             }
-        }
-        else {
-            if (nearby_unit.state == IDLE) {
-                separation -= 0.5 * radius_vector / length_squared;
-            }
-            else {
-                separation -= radius_vector / length_squared;
-            }
+
+            float push_strength = (min_dist - dist) / min_dist;
+            separation -= (radius_vector / dist) * push_strength * separation_factor * k;
         }
     }
 
@@ -625,17 +636,23 @@ Vector2 UnitManager::get_friction(UnitData& p_unit) {
     return (-p_unit.velocity);
 }
 
+// 返回外部环境产生的“原始力”
 Vector2 UnitManager::get_force(UnitData& p_unit) {
-    Vector2 force = Vector2(0, 0);
-    switch (p_unit.state) {
-    case IDLE:
-        force = get_friction(p_unit) * friction_factor + get_separation(p_unit) * separation_factor;
-        break;
-    case MOVING:
-        force = get_flow(p_unit) * flow_factor + get_separation(p_unit) * separation_factor;
-        break;
+    Vector2 external_force = Vector2(0, 0);
+
+    // 1. 获取单位间的排斥力 (Separation)
+    // 注意：这里的 get_separation 内部不再除以质量，返回原始推力
+    external_force += get_separation(p_unit) * separation_factor;
+
+    // 2. 战斗控制力（如果正在冲锋或被击退）
+    if (attack_manager) {
+        Vector2 combat_force;
+        if (attack_manager->try_get_combat_force(p_unit, combat_force)) {
+            external_force += combat_force;
+        }
     }
-    return force;
+
+    return external_force;
 }
 
 void UnitManager::stop_unit(UnitData& p_unit) {
@@ -710,87 +727,118 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
 }
 
 void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
-    Vector2 force = get_force(p_unit);
-    bool is_combat_controlled = false;
-
-    // 判断是否被 AttackManager 接管 
-    if (attack_manager) {
-        is_combat_controlled = attack_manager->try_get_combat_force(p_unit, force);
-    }
-
-    if (!is_combat_controlled) {
-        force = get_force(p_unit);
-    }
-
-    if (force.length_squared() < force_threshold_squared) {
-        force = Vector2(0, 0);
-    }
-    
-    float accel = p_unit.stats->get_acceleration();
-
-    float base_max_speed = (p_unit.stats)->get_move_speed();
+    // --- A. 基础属性准备 ---
+    float mass = p_unit.stats->get_mass();
+    float stat_accel = p_unit.stats->get_acceleration(); // 现在它代表引擎功率
+    float base_max_speed = p_unit.stats->get_move_speed();
     float final_max_speed = base_max_speed;
 
-    // --- 群体速度补偿 (Rubber-banding) ---
-    if (p_unit.temp_group_id != -1 && p_unit.state == MOVING && p_unit.stats->get_move_type() != MOVE_AIR) {
-        UnitGroup* temp_group = group_manager->get_temp_group(p_unit.temp_group_id);
-        if (temp_group) {
-            float average_integration = temp_group->average_integration;
-            float my_integration = flow_field_manager->get_integration(p_unit.position, p_unit.target_pos, p_unit.get_nav_type());
+    // --- B. 速度限制计算 (Arrival & Grouping) ---
+    if (p_unit.state != IDLE) {
+        // 1. 到达减速 (Arrival)
+        Vector2 target_with_offset = p_unit.target_pos + p_unit.target_pos_offset;
+        float distance_squared = p_unit.position.distance_squared_to(target_with_offset);
 
-            // diff > 0 表示我离目标更远（落后了）
-            // diff < 0 表示我离目标更近（领先了）
-            float diff = my_integration - average_integration;
+        // 定义开始减速的半径（通常是碰撞半径的 3~5 倍）
+        float arrival_radius = p_unit.stats->get_collision_radius() * 4.0f;
+        float arrival_radius_squared = arrival_radius * arrival_radius;
 
-            // 修正系数：每落后 100 像素，提速 20%
-            // 修正范围限制在 80% 到 120% 之间，防止速度过快或停下
-            float k = 0.02f; // 调节灵敏度
-            float speed_modifier = 1.0f + (diff * k);
-            speed_modifier = Math::clamp(speed_modifier, 0.8f, 1.2f);
+        if (distance_squared < arrival_radius_squared) {
+            // 计算减速因子 (0.0 到 1.0)
+            // 为了防止单位完全停不下来，给一个最小速度百分比 (比如 0.2)
+            float arrival_modifier = Math::max(0.2f, distance_squared / arrival_radius_squared);
+            final_max_speed *= arrival_modifier;
+        }
 
-            final_max_speed = base_max_speed * speed_modifier;
+        // 2. 软约束 (Rubber-banding)
+        if (p_unit.temp_group_id != -1 && p_unit.state == MOVING && p_unit.stats->get_move_type() != MOVE_AIR) {
+            UnitGroup* temp_group = group_manager->get_temp_group(p_unit.temp_group_id);
+            if (temp_group) {
+                float average_integration = temp_group->average_integration;
+                float my_integration = flow_field_manager->get_integration(p_unit.position, p_unit.target_pos, p_unit.get_nav_type());
+
+                // diff > 0 表示我离目标更远（落后了）
+                // diff < 0 表示我离目标更近（领先了）
+                float diff = my_integration - average_integration;
+
+                // 修正系数：每落后 100 像素，提速 20%
+                // 修正范围限制在 80% 到 120% 之间，防止速度过快或停下
+                float k = 0.02f; // 调节灵敏度
+                float speed_modifier = 1.0f + (diff * k);
+                speed_modifier = Math::clamp(speed_modifier, 0.8f, 1.2f);
+
+                final_max_speed *= speed_modifier;
+            }
         }
     }
 
-    // 使用 final_max_speed 代替原来的 stats->get_move_speed()
-    Vector2 desired_velocity = (p_unit.velocity + force / p_unit.stats->get_mass() * p_delta).limit_length(final_max_speed);
+    // --- C. 计算合力 (Total Force) ---
+    Vector2 total_force = get_force(p_unit); // 外部排斥力
+    Vector2 propulsion_force = Vector2(0, 0);
+    Vector2 desired_dir = Vector2(0, 0);
 
-    if (desired_velocity.length_squared() > velocity_threshold_squared) {
-        float target_angle = desired_velocity.angle();
+    if (p_unit.state != IDLE) {
+        // 计算单位想去的方向
+        desired_dir = get_flow(p_unit);
+
+        // 只有当单位朝向目标时，引擎才能发挥最大推力
+        Vector2 forward_vec = Vector2(Math::cos(p_unit.rotation), Math::sin(p_unit.rotation));
+        float alignment = Math::max(0.0f, forward_vec.dot(desired_dir));
+
+        // 引擎推力 = 设定加速度 * 质量 * 朝向修正
+        // 乘以质量是为了让不同质量的单位在没有外力时，加速表现符合 stat_accel 的预期
+        propulsion_force = forward_vec * flow_factor * (stat_accel * mass * (0.2f + 0.8f * alignment));
+    }
+
+    total_force += propulsion_force;
+
+    // --- D. 计算加速度并应用摩擦力 ---
+    // a = F / m
+    Vector2 acceleration_vec = total_force / mass;
+
+    // 阻尼/摩擦力 (Friction)
+    // 这里的摩擦力与速度成正比，防止单位无限滑行
+    // 质量越大，摩擦力（阻力）也越大，这样重型单位停下来也需要更久
+    float current_friction = (p_unit.state == IDLE) ? friction_factor * 2.0f : friction_factor;
+    acceleration_vec -= p_unit.velocity * current_friction;
+
+    // --- E. 更新速度 ---
+    p_unit.velocity += acceleration_vec * p_delta;
+
+    // 限制最大速度
+    if (p_unit.velocity.length_squared() > final_max_speed * final_max_speed) {
+        p_unit.velocity = p_unit.velocity.normalized() * final_max_speed;
+    }
+
+    // --- F. 旋转逻辑 ---
+    // 旋转不再直接看速度方向，而是看“想去的方向”
+    if (p_unit.state != IDLE && p_unit.velocity.length_squared() > velocity_threshold_squared) {
+        float target_angle = desired_dir.angle();
         float angle_diff = UtilityFunctions::angle_difference(p_unit.rotation, target_angle);
- 
+
+        float turn_speed = p_unit.stats->get_turn_speed();
         float turn_accel = p_unit.stats->get_turn_acceleration();
-        float max_turn_v = p_unit.stats->get_turn_speed();
-        float target_angular_v = Math::sign(angle_diff) * max_turn_v;
+
+        // 质量感：重型单位转向加速度也除以质量（可选）
+        // turn_accel /= (mass * 0.5f); 
+
+        float target_angular_v = Math::sign(angle_diff) * turn_speed;
         if (Math::abs(angle_diff) < 0.5f) {
-            target_angular_v = (angle_diff / 0.5f) * max_turn_v;
+            target_angular_v = (angle_diff / 0.5f) * turn_speed;
         }
 
         p_unit.angular_velocity = UtilityFunctions::move_toward(
-            p_unit.angular_velocity,
-            target_angular_v,
-            turn_accel * p_delta
-        );
+            p_unit.angular_velocity, target_angular_v, turn_accel * p_delta);
     }
-    else { 
+    else {
         p_unit.angular_velocity = UtilityFunctions::move_toward(p_unit.angular_velocity, 0.0f, p_unit.stats->get_turn_acceleration() * p_delta);
     }
 
     p_unit.rotation += p_unit.angular_velocity * p_delta;
-    // 根据当前朝向，施加真实的加速度 (面向目标时加速才最快
-    float forward_dot = 0.0f;
-    Vector2 forward_vec = Vector2(Math::cos(p_unit.rotation), Math::sin(p_unit.rotation));
 
-    if (desired_velocity.length_squared() > velocity_threshold_squared) {
-        forward_dot = Math::max(0.0f, forward_vec.dot(desired_velocity.normalized()));
-    }
-
-    float current_accel = accel * (0.5f + 0.5f * forward_dot);
-
-    p_unit.velocity = p_unit.velocity.move_toward(desired_velocity, current_accel * p_delta);
-
-    if ((p_unit.velocity).length_squared() < velocity_threshold_squared) {
-        p_unit.velocity= Vector2(0, 0);
+    // 停止微小移动
+    if (p_unit.state == IDLE && p_unit.velocity.length_squared() < 1.0f) {
+        p_unit.velocity = Vector2(0, 0);
     }
 }
 

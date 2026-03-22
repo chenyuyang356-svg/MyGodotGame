@@ -27,8 +27,9 @@ weapon = Missile, 10.0, 300.0, 0.3, 500.0, 2.0
 weapon_mount = HeavyCannon, 0.0, 0.0
 
 # --- Movement (移动与碰撞) ---
+mass             = 1.0
 move_speed       = 150.0
-acceleration     = 80.0
+acceleration     = 100.0
 turn_speed       = 0.7
 turn_acceleration= 1.0
 # [关键] 碰撞半径

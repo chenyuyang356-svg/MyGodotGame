@@ -661,7 +661,7 @@ bool FlowFieldManager::is_path_traversable(Vector2 p_start, Vector2 p_end, int p
 
     // 定义忽略密度的“安全区”半径（单位：格子数）
     // 建议设为 2-3，这样单位在最后准备进入阵型位时不会被自己人挡住路径判定
-    const int SAFE_ZONE_RADIUS = 2;
+    const int SAFE_ZONE_RADIUS = 1;
 
     for (; n > 0; --n) {
         if (x >= 0 && x < width && y >= 0 && y < height) {

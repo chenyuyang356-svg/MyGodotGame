@@ -47,9 +47,9 @@ layout_mode = 2
 [node name="MapManager" type="MapManager" parent="." unique_id=1095983527]
 
 [node name="UnitManager" type="UnitManager" parent="." unique_id=355650158]
-separation_factor = 100000.0
-separation_radius_factor = 2.0
-friction_factor = 15.0
+separation_factor = 80.0
+separation_limit = 200.0
+friction_factor = 20.0
 force_threshold_squared = 0.0
 desired_integration = 0.5
 
