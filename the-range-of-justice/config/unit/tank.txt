@@ -30,8 +30,8 @@ weapon_mount = HeavyCannon, 0.0, 0.0
 mass             = 1.0
 move_speed       = 150.0
 acceleration     = 100.0
-turn_speed       = 0.7
-turn_acceleration= 1.0
+turn_speed       = 1.5
+turn_acceleration= 2.0
 # [关键] 碰撞半径
 collision_radius = 48.0
 # 枚举可选: Ground, Air, Sea, Hover

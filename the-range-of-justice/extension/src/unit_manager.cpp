@@ -772,25 +772,54 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
         }
     }
 
-    // --- C. 计算合力 (Total Force) ---
-    Vector2 total_force = get_force(p_unit); // 外部排斥力
-    Vector2 propulsion_force = Vector2(0, 0);
-    Vector2 desired_dir = Vector2(0, 0);
+    // --- C. 计算受力 ---
 
-    if (p_unit.state != IDLE) {
-        // 计算单位想去的方向
-        desired_dir = get_flow(p_unit);
+    // 1. 获取各个力分量
+    Vector2 flow_vec = get_flow(p_unit) * flow_factor;
+    Vector2 sep_force = get_separation(p_unit) * separation_factor;
 
-        // 只有当单位朝向目标时，引擎才能发挥最大推力
-        Vector2 forward_vec = Vector2(Math::cos(p_unit.rotation), Math::sin(p_unit.rotation));
-        float alignment = Math::max(0.0f, forward_vec.dot(desired_dir));
+    // 2. 核心修改：将分离力整合进“动力意图”
+    // 现在的 steering_vec 不仅代表“我想去哪”，还代表“我想怎么绕开障碍”
+    Vector2 steering_vec = flow_vec + sep_force;
 
-        // 引擎推力 = 设定加速度 * 质量 * 朝向修正
-        // 乘以质量是为了让不同质量的单位在没有外力时，加速表现符合 stat_accel 的预期
-        propulsion_force = forward_vec * flow_factor * (stat_accel * mass * (0.2f + 0.8f * alignment));
+    // 如果没有任何引导力且处于 IDLE，则不产生动力
+    if (p_unit.state == IDLE && steering_vec.length_squared() < 1.0f) {
+        steering_vec = Vector2(0, 0);
     }
 
-    total_force += propulsion_force;
+    Vector2 desired_dir = (steering_vec.length_squared() > 0.001f) ? steering_vec.normalized() : Vector2(0, 0);
+
+    // --- 计算动力 (Propulsion) ---
+    Vector2 propulsion_force = Vector2(0, 0);
+    if (p_unit.state != IDLE && (desired_dir.length_squared()) > 0) {
+        // 单位当前的物理朝向
+        Vector2 forward_vec = Vector2(Math::cos(p_unit.rotation), Math::sin(p_unit.rotation));
+
+        // 计算当前朝向与“修正后期望方向”的对齐程度
+        float alignment = Math::max(0.0f, forward_vec.dot(desired_dir));
+
+        // 动力方向修正：
+        // 引擎主要向 forward_vec 推，但我们允许一部分动力直接作用于 desired_dir 分量上
+        // 这样重型单位在转向时也会有一定的侧向位移，显得更自然
+        Vector2 engine_dir = (forward_vec * 0.7f + desired_dir * 0.3f).normalized();
+
+        // 推进力 = 引擎功率 * 朝向修正系数
+        // (0.1f 是基础动力，保证单位在原地转身时也能缓慢挪动)
+        propulsion_force = engine_dir * (stat_accel * mass * (0.1f + 0.9f * alignment)) * 1000.0f;
+    }
+
+    // --- 综合所有力并计算加速度 ---
+    // 这里的外部力只包含战斗击退等非转向意图的力
+    Vector2 external_physics_force = Vector2(0, 0);
+    if (attack_manager) {
+        Vector2 combat_force;
+        if (attack_manager->try_get_combat_force(p_unit, combat_force)) {
+            external_physics_force += combat_force;
+        }
+    }
+
+    // 总力 = 修正后的动力 + 物理推力 + 修正后的分离力(作为物理补偿)
+    Vector2 total_force = propulsion_force + external_physics_force + sep_force * 0.5f;
 
     // --- D. 计算加速度并应用摩擦力 ---
     // a = F / m
@@ -799,20 +828,19 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     // 阻尼/摩擦力 (Friction)
     // 这里的摩擦力与速度成正比，防止单位无限滑行
     // 质量越大，摩擦力（阻力）也越大，这样重型单位停下来也需要更久
-    float current_friction = (p_unit.state == IDLE) ? friction_factor * 2.0f : friction_factor;
+    float current_friction = (p_unit.state == IDLE) ? friction_factor * 3.0f : friction_factor;
     acceleration_vec -= p_unit.velocity * current_friction;
 
     // --- E. 更新速度 ---
     p_unit.velocity += acceleration_vec * p_delta;
 
     // 限制最大速度
-    if (p_unit.velocity.length_squared() > final_max_speed * final_max_speed) {
+    if ((p_unit.velocity).length_squared() > final_max_speed * final_max_speed) {
         p_unit.velocity = p_unit.velocity.normalized() * final_max_speed;
     }
 
     // --- F. 旋转逻辑 ---
-    // 旋转不再直接看速度方向，而是看“想去的方向”
-    if (p_unit.state != IDLE && p_unit.velocity.length_squared() > velocity_threshold_squared) {
+    if (p_unit.state != IDLE) {
         float target_angle = desired_dir.angle();
         float angle_diff = UtilityFunctions::angle_difference(p_unit.rotation, target_angle);
 
@@ -837,7 +865,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     p_unit.rotation += p_unit.angular_velocity * p_delta;
 
     // 停止微小移动
-    if (p_unit.state == IDLE && p_unit.velocity.length_squared() < 1.0f) {
+    if (p_unit.state == IDLE && (p_unit.velocity).length_squared() < 1.0f) {
         p_unit.velocity = Vector2(0, 0);
     }
 }

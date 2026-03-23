@@ -14,7 +14,6 @@ script = ExtResource("1_3wy1v")
 [node name="GroupManager" type="GroupManager" parent="." unique_id=2096338072]
 
 [node name="FlowFieldManager" type="FlowFieldManager" parent="." unique_id=1905490724]
-density_weight = 0.2
 script = ExtResource("2_4dugh")
 
 [node name="FogManager" type="FogManager" parent="." unique_id=2033803442]
@@ -47,8 +46,8 @@ layout_mode = 2
 [node name="MapManager" type="MapManager" parent="." unique_id=1095983527]
 
 [node name="UnitManager" type="UnitManager" parent="." unique_id=355650158]
-separation_factor = 80.0
-separation_limit = 200.0
+separation_factor = 100.0
+separation_limit = 250.0
 friction_factor = 20.0
 force_threshold_squared = 0.0
 desired_integration = 0.5

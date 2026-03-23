@@ -178,11 +178,12 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 		if spawn_positions.has(spawn_id):
 			var pos = spawn_positions[spawn_id]
 			# 在基地旁边生成坦克 (注意传递的是 team_id，让单位归属于该阵营)
-			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(100, 100), team_id)
-			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(-100, 100), team_id)
+			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(300, 400), team_id)
+			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(0, 400), team_id)
+			GlobalGameManager.rpc_server_request_place_building("HumanBarrack", Vector2i(pos), team_id)
 			
 			# 如果是陆地地图，生成防空
-			GlobalGameManager.rpc_server_request_spawn_unit("Fighter", pos + Vector2(0, -150), team_id)
+			GlobalGameManager.rpc_server_request_spawn_unit("Fighter", pos + Vector2(150, 350), team_id)
 		else:
 			print("Peer: ", peer_id, " (Team: ", team_id, ") 的出生点 ", spawn_id, " 无效，不生成初始单位。")
 
@@ -190,7 +191,7 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 func spawn_test_units():
 	for x in range(10):
 		for y in range(10):
-			#GlobalGameManager.rpc_server_request_spawn_unit("TinyTank", -32 * Vector2(x, y), 1)
+			#GlobalGameManager.rpc_server_request_spawn_unit("HeavyTank", -32 * Vector2(x, y), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("AttackHelicopter", -32 * Vector2(x, y), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Helicopter", -32 * Vector2(x, y) + Vector2(0, 1000), 2)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(11000, 3500), 2)
