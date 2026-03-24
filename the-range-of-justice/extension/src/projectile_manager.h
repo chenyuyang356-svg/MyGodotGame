@@ -9,6 +9,7 @@
 #include <vector>
 #include "projectile_stats.h"
 #include "building_manager.h" 
+#include "effect_manager.h"
 #include <unordered_map>
 
 namespace godot {
@@ -42,6 +43,7 @@ namespace godot {
         Ref<ProjectileStats> stats;
 
         float anim_time = 0.0f;
+        float particle_update_timer = 0.0f;
     };
 
     struct GodotStringHasher {
@@ -62,6 +64,7 @@ namespace godot {
         UnitManager* unit_manager = nullptr;
         BuildingManager* building_manager = nullptr; // 建筑管理器指针
         AttackManager* attack_manager = nullptr;
+        EffectManager* effect_manager = nullptr;
 
         // 渲染器映射：每个 ProjectileStats 对应一个 MultiMeshInstance3D
         std::unordered_map<ProjectileStats*, MultiMeshInstance3D*> type_renderers;
@@ -83,6 +86,7 @@ namespace godot {
 
         void setup(UnitManager* p_um, AttackManager* p_am);
         void set_building_manager(BuildingManager* p_bm); // 设置建筑管理器
+        void set_effect_manager(Node* p_node);
 
         void spawn_projectile(
             const String& p_type_name, // 直接传入注册好的类型名

@@ -20,6 +20,7 @@
 #include "projectile_manager.h"
 #include "fog_manager.h"
 #include "weapon_manager.h"
+#include "effect_manager.h"
 
 namespace godot {
 
@@ -43,6 +44,7 @@ namespace godot {
 		ProjectileManager* projectile_manager = nullptr;
 		FogManager* fog_manager = nullptr;
 		WeaponManager* weapon_manager = nullptr;
+		EffectManager* effect_manager = nullptr;
 
 		bool is_setup = false;
 		bool game_in_progress = false;
@@ -91,6 +93,7 @@ namespace godot {
 		void set_projectile_manager(Node* p_node);
 		void set_fog_manager(Node* p_node);
 		void set_weapon_manager(Node* p_node);
+		void set_effect_manager(Node* p_node);
 		void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
 
 		// --- 网络管理接口 ---

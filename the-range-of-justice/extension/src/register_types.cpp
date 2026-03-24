@@ -15,6 +15,7 @@
 #include "fog_manager.h"
 #include "weapon_manager.h"
 #include "weapon_stats.h"
+#include "effect_manager.h"
 
 #include <gdextension_interface.h>
 #include <godot_cpp/core/defs.hpp>
@@ -42,7 +43,8 @@ void initialize_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(EconomyManager);
 	GDREGISTER_CLASS(FogManager);
 	GDREGISTER_CLASS(WeaponManager);
-	GDREGISTER_CLASS(WeaponStats);
+	GDREGISTER_CLASS(WeaponStats); 
+	GDREGISTER_CLASS(EffectManager);
 }
 
 void uninitialize_module(ModuleInitializationLevel p_level) {

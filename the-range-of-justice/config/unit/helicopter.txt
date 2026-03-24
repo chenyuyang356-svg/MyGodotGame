@@ -26,7 +26,7 @@ mass             = 1.0
 move_speed       = 200.0
 acceleration     = 8000.0
 turn_speed       = 3.0
-turn_acceleration= 10.0
+turn_acceleration= 8.0
 # [关键] 碰撞半径
 collision_radius = 30.0
 base_height = 50.0

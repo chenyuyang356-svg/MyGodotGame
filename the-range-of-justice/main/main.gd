@@ -45,6 +45,7 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	var economy_manager: EconomyManager = $EconomyManager
 	var fog_manager: FogManager = $FogManager
 	var weapon_manager: WeaponManager = $WeaponManager
+	var effect_manager: EffectManager = $EffectManager
 	
 	var cell_size: Vector2i = tile_map_layer.tile_set.tile_size
 	var used_rect: Rect2i = tile_map_layer.get_used_rect()
@@ -71,11 +72,17 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	GlobalGameManager.set_economy_manager(economy_manager)
 	GlobalGameManager.set_fog_manager(fog_manager)
 	GlobalGameManager.set_weapon_manager(weapon_manager)
+	GlobalGameManager.set_effect_manager(effect_manager)
 	
 	# 设置流场系统尺寸
 	GlobalGameManager.setup_system(width, height, cell_size, grid_origin)
 	
 	# 注册配置（这部分建议放在 GlobalGameManager 的 init 里只运行一次）
+	var dust_tex: Texture2D = ResourceLoader.load("res://asset/particle/dust.png")
+	effect_manager.register_effect_type("Dust", dust_tex, 2000, -2.0, 0.9, 0.2)
+	var explosion_tex: Texture2D = ResourceLoader.load("res://asset/particle/explosion.png")
+	effect_manager.register_effect_type("Explosion", explosion_tex, 1000, 0.0, 0.9, 1.0)
+	
 	weapon_manager.register_weapons_from_dir("res://config/weapon/")
 	unit_manager.register_units_from_dir("res://config/unit/")
 	building_manager.register_buildings_from_dir("res://config/building/")
@@ -189,10 +196,10 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 
 
 func spawn_test_units():
-	for x in range(10):
-		for y in range(10):
-			#GlobalGameManager.rpc_server_request_spawn_unit("HeavyTank", -32 * Vector2(x, y), 1)
-			#GlobalGameManager.rpc_server_request_spawn_unit("AttackHelicopter", -32 * Vector2(x, y), 1)
-			#GlobalGameManager.rpc_server_request_spawn_unit("Helicopter", -32 * Vector2(x, y) + Vector2(0, 1000), 2)
+	for x in range(3):
+		for y in range(3):
+			GlobalGameManager.rpc_server_request_spawn_unit("AttackHelicopter", -32 * Vector2(x, y), 1)
+			#GlobalGameManager.rpc_server_request_spawn_unit("Helicopter", -32 * Vector2(x, y), 1)
+			GlobalGameManager.rpc_server_request_spawn_unit("Helicopter", -32 * Vector2(x, y) + Vector2(0, 2000), 2)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(11000, 3500), 2)
 			continue

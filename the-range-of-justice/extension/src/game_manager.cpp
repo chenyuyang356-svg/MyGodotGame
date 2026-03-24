@@ -161,6 +161,8 @@ void GameManager::_process(double p_delta) {
 	unit_manager->update_multimesh_buffer(p_delta, alpha, selection_manager);
 	building_manager->update_multimesh_buffer(p_delta, alpha, selection_manager);
 	weapon_manager->update_multimesh_buffer(p_delta, alpha, unit_manager, building_manager, selection_manager);
+
+	effect_manager->update(p_delta);
 }
 
 void GameManager::update_group(double p_delta) {
@@ -273,12 +275,17 @@ void GameManager::set_weapon_manager(Node* p_node) {
 	weapon_manager = Object::cast_to<WeaponManager>(p_node);
 }
 
+void GameManager::set_effect_manager(Node* p_node) {
+	effect_manager = Object::cast_to<EffectManager>(p_node);
+}
+
 void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin) {
 	unit_manager->set_flow_field_manager(flow_field_manager);
 	unit_manager->set_group_manager(group_manager);
 	unit_manager->set_fog_manager(fog_manager);
 	unit_manager->set_attack_manager(attack_manager);
 	unit_manager->set_weapon_manager(weapon_manager);
+	unit_manager->set_effect_manager(effect_manager);
 
 	building_manager->set_flow_field_manager(flow_field_manager);
 	building_manager->set_unit_manager(unit_manager);
@@ -290,6 +297,10 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 
 	attack_manager->set_building_manager(building_manager);
 	attack_manager->set_projectile_manager(projectile_manager);
+
+	effect_manager->setup(fog_manager);
+
+	projectile_manager->set_effect_manager(effect_manager);
 
 	Vector2 map_size = Vector2(p_width, p_height) * Vector2(p_cell_size);
 	Vector2 map_pos = Vector2(p_origin) * Vector2(p_cell_size);
@@ -959,6 +970,7 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_projectile_manager", "node"), &GameManager::set_projectile_manager);
 	ClassDB::bind_method(D_METHOD("set_fog_manager", "node"), &GameManager::set_fog_manager);
 	ClassDB::bind_method(D_METHOD("set_weapon_manager", "node"), &GameManager::set_weapon_manager);
+	ClassDB::bind_method(D_METHOD("set_effect_manager", "node"), &GameManager::set_effect_manager);
 	ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &GameManager::setup_system);
 
 	ClassDB::bind_method(D_METHOD("host_game", "port"), &GameManager::host_game);

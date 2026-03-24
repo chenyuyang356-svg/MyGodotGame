@@ -7,6 +7,7 @@
 
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/classes/dir_access.hpp>
+#include "game_manager.h"
 
 using namespace godot;
 
@@ -645,7 +646,7 @@ Vector2 UnitManager::get_force(UnitData& p_unit) {
     external_force += get_separation(p_unit) * separation_factor;
 
     // 2. 战斗控制力（如果正在冲锋或被击退）
-    if (attack_manager) {
+    if (attack_manager && 0) {
         Vector2 combat_force;
         if (attack_manager->try_get_combat_force(p_unit, combat_force)) {
             external_force += combat_force;
@@ -811,7 +812,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     // --- 综合所有力并计算加速度 ---
     // 这里的外部力只包含战斗击退等非转向意图的力
     Vector2 external_physics_force = Vector2(0, 0);
-    if (attack_manager) {
+    if (attack_manager && 0) {
         Vector2 combat_force;
         if (attack_manager->try_get_combat_force(p_unit, combat_force)) {
             external_physics_force += combat_force;
@@ -965,6 +966,11 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
 void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, SelectionManager* p_selection_manager) {
     if (type_renderers.empty()) return;
 
+    particle_update_timer += p_delta;
+    if (particle_update_timer > PARTICLE_UPDATE_INTERVAL) {
+        particle_update_timer = 0.0f;
+    }
+
     for (auto& pair : type_grouping_cache) {
         pair.second.clear();
     }
@@ -1027,6 +1033,18 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
 
             mm->set_instance_custom_data(i, Color(frame_idx, row, modulate, 0));
             mm->set_instance_color(i, get_team_color(unit.team_id));
+
+            // 设置粒子效果
+            if (particle_update_timer < 0.0001f && unit.state != IDLE && (unit.velocity).length_squared() > 1000.0f) {
+                if (flow_field_manager->get_cost(flow_field_manager->world_to_grid(unit.position), NAV_LAND) < 255 && unit.height < AIR_HEIGHT_THRESHOLD) {
+                    Vector2 direction = Vector2(Math::cos(visual_rotation), Math::sin(visual_rotation));
+                    Vector2 map_pos = unit.position - direction * unit.stats->get_collision_radius() * 1.4f;
+                    Vector3 pos = Vector3(map_pos.x, visual_height + 0.5f, map_pos.y);
+                    Vector3 vel = Vector3(-direction.x * 50.0f + UtilityFunctions::randf_range(-10, 10), 2.0,
+                        -direction.y * 50.0f + UtilityFunctions::randf_range(-10, 10));
+                    effect_manager->emit_particle("Dust", pos, vel, 5.0, 1.0);
+                }
+            }
 
             // --- 更新影子渲染 ---
             Transform3D shadow_xform;
@@ -1144,6 +1162,10 @@ void UnitManager::set_fog_manager(Node* p_node) {
 
 void UnitManager::set_weapon_manager(Node* p_node) {
     weapon_manager = Object::cast_to<WeaponManager>(p_node);
+}
+
+void UnitManager::set_effect_manager(Node* p_node) {
+    effect_manager = Object::cast_to<EffectManager>(p_node);
 }
 
 void UnitManager::_internal_register_stats(Ref<UnitStats> p_stats) {

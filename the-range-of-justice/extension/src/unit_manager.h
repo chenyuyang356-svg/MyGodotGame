@@ -30,6 +30,7 @@
 #include "unit_loader.h"
 #include "unit_data.h"
 #include "weapon_manager.h"
+#include "effect_manager.h"
 
 namespace godot {
 	class AttackManager; // 前向声明
@@ -43,10 +44,12 @@ namespace godot {
 	
 	private:
 		AttackManager* attack_manager = nullptr; 
-		FlowFieldManager *flow_field_manager;
-		GroupManager* group_manager;
-		FogManager* fog_manager;
-		WeaponManager* weapon_manager;
+		FlowFieldManager *flow_field_manager = nullptr;
+		GroupManager* group_manager = nullptr;
+		FogManager* fog_manager = nullptr;
+		WeaponManager* weapon_manager = nullptr;
+		EffectManager* effect_manager = nullptr;
+
 		std::unordered_map<int, size_t> id_to_index;
 		int next_unit_id = 0;
 
@@ -75,6 +78,8 @@ namespace godot {
 
 		double density_update_timer = 0.0;
 		const double DENSITY_UPDATE_INTERVAL = 0.5; // 每0.5秒更新一次密度图
+		double particle_update_timer = 0.0;
+		const double PARTICLE_UPDATE_INTERVAL = 0.2;
 
 		// 渲染器映射：每个 UnitStats 资源对应一个 MultiMeshInstance2D
 		std::unordered_map<UnitStats*, MultiMeshInstance3D*> type_renderers;
@@ -162,6 +167,7 @@ namespace godot {
 		void set_group_manager(Node* p_node);
 		void set_fog_manager(Node* p_node);
 		void set_weapon_manager(Node* p_node);
+		void set_effect_manager(Node* p_node);
 
 		void _internal_register_stats(Ref<UnitStats> p_stats);
 		void register_unit_type(String p_name, String p_path);

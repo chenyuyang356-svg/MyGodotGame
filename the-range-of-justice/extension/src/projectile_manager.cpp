@@ -180,6 +180,9 @@ void ProjectileManager::set_building_manager(BuildingManager* p_bm) {
     building_manager = p_bm;
 }
 
+void ProjectileManager::set_effect_manager(Node* p_node) {
+    effect_manager = Object::cast_to<EffectManager>(p_node);
+}
 
 
 void ProjectileManager::_physics_process(double p_delta) {
@@ -250,6 +253,11 @@ void ProjectileManager::_physics_process(double p_delta) {
                 // UtilityFunctions::print("Client: Projectile Visual Hit.");
             }
 
+            float scale = (it->type == PROJECTILE_BULLET) ? 0.5f : 1.5f;
+            Vector3 pos = Vector3((it->position).x + UtilityFunctions::randf_range(-10.0, 10.0), it->current_height + 5.0f,
+                (it->position).y + UtilityFunctions::randf_range(-10.0, 10.0));
+            Vector3 vel = Vector3(0, 0, 0);
+            effect_manager->emit_particle("Explosion", pos, vel, 2.0f, 0.2f);
             it = projectiles.erase(it);
         }
         // 4. 飞行与高度计算
@@ -356,6 +364,17 @@ void ProjectileManager::update_render_buffer(double p_delta) {
 
             // 影子的动画帧必须和主体同步，否则形状对不上
             s_mm->set_instance_custom_data(i, Color((float)frame_idx, (float)row, 0.0f, 0.0f));
+
+            // --- F. 生成粒子 ---
+            if (p.type == PROJECTILE_MISSILE) {
+                p.particle_update_timer += p_delta;
+                if (p.particle_update_timer > 0.05f) {
+                    p.particle_update_timer = 0.0f;
+                    Vector3 pos = Vector3(p.position.x, p.current_height, p.position.y);
+                    Vector3 vel = Vector3(UtilityFunctions::randf_range(-10, 10), 2.0, UtilityFunctions::randf_range(-10, 10));
+                    effect_manager->emit_particle("Dust", pos, vel, 1.75, 1.0);
+                }
+            }
         }
     }
 }
