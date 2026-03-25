@@ -64,6 +64,9 @@ namespace godot {
         bool use_direct_path = false;
         double path_recheck_timer = 0.0; // 移动中定期重新检查，防止新造的建筑挡路
 
+        Vector2 last_visual_pos;      // 上一帧渲染的视觉位置
+        float dust_accumulator = 0.0f; // 扬尘距离累加器
+
         UnitData() : id(-1), state(IDLE), current_health(0) {}
 
         int get_nav_type() {

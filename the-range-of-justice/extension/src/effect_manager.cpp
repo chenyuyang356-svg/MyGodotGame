@@ -120,7 +120,7 @@ void EffectManager::_update_multimesh_buffer(EffectLayer* p_layer) {
         float fake_depth_offset = p.position.z * 0.0001f;
 
         Transform3D xform;
-        xform.origin = Vector3(p.position.x, p.position.y + fake_depth_offset, p.position.z);
+        xform.origin = Vector3(p.position.x, p.position.y + fake_depth_offset, p.position.z - p.position.y);
         // 这里的缩放可以随寿命衰减，或者在 Shader 里做
         xform.basis = Basis().scaled(Vector3(p.scale, p.scale, p.scale)).rotated(Vector3(1, 0, 0), Math_PI / 2.0);
         xform.basis = (xform.basis).rotated(Vector3(0, -1, 0), (p.rotation + Math_PI / 2.0f));

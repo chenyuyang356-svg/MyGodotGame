@@ -29,23 +29,44 @@ void GroupManager::add_unit_to_temp_group(int p_gid, int p_unit_id) {
     }
 }
 
-void GroupManager::remove_unit_from_temp_group(int p_gid, int p_unit_id) {
+void GroupManager::remove_unit_from_temp_group(int p_gid, const UnitData& p_unit) {
     auto it = temp_groups.find(p_gid);
     if (it != temp_groups.end()) {
-        it->second.remove_unit_id(p_unit_id);
-        // 如果该单位是在移动中被移除（去新组），减少计数
-        if (it->second.moving_units_count > 0) {
-            it->second.moving_units_count--;
-            it->second.units_count--;
+        UnitGroup& group = it->second;
+        group.remove_unit_id(p_unit.id);
+
+        // 使用 UnitData 内部的属性判断
+        if (p_unit.state == IDLE) {
+            float r_sq = p_unit.stats->get_collision_radius() * p_unit.stats->get_collision_radius();
+            if (p_unit.height > 20.0f) { // AIR_HEIGHT_THRESHOLD
+                group.air_idle_radius_sq_sum = std::max(0.0f, group.air_idle_radius_sq_sum - r_sq);
+            }
+            else {
+                group.ground_idle_radius_sq_sum = std::max(0.0f, group.ground_idle_radius_sq_sum - r_sq);
+            }
         }
+        else {
+            if (group.moving_units_count > 0) group.moving_units_count--;
+        }
+
+        if (group.units_count > 0) group.units_count--;
     }
 }
 
-void GroupManager::decrement_moving_count(int p_gid) {
+void GroupManager::decrement_moving_count(int p_gid, const UnitData& p_unit) {
     auto it = temp_groups.find(p_gid);
     if (it != temp_groups.end()) {
-        if (it->second.moving_units_count > 0) {
-            it->second.moving_units_count--;
+        UnitGroup& group = it->second;
+        if (group.moving_units_count > 0) {
+            group.moving_units_count--;
+
+            float r_sq = p_unit.stats->get_collision_radius() * p_unit.stats->get_collision_radius();
+            if (p_unit.height > 20.0f) {
+                group.air_idle_radius_sq_sum += r_sq;
+            }
+            else {
+                group.ground_idle_radius_sq_sum += r_sq;
+            }
         }
     }
 }
@@ -56,19 +77,19 @@ const std::vector<int>& GroupManager::get_control_group_units(int p_index) {
     return control_groups[p_index];
 }
 
-void GroupManager::handle_unit_death(int p_unit_id, int p_temp_gid, const int* p_control_indices, int p_control_count) {
+void GroupManager::handle_unit_death(const UnitData& p_unit) {
     // 快速清理临时组
-    if (p_temp_gid != -1) {
-        remove_unit_from_temp_group(p_temp_gid, p_unit_id);
+    if (p_unit.temp_group_id != -1) {
+        remove_unit_from_temp_group(p_unit.temp_group_id, p_unit);
     }
 
-    // 快速清理编队
-    for (int i = 0; i < p_control_count; ++i) {
-        int g_idx = p_control_indices[i];
+    // 清理编队
+    for (int i = 0; i < p_unit.control_group_count; ++i) {
+        int g_idx = p_unit.control_group_indices[i];
         if (g_idx >= 0 && g_idx < MAX_CONTROL_GROUPS) {
             auto& ids = control_groups[g_idx];
             for (size_t j = 0; j < ids.size(); ++j) {
-                if (ids[j] == p_unit_id) {
+                if (ids[j] == p_unit.id) {
                     ids[j] = ids.back();
                     ids.pop_back();
                     break;

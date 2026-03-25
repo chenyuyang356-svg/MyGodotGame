@@ -101,6 +101,8 @@ int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_t
     new_unit.stats = p_stats; 
     new_unit.weapon_cooldowns.resize(p_stats->weapons.size(), 0.0f);
     new_unit.path_recheck_timer = (float)(new_unit.id % 60) / 60.0f;
+    new_unit.last_visual_pos = p_world_pos;
+    new_unit.dust_accumulator = 0.0f;
 
     new_unit.weapons.clear();
     for (const auto& mount : p_stats->weapon_mounts) {
@@ -130,7 +132,7 @@ void UnitManager::despawn_unit(int p_unit_id, SelectionManager* p_selection_mana
     int last_unit_idx = units.size() - 1;
 
     UnitData& unit_to_remove = units[index_to_remove];
-    group_manager->handle_unit_death(p_unit_id, unit_to_remove.temp_group_id, unit_to_remove.control_group_indices, unit_to_remove.control_group_count);
+    group_manager->handle_unit_death(unit_to_remove);
 
     if (index_to_remove != last_unit_idx) {
         // 1.   ȡ   һ    λ      
@@ -246,7 +248,7 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
 
             // --- C. 更新组管理逻辑 ---
             if (unit.temp_group_id != -1) {
-                group_manager->remove_unit_from_temp_group(unit.temp_group_id, unit.id);
+                group_manager->remove_unit_from_temp_group(unit.temp_group_id, unit);
             }
             group_manager->add_unit_to_temp_group(temp_gid, unit.id);
             unit.temp_group_id = temp_gid;
@@ -282,7 +284,7 @@ void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints) {
             UnitData& unit = units[it->second];
 
             if (unit.temp_group_id != -1) {
-                group_manager->remove_unit_from_temp_group(unit.temp_group_id, unit.id);
+                group_manager->remove_unit_from_temp_group(unit.temp_group_id, unit);
             }
 
             unit.is_patrolling = true;
@@ -309,7 +311,7 @@ void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_
             UnitData& unit = units[it->second];
 
             if (unit.temp_group_id != -1) {
-                group_manager->remove_unit_from_temp_group(unit.temp_group_id, unit.id);
+                group_manager->remove_unit_from_temp_group(unit.temp_group_id, unit);
             }
 
             // 1.       е  ƶ   Ѳ  ״̬
@@ -637,7 +639,7 @@ Vector2 UnitManager::get_friction(UnitData& p_unit) {
     return (-p_unit.velocity);
 }
 
-// 返回外部环境产生的“原始力”
+// 返回外部环境产生的“原始力”(目前被弃用)
 Vector2 UnitManager::get_force(UnitData& p_unit) {
     Vector2 external_force = Vector2(0, 0);
 
@@ -646,7 +648,7 @@ Vector2 UnitManager::get_force(UnitData& p_unit) {
     external_force += get_separation(p_unit) * separation_factor;
 
     // 2. 战斗控制力（如果正在冲锋或被击退）
-    if (attack_manager && 0) {
+    if (attack_manager) {
         Vector2 combat_force;
         if (attack_manager->try_get_combat_force(p_unit, combat_force)) {
             external_force += combat_force;
@@ -660,7 +662,7 @@ void UnitManager::stop_unit(UnitData& p_unit) {
     p_unit.state = IDLE;
     p_unit.velocity = Vector2(0, 0);
     if (p_unit.temp_group_id != -1) {
-        group_manager->decrement_moving_count(p_unit.temp_group_id);
+        group_manager->decrement_moving_count(p_unit.temp_group_id, p_unit);
     }
 }
 
@@ -676,9 +678,11 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
             break;
         }
 
+        float radius = p_unit.stats->get_collision_radius();
+        bool is_air = (p_unit.height > AIR_HEIGHT_THRESHOLD);
+
         float desired_distance = 2.0f * p_unit.stats->collision_radius;
-        float soft_arrival_distance_squared = p_unit.stats->collision_radius * p_unit.stats->collision_radius * 
-            group_manager->get_temp_group(p_unit.temp_group_id)->get_idle_units_count();
+        float soft_arrival_distance_squared = is_air ? group->air_idle_radius_sq_sum : group->ground_idle_radius_sq_sum;
         float distance_squared = (p_unit.position).distance_squared_to(p_unit.target_pos);
         float distance_squared_with_offset = (p_unit.position).distance_squared_to(p_unit.target_pos + p_unit.target_pos_offset); // 这里加上了offset
         if (distance_squared_with_offset <= desired_distance * desired_distance) {
@@ -812,7 +816,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     // --- 综合所有力并计算加速度 ---
     // 这里的外部力只包含战斗击退等非转向意图的力
     Vector2 external_physics_force = Vector2(0, 0);
-    if (attack_manager && 0) {
+    if (attack_manager) {
         Vector2 combat_force;
         if (attack_manager->try_get_combat_force(p_unit, combat_force)) {
             external_physics_force += combat_force;
@@ -966,11 +970,6 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
 void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, SelectionManager* p_selection_manager) {
     if (type_renderers.empty()) return;
 
-    particle_update_timer += p_delta;
-    if (particle_update_timer > PARTICLE_UPDATE_INTERVAL) {
-        particle_update_timer = 0.0f;
-    }
-
     for (auto& pair : type_grouping_cache) {
         pair.second.clear();
     }
@@ -1034,16 +1033,50 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
             mm->set_instance_custom_data(i, Color(frame_idx, row, modulate, 0));
             mm->set_instance_color(i, get_team_color(unit.team_id));
 
-            // 设置粒子效果
-            if (particle_update_timer < 0.0001f && unit.state != IDLE && (unit.velocity).length_squared() > 1000.0f) {
-                if (flow_field_manager->get_cost(flow_field_manager->world_to_grid(unit.position), NAV_LAND) < 255 && unit.height < AIR_HEIGHT_THRESHOLD) {
-                    Vector2 direction = Vector2(Math::cos(visual_rotation), Math::sin(visual_rotation));
-                    Vector2 map_pos = unit.position - direction * unit.stats->get_collision_radius() * 1.4f;
-                    Vector3 pos = Vector3(map_pos.x, visual_height + 0.5f, map_pos.y);
-                    Vector3 vel = Vector3(-direction.x * 50.0f + UtilityFunctions::randf_range(-10, 10), 2.0,
-                        -direction.y * 50.0f + UtilityFunctions::randf_range(-10, 10));
-                    effect_manager->emit_particle("Dust", pos, vel, 5.0, 1.0);
+            // ---  设置粒子效果  ---
+            // 计算本帧视觉上的位移
+            float move_dist = visual_position.distance_to(unit.last_visual_pos);
+            unit.last_visual_pos = visual_position; // 更新记录
+
+            // 只有地面单位、非静止状态、且高度在阈值以下时计算
+            if (unit.state != IDLE && unit.height < AIR_HEIGHT_THRESHOLD) {
+                unit.dust_accumulator += move_dist;
+
+                // 设定释放阈值：每行驶单位半径的 1.2 倍距离释放一次粒子
+                // 你可以根据视觉效果调整这个系数 (1.2f)
+                float radius = unit.stats->get_collision_radius();
+                float emit_threshold = radius;
+
+                if (unit.dust_accumulator >= emit_threshold) {
+                    unit.dust_accumulator = 0.0f; // 重置累加器
+
+                    // 检查地形是否可通行 (避免在水面或虚空产生灰尘)
+                    if (flow_field_manager->get_cost(flow_field_manager->world_to_grid(unit.position), NAV_LAND) < 255) {
+
+                        // 计算粒子的缩放比：以 48 为基准 1.0
+                        float particle_scale = radius / 48.0f;
+
+                        // 计算粒子发射位置 (单位后方)
+                        Vector2 direction = Vector2(Math::cos(visual_rotation), Math::sin(visual_rotation));
+                        Vector2 emit_map_pos = visual_position - direction * radius * 1.1f;
+
+                        Vector3 pos = Vector3(emit_map_pos.x, visual_height - 0.05f, emit_map_pos.y);
+
+                        // 给粒子一个向后的随机初速度
+                        Vector3 vel = Vector3(
+                            -direction.x * 40.0f + UtilityFunctions::randf_range(-10, 10),
+                            0.0,
+                            -direction.y * 40.0f + UtilityFunctions::randf_range(-10, 10)
+                        );
+
+                        // 调用 EffectManager
+                        // 假设 emit_particle 支持传入 scale 参数，如果不支持，需在 EffectManager 里实现
+                        effect_manager->emit_particle("Dust", pos, vel, 5.0 * particle_scale, 0.75);
+                    }
                 }
+            }
+            else {
+                unit.dust_accumulator = 0.0f; // 如果停止移动，重置累加器
             }
 
             // --- 更新影子渲染 ---

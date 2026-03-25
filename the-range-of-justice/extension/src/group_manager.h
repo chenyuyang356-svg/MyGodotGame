@@ -16,6 +16,9 @@ namespace godot {
         Vector2 target_pos;
         float average_integration;
 
+        float ground_idle_radius_sq_sum = 0.0f; // 已到达地面单位的半径平方和
+        float air_idle_radius_sq_sum = 0.0f; // 已到达空中单位的半径平方和
+
         UnitGroup() { unit_ids.reserve(256); }
 
         // O(1) 删除：交换最后一个元素并弹出
@@ -62,17 +65,17 @@ namespace godot {
         // --- 临时组逻辑 ---
         int create_temporary_group(Vector2 p_target_pos);
         void add_unit_to_temp_group(int p_gid, int p_unit_id);
-        void remove_unit_from_temp_group(int p_gid, int p_unit_id);
+        void remove_unit_from_temp_group(int p_gid, const UnitData& p_unit);
 
         // 当单位到达目的地时调用，仅减少计数，不删除 ID
-        void decrement_moving_count(int p_gid);
+        void decrement_moving_count(int p_gid, const UnitData& p_unit);
 
         // --- 编队逻辑 (0-9) ---
         const std::vector<int>& get_control_group_units(int p_index);
 
         // --- 生命周期管理 ---
         // 利用单位记录的索引进行 O(1) 到 O(GroupCount) 的快速清理
-        void handle_unit_death(int p_unit_id, int p_temp_gid, const int* p_control_indices, int p_control_count);
+        void handle_unit_death(const UnitData& p_unit);
 
         UnitGroup* get_temp_group(int p_gid);
     };

@@ -38,6 +38,37 @@ void ProjectileManager::spawn_projectile(
 
     Ref<ProjectileStats> stats = projectile_templates[p_type_name];
 
+    // --- 新增：立即尝试获取目标的初始位置 ---
+    Vector2 initial_target_pos = p_start_pos;
+    bool found_target = false;
+
+    if (p_target_is_building) {
+        if (building_manager) {
+            auto b_it = building_manager->buildings.find(p_target_id);
+            if (b_it != building_manager->buildings.end()) {
+                Vector2 cell_sz = Vector2(32, 32);
+                if (building_manager->flow_field_manager) cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
+                Vector2 fp_size = Vector2(b_it->second.stats->get_footprint()) * cell_sz;
+                initial_target_pos = Vector2(b_it->second.grid_pos) * cell_sz + fp_size * 0.5f;
+                found_target = true;
+            }
+        }
+    }
+    else {
+        if (unit_manager) {
+            int target_idx = unit_manager->get_unit_index_by_id(p_target_id);
+            if (target_idx != -1) {
+                initial_target_pos = unit_manager->units[target_idx].position;
+                found_target = true;
+            }
+        }
+    }
+
+    // 如果在发射瞬间目标就没了，直接不产生子弹
+    if (!found_target) {
+        return;
+    }
+
     UtilityFunctions::print(">>> [ProjectileManager] Spawning projectile! Target ID: ", p_target_id);
     ProjectileData p;
     p.position = p_start_pos;
@@ -231,6 +262,12 @@ void ProjectileManager::_physics_process(double p_delta) {
 
         Vector2 direction = it->target_pos - it->position;
         float distance_to_target = direction.length();
+
+        // --- 保护措施：防止距离为0导致的计算错误 ---
+        if (distance_to_target < 0.1f) {
+            distance_to_target = 0.1f;
+        }
+
         float move_step = it->speed * p_delta;
 
         // 3. 命中判定
@@ -253,11 +290,21 @@ void ProjectileManager::_physics_process(double p_delta) {
                 // UtilityFunctions::print("Client: Projectile Visual Hit.");
             }
 
-            float scale = (it->type == PROJECTILE_BULLET) ? 0.5f : 1.5f;
-            Vector3 pos = Vector3((it->position).x + UtilityFunctions::randf_range(-10.0, 10.0), it->current_height + 5.0f,
-                (it->position).y + UtilityFunctions::randf_range(-10.0, 10.0));
-            Vector3 vel = Vector3(0, 0, 0);
-            effect_manager->emit_particle("Explosion", pos, vel, 2.0f, 0.2f);
+            // 爆炸特效
+            if (it->target_id != -1) {
+                // 计算从发射点到现在的位移
+                float traveled_so_far = it->start_pos.distance_to(it->position);
+
+                // 只有当移动距离超过一定阈值（比如5.0像素），才产生爆炸效果
+                // 这样即使在非常极端的情况下目标死在发射者脚下，也不会有特效
+                if (traveled_so_far > 10.0f) {
+                    float scale = (it->type == PROJECTILE_BULLET) ? 0.5f : 1.5f;
+                    Vector3 pos = Vector3((it->position).x, it->current_height + 0.1f, (it->position).y);
+                    Vector3 vel = Vector3(0, 0, 0);
+                    effect_manager->emit_particle("Explosion", pos, vel, 2.0f, 0.2f);
+                }
+            }
+
             it = projectiles.erase(it);
         }
         // 4. 飞行与高度计算

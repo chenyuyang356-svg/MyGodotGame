@@ -79,7 +79,7 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	
 	# 注册配置（这部分建议放在 GlobalGameManager 的 init 里只运行一次）
 	var dust_tex: Texture2D = ResourceLoader.load("res://asset/particle/dust.png")
-	effect_manager.register_effect_type("Dust", dust_tex, 2000, -2.0, 0.9, 0.2)
+	effect_manager.register_effect_type("Dust", dust_tex, 2000, -9.8, 0.9, 0.2)
 	var explosion_tex: Texture2D = ResourceLoader.load("res://asset/particle/explosion.png")
 	effect_manager.register_effect_type("Explosion", explosion_tex, 1000, 0.0, 0.9, 1.0)
 	
@@ -187,7 +187,7 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 			# 在基地旁边生成坦克 (注意传递的是 team_id，让单位归属于该阵营)
 			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(300, 400), team_id)
 			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(0, 400), team_id)
-			GlobalGameManager.rpc_server_request_place_building("HumanBarrack", Vector2i(pos), team_id)
+			#GlobalGameManager.rpc_server_request_place_building("HumanBarrack", Vector2i(pos), team_id)
 			
 			# 如果是陆地地图，生成防空
 			GlobalGameManager.rpc_server_request_spawn_unit("Fighter", pos + Vector2(150, 350), team_id)
@@ -196,10 +196,10 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 
 
 func spawn_test_units():
-	for x in range(3):
-		for y in range(3):
-			GlobalGameManager.rpc_server_request_spawn_unit("AttackHelicopter", -32 * Vector2(x, y), 1)
-			#GlobalGameManager.rpc_server_request_spawn_unit("Helicopter", -32 * Vector2(x, y), 1)
-			GlobalGameManager.rpc_server_request_spawn_unit("Helicopter", -32 * Vector2(x, y) + Vector2(0, 2000), 2)
+	for x in range(10):
+		for y in range(10):
+			GlobalGameManager.rpc_server_request_spawn_unit("TinyTank", -32 * Vector2(x, y), 1)
+			#GlobalGameManager.rpc_server_request_spawn_unit("AttackHelicopter", -32 * Vector2(x, y), 1)
+			GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y) + Vector2(0, 1500), 2)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(11000, 3500), 2)
 			continue

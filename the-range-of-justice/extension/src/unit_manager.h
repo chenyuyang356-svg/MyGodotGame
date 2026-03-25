@@ -78,8 +78,6 @@ namespace godot {
 
 		double density_update_timer = 0.0;
 		const double DENSITY_UPDATE_INTERVAL = 0.5; // 每0.5秒更新一次密度图
-		double particle_update_timer = 0.0;
-		const double PARTICLE_UPDATE_INTERVAL = 0.2;
 
 		// 渲染器映射：每个 UnitStats 资源对应一个 MultiMeshInstance2D
 		std::unordered_map<UnitStats*, MultiMeshInstance3D*> type_renderers;
