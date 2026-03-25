@@ -130,5 +130,8 @@ namespace godot {
             }
             return nullptr;
         }
+
+        // 联机相关
+        void prepare_interpolation_snapshot(); // 主机专用：捕获当前状态用于渲染插值
     };
 }

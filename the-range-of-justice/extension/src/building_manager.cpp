@@ -346,16 +346,20 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
         float max_health = b.stats->get_health_max();
         float hp_ratio = max_health > 0.0f ? (b.current_health / max_health) : 1.0f;
 
-        bool is_barrack = (b.stats->get_building_type() == BUILDING_BARRACKS);
-        bool is_working = (b.state == BuildingState::WORKING);
         float progress_ratio = 0.0f;
-        if (is_barrack && is_working) {
-            String unit_type = b.production_queue.front();
-            Ref<UnitStats> u_stats = unit_manager->get_unit_stats_by_type(unit_type);
-            if (u_stats.is_valid()) {
-                progress_ratio = b.unit_production_timer / u_stats->get_build_time();
+        if (b.state == BuildingState::WORKING) {
+            // 如果 next 比 prev 小，说明是旧单位造完了，新单位刚开始，此时不插值直接用 next
+            if (b.next_progress_percent < b.prev_progress_percent) {
+                progress_ratio = b.next_progress_percent;
+            }
+            else {
+                // 平滑插值
+                progress_ratio = Math::lerp(b.prev_progress_percent, b.next_progress_percent, p_alpha);
             }
         }
+
+        bool is_barrack = (b.stats->get_building_type() == BUILDING_BARRACKS);
+        bool is_working = (b.state == BuildingState::WORKING);
 
         // 4. 控制显示逻辑：建造中、受伤或被选中时显示
         bool is_selected = p_selection_manager->is_building_selected(b.id);
@@ -872,6 +876,38 @@ PackedStringArray BuildingManager::get_registered_building_types() const {
         list.append(E.key);
     }
     return list;
+}
+
+void BuildingManager::prepare_interpolation_snapshot() {
+    for (auto& pair : buildings) {
+        BuildingData& b = pair.second;
+
+        // 1. 移动旧快照
+        b.prev_progress_percent = b.next_progress_percent;
+
+        // 2. 计算并存入新快照
+        float current_prog = 0.0f;
+
+        // 情况 A：正在建造建筑本身
+        /*
+        if (b.state == BuildingState::BUILDING) {
+            float required_time = b.stats->get_build_time();
+            if (required_time > 0) {
+                current_prog = b.build_timer / required_time;
+            }
+        }
+        */
+
+        // 情况 B：正在生产单位 (WORKING)
+        if (b.state == BuildingState::WORKING && !b.production_queue.empty()) {
+            Ref<UnitStats> u_stats = unit_manager->get_unit_stats_by_type(b.production_queue.front());
+            if (u_stats.is_valid()) {
+                current_prog = b.unit_production_timer / u_stats->get_build_time();
+            }
+        }
+
+        b.next_progress_percent = current_prog;
+    }
 }
 
 void BuildingManager::_bind_methods() {

@@ -108,6 +108,8 @@ void GameManager::_physics_process(double p_delta) {
 
 		while (tick_accumulator >= logic_tick_rate) {
 
+			building_manager->prepare_interpolation_snapshot();
+
 			broadcast_network_snapshot();
 
 			for (int team_id = 1; team_id < 10; ++team_id) {
@@ -538,7 +540,7 @@ void GameManager::broadcast_network_snapshot() {
 	int total_bld_bytes = 0;
 	for (const auto& pair : building_manager->buildings) {
 		// 建筑基础 9 字节 + 武器数 1 字节 + (每个武器 4 字节)
-		total_bld_bytes += 9 + 1 + pair.second.weapons.size() * 4;
+		total_bld_bytes += 13 + 1 + pair.second.weapons.size() * 4;
 	}
 
 	// 重新调整缓冲区大小
@@ -577,7 +579,8 @@ void GameManager::broadcast_network_snapshot() {
 		data.encode_s32(offset, b.id);              // 4 bytes
 		data.encode_float(offset + 4, b.current_health); // 4 bytes
 		data.set(offset + 8, (uint8_t)b.state);      // 1 byte
-		offset += 9;
+		data.encode_float(offset + 9, b.next_progress_percent); // 占 4 字节
+		offset += 13;
 
 		// 【新增】写入该建筑挂载的武器角度
 		uint8_t weapon_count = (uint8_t)b.weapons.size();
@@ -669,7 +672,8 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 			int id = p_raw_data.decode_s32(offset);
 			float health = p_raw_data.decode_float(offset + 4);
 			uint8_t state = p_raw_data.get(offset + 8);
-			offset += 9;
+			float server_prog = p_raw_data.decode_float(offset + 9); // 获取百分比
+			offset += 13;
 
 			// 【新增】解析发过来的武器同步角度
 			if (offset + 1 > p_raw_data.size()) break;
@@ -688,6 +692,8 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 				BuildingData& b = building_manager->buildings[id];
 				b.current_health = health;
 				b.state = (BuildingState)state;
+				b.prev_progress_percent = b.next_progress_percent;
+				b.next_progress_percent = server_prog;
 
 				// 【新增】应用武器插值数据
 				int sync_count = Math::min((int)weapon_rotations.size(), (int)b.weapons.size());
@@ -861,7 +867,7 @@ void godot::GameManager::_on_spawn_unit_requested(String p_type_name, Vector2 p_
 		rpc_server_request_spawn_unit(p_type_name, p_pos, p_team_id);
 	}
 	else {
-		rpc_id(1, "rpc_server_request_place_building", p_type_name, p_pos, p_team_id);
+		rpc_id(1, "rpc_server_request_spawn_unit", p_type_name, p_pos, p_team_id);
 	}
 }
 

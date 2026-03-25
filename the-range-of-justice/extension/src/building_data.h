@@ -22,6 +22,9 @@ namespace godot {
         float current_health;
         float anim_time = 0.0f;
 
+        float prev_progress_percent = 0.0f; // 上一个逻辑帧的进度
+        float next_progress_percent = 0.0f; // 目标进度（逻辑帧）
+
         // 建造
         float build_timer = 0.0f;
         BuildingState state = BuildingState::BUILDING;
@@ -35,7 +38,6 @@ namespace godot {
         // 产兵
         std::vector<String> production_queue; 
         float unit_production_timer = 0.0f; 
-
 
         float current_dying_time = 0.0f;
     };
