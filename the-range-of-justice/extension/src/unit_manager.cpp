@@ -668,9 +668,10 @@ void UnitManager::stop_unit(UnitData& p_unit) {
 
 void UnitManager::update_state(UnitData& p_unit, double p_delta) {
     switch (p_unit.state) {
-    case IDLE:
+    case IDLE: {
         break;
-    case MOVING:
+    }
+    case MOVING: {
         UnitGroup* group = group_manager->get_temp_group(p_unit.temp_group_id);
         if (!group) {
             // 如果组已经不存在了（被清理了），尝试停下或者重新寻找逻辑
@@ -705,7 +706,7 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
             }
         }
 
-        p_unit.path_recheck_timer += (float)p_delta; 
+        p_unit.path_recheck_timer += (float)p_delta;
         if (p_unit.path_recheck_timer >= 0.8) { // 每0.8秒检查一次
             p_unit.path_recheck_timer = 0.0;
 
@@ -728,6 +729,15 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
         }
 
         break;
+    }
+    case CHASING: {
+        // 强制追击单位尝试走直线，增强“扑向目标”的感觉
+        p_unit.use_direct_path = true;
+
+        // 距离过近且无法移动射击时停止（交给 AttackManager 切换 ATTACKING 状态）
+        // 此处不需要额外逻辑，AttackManager 已经处理了状态切换
+        break;
+    }
     }
 }
 

@@ -130,20 +130,19 @@ void AttackManager::update_buildings(double p_delta) {
     }
 }
 
+// 单位驱动力统一由unit_manager，这里只计算次要的力
 bool AttackManager::try_get_combat_force(UnitData& p_unit, Vector2& out_force) {
-    // 如果单位在追逐，应用“寻敌移动”力
     if (p_unit.state == CHASING || p_unit.state == PATROLLING) {
-        Vector2 desired = (p_unit.target_pos - p_unit.position).normalized() * p_unit.stats->get_move_speed();
-        Vector2 steering = (desired - p_unit.velocity);
-        Vector2 separation = unit_manager->get_separation(p_unit) * unit_manager->get_separation_factor();
-        out_force = steering + separation;
-        return true;
+        // 移除这里的 steering。让 UnitManager 通过 p_unit.target_pos 自动计算 flow 和动力。
+        // 只保留排斥力，或者干脆返回 false，让 UnitManager 统一处理。
+        out_force = Vector2(0, 0);
+        return false;
     }
     else if (p_unit.state == ATTACKING) {
+        // 攻击时施加摩擦力使其停稳
         out_force = unit_manager->get_friction(p_unit) * unit_manager->get_friction_factor() * 2.0f;
         return true;
     }
-    // 其他状态（IDLE, MOVING）不归战斗系统管
     return false;
 }
 
@@ -322,6 +321,7 @@ void AttackManager::_handle_patrolling(UnitData& p_unit) {
     // 1. 巡逻时主动寻找敌人，若找到敌人，则变为追击状态
     if (_try_find_target(p_unit)) {
         p_unit.state = CHASING;
+        p_unit.target_pos_offset = Vector2(0, 0);
         return;
     }
 
@@ -432,6 +432,8 @@ bool AttackManager::_try_find_target(UnitData& p_unit) {
         p_unit.target_id = best_target_id;
         p_unit.target_is_building = best_is_building;
         p_unit.is_manual_target = false;
+        p_unit.target_pos_offset = Vector2(0, 0);
+
         return true;
     }
 
