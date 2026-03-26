@@ -22,6 +22,7 @@ namespace godot {
         float max_life = 1.0f;
         float scale = 1.0f;
         float rotation = 0.0f;
+        float custom_float = 0.0f; // 用于映射到 Shader 的 v_is_ripple
         bool active = false;
     };
 
@@ -60,7 +61,7 @@ namespace godot {
         void register_effect_type(String p_name, Ref<Texture2D> p_texture, int p_max_count, float p_gravity, float p_drag, float p_modulate);
 
         // 触发粒子
-        void emit_particle(String p_type, Vector3 p_pos, Vector3 p_vel, float p_scale, float p_max_life);
+        void emit_particle(String p_type, Vector3 p_pos, Vector3 p_vel, float p_scale, float p_max_life, bool p_is_ripple = false);
 
         // 每一帧调用
         void update(double delta);

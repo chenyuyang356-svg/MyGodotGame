@@ -66,6 +66,7 @@ namespace godot {
 
         Vector2 last_visual_pos;      // 上一帧渲染的视觉位置
         float dust_accumulator = 0.0f; // 扬尘距离累加器
+        int emit_count = 0;
 
         UnitData() : id(-1), state(IDLE), current_health(0) {}
 

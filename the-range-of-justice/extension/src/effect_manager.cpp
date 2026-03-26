@@ -40,7 +40,10 @@ void EffectManager::register_effect_type(String p_name, Ref<Texture2D> p_texture
     mm->set_instance_count(p_max_count);
 
     Ref<QuadMesh> qm; qm.instantiate();
-    qm->set_size(Vector2(16.0f, 16.0f));
+    if (p_texture.is_valid()) {
+        Vector2 size = p_texture->get_size();
+        qm->set_size(size);
+    }
     mm->set_mesh(qm);
     layer->renderer->set_multimesh(mm);
 
@@ -60,7 +63,7 @@ void EffectManager::register_effect_type(String p_name, Ref<Texture2D> p_texture
     layers[p_name] = layer;
 }
 
-void EffectManager::emit_particle(String p_type, Vector3 p_pos, Vector3 p_vel, float p_scale, float p_max_life) {
+void EffectManager::emit_particle(String p_type, Vector3 p_pos, Vector3 p_vel, float p_scale, float p_max_life, bool p_is_ripple) {
     if (!layers.has(p_type)) return;
 
     EffectLayer* layer = layers[p_type];
@@ -72,6 +75,7 @@ void EffectManager::emit_particle(String p_type, Vector3 p_pos, Vector3 p_vel, f
     p.max_life = p_max_life * (1.0f + UtilityFunctions::randf() * 0.5f); // 随机寿命
     p.scale = p_scale;
     p.rotation = UtilityFunctions::randf() * Math_PI * 2.0;
+    p.custom_float = p_is_ripple ? 1.0f : 0.0f;
     p.active = true;
 
     // 环形索引增加
@@ -129,12 +133,12 @@ void EffectManager::_update_multimesh_buffer(EffectLayer* p_layer) {
 
         // 传递寿命百分比到 Shader (X通道)
         float life_ratio = p.life / p.max_life;
-        mm->set_instance_custom_data(i, Color(life_ratio, 0, 0, 0));
+        mm->set_instance_custom_data(i, Color(life_ratio, p.custom_float, 0, 0));
     }
 }
 
 void EffectManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("setup", "fog_node"), &EffectManager::setup);
     ClassDB::bind_method(D_METHOD("register_effect_type", "name", "texture", "max_count", "gravity", "drag", "modulate"), &EffectManager::register_effect_type);
-    ClassDB::bind_method(D_METHOD("emit_particle", "type", "pos", "vel", "scale", "max_life"), &EffectManager::emit_particle);
+    ClassDB::bind_method(D_METHOD("emit_particle", "type", "pos", "vel", "scale", "max_life", "is_ripple"), &EffectManager::emit_particle, DEFVAL(false));
 }

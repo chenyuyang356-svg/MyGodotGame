@@ -1044,49 +1044,69 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
             mm->set_instance_color(i, get_team_color(unit.team_id));
 
             // ---  设置粒子效果  ---
-            // 计算本帧视觉上的位移
+            // --- 计算位移 ---
             float move_dist = visual_position.distance_to(unit.last_visual_pos);
-            unit.last_visual_pos = visual_position; // 更新记录
+            unit.last_visual_pos = visual_position;
 
-            // 只有地面单位、非静止状态、且高度在阈值以下时计算
             if (unit.state != IDLE && unit.height < AIR_HEIGHT_THRESHOLD) {
                 unit.dust_accumulator += move_dist;
 
-                // 设定释放阈值：每行驶单位半径的 1.2 倍距离释放一次粒子
-                // 你可以根据视觉效果调整这个系数 (1.2f)
                 float radius = unit.stats->get_collision_radius();
-                float emit_threshold = radius;
+                // 陆地每 1.2倍半径喷一次，水上为了连贯性，每 0.8倍半径喷一次
+                float threshold_factor = (unit.get_nav_type() == NAV_SEA) ? 0.5f : 1.2f;
+                float emit_threshold = radius * threshold_factor;
 
                 if (unit.dust_accumulator >= emit_threshold) {
-                    unit.dust_accumulator = 0.0f; // 重置累加器
+                    unit.dust_accumulator = 0.0f;
+                    unit.emit_count += 1;
 
-                    // 检查地形是否可通行 (避免在水面或虚空产生灰尘)
-                    if (flow_field_manager->get_cost(flow_field_manager->world_to_grid(unit.position), NAV_LAND) < 255) {
+                    // 获取朝向向量
+                    Vector2 dir = Vector2(Math::cos(visual_rotation), Math::sin(visual_rotation));
+                    Vector2 side = dir.rotated(Math_PI / 2.0); // 垂直于前进方向的向量
 
-                        // 计算粒子的缩放比：以 48 为基准 1.0
+                    // --- 逻辑分歧：海面单位 ---
+                    if (unit.get_nav_type() == NAV_SEA) {
+                        float p_scale = radius / 32.0f; // 以 32 为缩放基准
+
+                        // 1. 发射尾迹泡沫 (WaterFoam) - 在船尾
+                        Vector2 stern_pos = visual_position - dir * radius;
+                        Vector3 foam_pos = Vector3(stern_pos.x, visual_height - 0.04f, stern_pos.y);
+                        effect_manager->emit_particle("WaterFoam", foam_pos, Vector3(0, 0, 0), std::min(2.0 * p_scale, 2.5), 2.0);
+
+                        /*
+                        // 2. 发射船头浪 (WaterSplash) - V 字形
+                        Vector2 bow_pos = visual_position + dir * radius * 0.5f;
+                        // 左船头浪
+                        Vector2 l_pos = bow_pos + side * radius * 0.4f;
+                        Vector3 l_vel = Vector3(side.x + dir.x * 0.2f, visual_height - 0.03f, side.y + dir.y * 0.2f) * 30.0f;
+                        effect_manager->emit_particle("WaterSplash", Vector3(l_pos.x, 0.1f, l_pos.y), l_vel, 2.5 * p_scale, 0.6);
+                        // 右船头浪
+                        Vector2 r_pos = bow_pos - side * radius * 0.4f;
+                        Vector3 r_vel = Vector3(-side.x + dir.x * 0.2f, visual_height - 0.03f, -side.y + dir.y * 0.2f) * 30.0f;
+                        effect_manager->emit_particle("WaterSplash", Vector3(r_pos.x, 0.1f, r_pos.y), r_vel, 2.5 * p_scale, 0.6);
+                        */
+
+                        // 3. 低频发射扩散波纹 (WaterRipple)
+                        if ((unit.emit_count) % 2 == 1) {
+                            // 波纹在船体头部产生
+                            Vector2 bow_pos = visual_position + dir * radius * 0.8f;
+                            Vector3 ripple_pos = Vector3(bow_pos.x, visual_height - 0.05f, bow_pos.y);
+                            effect_manager->emit_particle("WaterRipple", ripple_pos, Vector3(0, 0, 0), 1.6f * p_scale, 1.5, true);
+                        }
+                    }
+                    // --- 逻辑分歧：陆地单位 (原 Dust 逻辑) ---
+                    else if (flow_field_manager->get_cost(flow_field_manager->world_to_grid(unit.position), NAV_LAND) < 255) {
                         float particle_scale = radius / 48.0f;
-
-                        // 计算粒子发射位置 (单位后方)
-                        Vector2 direction = Vector2(Math::cos(visual_rotation), Math::sin(visual_rotation));
-                        Vector2 emit_map_pos = visual_position - direction * radius * 1.1f;
-
+                        Vector2 emit_map_pos = visual_position - dir * radius * 1.1f;
                         Vector3 pos = Vector3(emit_map_pos.x, visual_height - 0.05f, emit_map_pos.y);
+                        Vector3 vel = Vector3(-dir.x * 40.0f + UtilityFunctions::randf_range(-10, 10), 5.0f, -dir.y * 40.0f + UtilityFunctions::randf_range(-10, 10));
 
-                        // 给粒子一个向后的随机初速度
-                        Vector3 vel = Vector3(
-                            -direction.x * 40.0f + UtilityFunctions::randf_range(-10, 10),
-                            0.0,
-                            -direction.y * 40.0f + UtilityFunctions::randf_range(-10, 10)
-                        );
-
-                        // 调用 EffectManager
-                        // 假设 emit_particle 支持传入 scale 参数，如果不支持，需在 EffectManager 里实现
                         effect_manager->emit_particle("Dust", pos, vel, 5.0 * particle_scale, 0.75);
                     }
                 }
             }
             else {
-                unit.dust_accumulator = 0.0f; // 如果停止移动，重置累加器
+                unit.dust_accumulator = 0.0f;
             }
 
             // --- 更新影子渲染 ---

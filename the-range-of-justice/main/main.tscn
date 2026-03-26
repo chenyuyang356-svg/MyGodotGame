@@ -17,7 +17,6 @@ script = ExtResource("1_3wy1v")
 script = ExtResource("2_4dugh")
 
 [node name="FogManager" type="FogManager" parent="." unique_id=2033803442]
-fog_mode = 0
 
 [node name="WeaponManager" type="WeaponManager" parent="." unique_id=1922983484]
 
