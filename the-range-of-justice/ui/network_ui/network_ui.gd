@@ -68,7 +68,7 @@ func _on_Button_Join_pressed():
 	btn_join.text = "Connecting..."
 
 func _on_Button_Back_pressed():
-	get_tree().change_scene_to_file("res://ui/main menu/main_menu.tscn")
+	get_tree().change_scene_to_file("res://ui/main_menu/main_menu.tscn")
 
 func _on_Button_Disconnect_pressed():
 	# 通知 C++ 底层切断网络并清理数据，这会触发底层的 game_left 信号

@@ -4,13 +4,8 @@ extends Control
 # 对应你目录中的 res://main/main.tscn
 @export_file("*.tscn") var game_scene_path: String = "res://main/main.tscn"
 @onready var menu_buttons = $MainLayout/ContentVBox
-# 获取 Options 节点的引用
-@onready var options_menu = $OptionsMenu 
 
 func _ready():
-	# 这一行是保险：不管编辑器里眼睛是睁开还是闭上，游戏启动时强制隐藏它
-	options_menu.hide()
-	options_menu.close_requested.connect(_on_options_closed)
 	GlobalAudioManager.play_bgm("res://asset/audio/music/thetreadofwarmix.ogg", 0.0, 0.0)
 
 
@@ -23,10 +18,7 @@ func _on_multiplayer_pressed():
 	get_tree().change_scene_to_file("res://ui/network_ui/network_ui.tscn")
 
 func _on_options_button_pressed():
-	# 这里未来可以用来打开设置面板
-	print("点击了设置按钮")
-	options_menu.show()
-	menu_buttons.hide()
+	get_tree().change_scene_to_file("res://ui/option_menu/option_menu.tscn")
 	
 
 func _on_exit_button_pressed():
