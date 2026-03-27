@@ -183,7 +183,8 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	if debug_draw != null:
 		debug_draw.unit_manager = unit_manager
 		debug_draw.camera = main_camera
-
+	
+	GlobalAudioManager.play_bgm("res://asset/audio/music/02_-_sam_goor00_collard_-_reign_supreme.ogg", -8.0, 3.0)
 
 func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictionary):
 	for peer_id in players_settings.keys():
@@ -209,8 +210,8 @@ func spawn_test_units():
 	for x in range(7):
 		for y in range(7):
 			#GlobalGameManager.rpc_server_request_spawn_unit("AttackHelicopter", -32 * Vector2(x, y), 1)
-			#GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y), 1)
-			GlobalGameManager.rpc_server_request_spawn_unit("Gunboat", -32 * Vector2(x, y) + Vector2(-7000, 0), 1)
+			#GlobalGameManager.rpc_server_request_spawn_unit("HeavyTank", -32 * Vector2(x, y), 1)
+			#GlobalGameManager.rpc_server_request_spawn_unit("Gunboat", -32 * Vector2(x, y) + Vector2(-7000, 0), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("TinyTank", -32 * Vector2(x, y) + Vector2(0, 1500), 2)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(11000, 3500), 2)
 			continue

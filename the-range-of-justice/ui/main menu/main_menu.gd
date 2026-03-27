@@ -11,6 +11,7 @@ func _ready():
 	# 这一行是保险：不管编辑器里眼睛是睁开还是闭上，游戏启动时强制隐藏它
 	options_menu.hide()
 	options_menu.close_requested.connect(_on_options_closed)
+	GlobalAudioManager.play_bgm("res://asset/audio/music/thetreadofwarmix.ogg", 0.0, 0.0)
 
 
 func _on_single_player_pressed():

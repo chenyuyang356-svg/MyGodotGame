@@ -59,3 +59,9 @@ idle_frames = 1
 move_row = 1
 move_frames = 1
 anim_fps = 10
+
+# 粒子
+emit_threshold = 35.0
+# 语法: effect_point = 粒子类型, X偏移, Y偏移, 缩放覆盖, 寿命覆盖, 是否波纹
+effect_point = Dust, -20.0, -40.0, 2.5, -1, false
+effect_point = Dust,  20.0, -40.0, 2.5, -1, false
