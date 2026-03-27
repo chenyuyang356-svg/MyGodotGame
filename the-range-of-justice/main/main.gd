@@ -46,6 +46,7 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	var fog_manager: FogManager = $FogManager
 	var weapon_manager: WeaponManager = $WeaponManager
 	var effect_manager: EffectManager = $EffectManager
+	var audio_manager: AudioManager = get_node("/root/GlobalAudioManager")
 	
 	var cell_size: Vector2i = tile_map_layer.tile_set.tile_size
 	var used_rect: Rect2i = tile_map_layer.get_used_rect()
@@ -73,6 +74,7 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	GlobalGameManager.set_fog_manager(fog_manager)
 	GlobalGameManager.set_weapon_manager(weapon_manager)
 	GlobalGameManager.set_effect_manager(effect_manager)
+	GlobalGameManager.set_audio_manager(audio_manager)
 	
 	# 设置流场系统尺寸
 	GlobalGameManager.setup_system(width, height, cell_size, grid_origin)
@@ -207,11 +209,11 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 
 
 func spawn_test_units():
-	for x in range(7):
-		for y in range(7):
+	for x in range(10):
+		for y in range(10):
 			#GlobalGameManager.rpc_server_request_spawn_unit("AttackHelicopter", -32 * Vector2(x, y), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("HeavyTank", -32 * Vector2(x, y), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Gunboat", -32 * Vector2(x, y) + Vector2(-7000, 0), 1)
-			#GlobalGameManager.rpc_server_request_spawn_unit("TinyTank", -32 * Vector2(x, y) + Vector2(0, 1500), 2)
+			#GlobalGameManager.rpc_server_request_spawn_unit("HeavyTank", -32 * Vector2(x, y) + Vector2(0, 1500), 2)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(11000, 3500), 2)
 			continue

@@ -94,3 +94,5 @@ projection = 1
 script = ExtResource("5_3wy1v")
 
 [node name="AudioListener3D" type="AudioListener3D" parent="Camera3D" unique_id=1385057487]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0)
+current = true

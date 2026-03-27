@@ -281,6 +281,11 @@ void GameManager::set_effect_manager(Node* p_node) {
 	effect_manager = Object::cast_to<EffectManager>(p_node);
 }
 
+void GameManager::set_audio_manager(Node* p_node)
+{
+	audio_manager = Object::cast_to<AudioManager>(p_node);
+}
+
 void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin) {
 	unit_manager->set_flow_field_manager(flow_field_manager);
 	unit_manager->set_group_manager(group_manager);
@@ -303,6 +308,7 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 	effect_manager->setup(fog_manager);
 
 	projectile_manager->set_effect_manager(effect_manager);
+	projectile_manager->set_audio_manager(audio_manager);
 
 	Vector2 map_size = Vector2(p_width, p_height) * Vector2(p_cell_size);
 	Vector2 map_pos = Vector2(p_origin) * Vector2(p_cell_size);
@@ -977,6 +983,7 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_fog_manager", "node"), &GameManager::set_fog_manager);
 	ClassDB::bind_method(D_METHOD("set_weapon_manager", "node"), &GameManager::set_weapon_manager);
 	ClassDB::bind_method(D_METHOD("set_effect_manager", "node"), &GameManager::set_effect_manager);
+	ClassDB::bind_method(D_METHOD("set_audio_manager", "node"), &GameManager::set_audio_manager);
 	ClassDB::bind_method(D_METHOD("setup_system", "width", "height", "cell_size", "grid_origin"), &GameManager::setup_system);
 
 	ClassDB::bind_method(D_METHOD("host_game", "port"), &GameManager::host_game);

@@ -11,6 +11,8 @@ extends Camera3D
 @export var max_zoom: float = 10000.0         # 最大视野（最远）
 @export var lerp_speed: float = 10.0        # 平滑速度
 
+@onready var audio_listener: AudioListener3D = $AudioListener3D
+
 var _target_zoom: float = 400.0
 
 # --- 地图边界限制变量 ---
@@ -30,6 +32,8 @@ func _process(delta: float):
 	
 	if _has_limit:
 		_apply_bounds_constraint()
+	
+	audio_listener.position.y = 0.0
 
 func set_map_limits(used_rect: Rect2i, cell_size: Vector2i):
 	_map_min = Vector2(used_rect.position.x * cell_size.x, used_rect.position.y * cell_size.y)

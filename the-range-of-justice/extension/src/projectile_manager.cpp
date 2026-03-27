@@ -215,6 +215,10 @@ void ProjectileManager::set_effect_manager(Node* p_node) {
     effect_manager = Object::cast_to<EffectManager>(p_node);
 }
 
+void ProjectileManager::set_audio_manager(Node* p_node)
+{
+    audio_manager = Object::cast_to<AudioManager>(p_node);
+}
 
 void ProjectileManager::_physics_process(double p_delta) {
     if (Engine::get_singleton()->is_editor_hint()) return;
@@ -302,6 +306,9 @@ void ProjectileManager::_physics_process(double p_delta) {
                     Vector3 pos = Vector3((it->position).x, it->current_height + 0.1f, (it->position).y);
                     Vector3 vel = Vector3(0, 0, 0);
                     effect_manager->emit_particle("Explosion", pos, vel, 2.0f, 0.2f);
+                    if (!(it->type == PROJECTILE_BULLET)) {
+                        audio_manager->play_sfx_3d("Explosion", pos, -5.0f);
+                    }
                 }
             }
 
