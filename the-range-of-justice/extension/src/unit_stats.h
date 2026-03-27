@@ -15,6 +15,15 @@ namespace godot {
         float splash_radius = 0.0f;  // 范围溅射半径 (AOE)
     };
 
+    struct EffectPoint {
+        String effect_type;
+        Vector2 local_position;
+        float scale_override = -1.0f; // -1 表示使用默认
+        float life_override = -1.0f;  // -1 表示使用默认
+        bool is_ripple = false;
+    };
+
+
     class UnitStats : public Resource {
         GDCLASS(UnitStats, Resource)
 
@@ -63,6 +72,11 @@ namespace godot {
         int anim_fps = 10;     // 动画播放速度
 
         float dying_time = 1.0f;
+
+        // 粒子信息
+        float emit_threshold_override = -1.0f;
+        float particle_scale_override = -1.0f; // 全局缩放偏移
+        std::vector<EffectPoint> effect_points;
 
 
     protected:
@@ -167,5 +181,11 @@ namespace godot {
 
         void set_dying_time(float p_val) { dying_time = p_val; }
         float get_dying_time() const { return dying_time; }
+
+        void set_emit_threshold_override(float p_val) { emit_threshold_override = p_val; }
+        float get_emit_threshold_override() const { return emit_threshold_override; }
+
+        void set_particle_scale_override(float p_val) { particle_scale_override = p_val; }
+        float get_particle_scale_override() const { return particle_scale_override; }
     };
 }

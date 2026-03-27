@@ -1043,6 +1043,7 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
             mm->set_instance_custom_data(i, Color(frame_idx, row, modulate, 0));
             mm->set_instance_color(i, get_team_color(unit.team_id));
 
+
             // ---  设置粒子效果  ---
             // --- 计算位移 ---
             float move_dist = visual_position.distance_to(unit.last_visual_pos);
@@ -1052,62 +1053,72 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
                 unit.dust_accumulator += move_dist;
 
                 float radius = unit.stats->get_collision_radius();
-                // 陆地每 1.2倍半径喷一次，水上为了连贯性，每 0.8倍半径喷一次
-                float threshold_factor = (unit.get_nav_type() == NAV_SEA) ? 0.5f : 1.2f;
-                float emit_threshold = radius * threshold_factor;
 
-                if (unit.dust_accumulator >= emit_threshold) {
+                // 1. 确定发射阈值
+                float threshold = unit.stats->emit_threshold_override > 0 ? unit.stats->emit_threshold_override :
+                    ((unit.get_nav_type() == NAV_SEA) ? radius * 0.5f : radius * 1.2f);
+
+                if (unit.dust_accumulator >= threshold) {
                     unit.dust_accumulator = 0.0f;
                     unit.emit_count += 1;
 
-                    // 获取朝向向量
                     Vector2 dir = Vector2(Math::cos(visual_rotation), Math::sin(visual_rotation));
-                    Vector2 side = dir.rotated(Math_PI / 2.0); // 垂直于前进方向的向量
+                    Vector2 side = dir.rotated(Math_PI / 2.0);
 
-                    // --- 逻辑分歧：海面单位 ---
-                    if (unit.get_nav_type() == NAV_SEA) {
-                        float p_scale = radius / 32.0f; // 以 32 为缩放基准
+                    // 这是一个 Lambda 函数，用来处理“覆盖或默认”逻辑
+                    auto emit_logic = [&](String type, Vector2 default_local_pos, Vector3 vel, float def_scale, float def_life, float y_offset, bool is_ripple, bool check_freq = false) {
+                        if (check_freq && (unit.emit_count % 2 == 0)) return; // 频率过滤（波纹用）
 
-                        // 1. 发射尾迹泡沫 (WaterFoam) - 在船尾
-                        Vector2 stern_pos = visual_position - dir * radius;
-                        Vector3 foam_pos = Vector3(stern_pos.x, visual_height - 0.04f, stern_pos.y);
-                        effect_manager->emit_particle("WaterFoam", foam_pos, Vector3(0, 0, 0), std::min(2.0 * p_scale, 2.5), 2.0);
-
-                        /*
-                        // 2. 发射船头浪 (WaterSplash) - V 字形
-                        Vector2 bow_pos = visual_position + dir * radius * 0.5f;
-                        // 左船头浪
-                        Vector2 l_pos = bow_pos + side * radius * 0.4f;
-                        Vector3 l_vel = Vector3(side.x + dir.x * 0.2f, visual_height - 0.03f, side.y + dir.y * 0.2f) * 30.0f;
-                        effect_manager->emit_particle("WaterSplash", Vector3(l_pos.x, 0.1f, l_pos.y), l_vel, 2.5 * p_scale, 0.6);
-                        // 右船头浪
-                        Vector2 r_pos = bow_pos - side * radius * 0.4f;
-                        Vector3 r_vel = Vector3(-side.x + dir.x * 0.2f, visual_height - 0.03f, -side.y + dir.y * 0.2f) * 30.0f;
-                        effect_manager->emit_particle("WaterSplash", Vector3(r_pos.x, 0.1f, r_pos.y), r_vel, 2.5 * p_scale, 0.6);
-                        */
-
-                        // 3. 低频发射扩散波纹 (WaterRipple)
-                        if ((unit.emit_count) % 2 == 1) {
-                            // 波纹在船体头部产生
-                            Vector2 bow_pos = visual_position + dir * radius * 0.8f;
-                            Vector3 ripple_pos = Vector3(bow_pos.x, visual_height - 0.05f, bow_pos.y);
-                            effect_manager->emit_particle("WaterRipple", ripple_pos, Vector3(0, 0, 0), 1.6f * p_scale, 1.5, true);
+                        // 查找配置中是否有这个类型的点
+                        std::vector<EffectPoint*> custom_points;
+                        for (auto& ep : unit.stats->effect_points) {
+                            if (ep.effect_type == type) custom_points.push_back(&ep);
                         }
-                    }
-                    // --- 逻辑分歧：陆地单位 (原 Dust 逻辑) ---
-                    else if (flow_field_manager->get_cost(flow_field_manager->world_to_grid(unit.position), NAV_LAND) < 255) {
-                        float particle_scale = radius / 48.0f;
-                        Vector2 emit_map_pos = visual_position - dir * radius * 1.1f;
-                        Vector3 pos = Vector3(emit_map_pos.x, visual_height - 0.05f, emit_map_pos.y);
-                        Vector3 vel = Vector3(-dir.x * 40.0f + UtilityFunctions::randf_range(-10, 10), 5.0f, -dir.y * 40.0f + UtilityFunctions::randf_range(-10, 10));
 
-                        effect_manager->emit_particle("Dust", pos, vel, 5.0 * particle_scale, 0.75);
+                        if (!custom_points.empty()) {
+                            // 情况 A: 使用配置的点
+                            for (auto* cp : custom_points) {
+                                Vector2 world_pos_2d = visual_position + (dir * cp->local_position.y) + (side * cp->local_position.x);
+                                Vector3 final_pos = Vector3(world_pos_2d.x, visual_height + y_offset, world_pos_2d.y);
+
+                                float final_scale = (cp->scale_override > 0) ? cp->scale_override : def_scale;
+                                float final_life = (cp->life_override > 0) ? cp->life_override : def_life;
+
+                                effect_manager->emit_particle(type, final_pos, vel, final_scale, final_life, cp->is_ripple);
+                            }
+                        }
+                        else {
+                            // 情况 B: 使用原先硬编码的默认点（仅当不是陆地单位在海上/反之时）
+                            Vector2 world_pos_2d = visual_position + (dir * default_local_pos.y) + (side * default_local_pos.x);
+                            Vector3 final_pos = Vector3(world_pos_2d.x, visual_height + y_offset, world_pos_2d.y);
+                            effect_manager->emit_particle(type, final_pos, vel, def_scale, def_life, is_ripple);
+                        }
+                        };
+
+                    // --- 执行具体的粒子逻辑 ---
+
+                    if (unit.get_nav_type() == NAV_SEA) {
+                        float base_s = (unit.stats->particle_scale_override > 0) ? unit.stats->particle_scale_override : (radius / 32.0f);
+
+                        // 1. WaterFoam: 硬编码参数是 vel=0, life=2.0, y_offset=-0.04
+                        emit_logic("WaterFoam", Vector2(0, -radius), Vector3(0, 0, 0), std::min(2.0f * base_s, 2.5f), 2.0f, -0.04f, false);
+
+                        // 2. WaterRipple: 硬编码参数是 vel=0, life=1.5, y_offset=-0.05, 频率%2
+                        emit_logic("WaterRipple", Vector2(0, radius * 0.8f), Vector3(0, 0, 0), 1.6f * base_s, 1.5f, -0.05f, true, true);
+                    }
+                    else if (flow_field_manager->get_cost(flow_field_manager->world_to_grid(unit.position), NAV_LAND) < 255) {
+                        // 3. Dust: 硬编码参数比较复杂（随机速度）
+                        float base_s = (unit.stats->particle_scale_override > 0) ? unit.stats->particle_scale_override : (radius / 48.0f);
+                        Vector3 dust_vel = Vector3(-dir.x * 40.0f + UtilityFunctions::randf_range(-10, 10), 0.0f, -dir.y * 40.0f + UtilityFunctions::randf_range(-10, 10));
+
+                        emit_logic("Dust", Vector2(0, -radius * 1.1f), dust_vel, 5.0f * base_s, 0.75f, -0.05f, false);
                     }
                 }
             }
             else {
                 unit.dust_accumulator = 0.0f;
             }
+
 
             // --- 更新影子渲染 ---
             Transform3D shadow_xform;

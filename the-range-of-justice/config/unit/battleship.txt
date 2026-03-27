@@ -58,3 +58,11 @@ idle_row = 0
 idle_frames = 1
 move_row = 1
 anim_fps = 10
+
+#粒子
+emit_threshold = 35.0
+# 语法: effect_point = 粒子类型, X偏移, Y偏移, 缩放覆盖, 寿命覆盖, 是否波纹
+effect_point = WaterFoam, -12.0, -75.0, -1, 2.5, false
+effect_point = WaterFoam,  12.0, -75.0, -1, 2.5, false
+
+effect_point = WaterRipple, 0.0, 80.0, 4.0, 3.0, true

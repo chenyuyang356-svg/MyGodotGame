@@ -157,7 +157,30 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, WeaponManager* p_w
             }
         }
 
-    
+        else if (key == "emit_threshold") {
+            stats->set_emit_threshold_override(value_str.to_float());
+        }
+
+        else if (key == "particle_scale") {
+            stats->set_particle_scale_override(value_str.to_float());
+        }
+
+        else if (key == "effect_point") {
+            // 格式: "特效名, X, Y, 缩放, 寿命, 是否波纹"
+            // 例如: "WaterRipple, 0, 20, 2.5, 1.2, true"
+            PackedStringArray parts = value_str.split(",");
+            if (parts.size() >= 3) {
+                EffectPoint ep;
+                ep.effect_type = parts[0].strip_edges();
+                ep.local_position = Vector2(parts[1].to_float(), parts[2].to_float());
+                if (parts.size() >= 4) ep.scale_override = parts[3].to_float();
+                if (parts.size() >= 5) ep.life_override = parts[4].to_float();
+                if (parts.size() >= 6) ep.is_ripple = (parts[5].strip_edges().to_lower() == "true");
+
+                stats->effect_points.push_back(ep);
+            }
+        }
+
         // 2. [新增/修改]：显式处理字符串类型的 key
         else if (key == "texture_path") {
             stats->set(key, value_str);
