@@ -316,6 +316,7 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 	fog_manager->setup_fog(map_pos, map_size, brush);
 
 	unit_manager->setup_system(p_width, p_height, p_cell_size, p_origin);
+	building_manager->setup_system(p_width, p_height, p_cell_size);
 	weapon_manager->setup_system(fog_manager);
 	is_setup = true;
 }

@@ -38,6 +38,7 @@ void UnitManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
     }
 
     _setup_hp_bar_system();
+    _setup_minimap_renderer(p_width, p_height, p_cell_size);
 
     is_setup = true;
 }
@@ -77,6 +78,47 @@ void UnitManager::_setup_hp_bar_system() {
     mat->set_shader(hp_bar_shader);
 
     global_hp_bar_renderer->set_material_override(mat);
+}
+
+void UnitManager::_setup_minimap_renderer(int p_width, int p_height, Vector2i p_cell_size) {
+    minimap_dot_renderer = memnew(MultiMeshInstance3D);
+    minimap_dot_renderer->set_name("MinimapDots");
+    // 重要：只在 Layer 2 显示（小地图相机），不在主相机 Layer 1 显示
+    minimap_dot_renderer->set_layer_mask(2);
+    add_child(minimap_dot_renderer);
+
+    Ref<MultiMesh> mm;
+    mm.instantiate();
+    mm->set_transform_format(MultiMesh::TRANSFORM_3D);
+    mm->set_use_colors(true); // 用于传递队伍颜色
+
+    Ref<QuadMesh> qm;
+    qm.instantiate();
+
+    Vector2 dot_size = Vector2(1.0f, 1.0f);
+    float dot_scale = float(std::max(p_width * p_cell_size.x, p_height * p_cell_size.y)) * MINIMAP_DOT_SCALE;
+    dot_size *= dot_scale;
+    
+    qm->set_size(dot_size); // 小地图点的大小（世界坐标单位）
+    mm->set_mesh(qm);
+
+    minimap_dot_renderer->set_multimesh(mm);
+
+    // 简单材质：不接受光照，只显示颜色
+    Ref<ShaderMaterial> mat;
+    mat.instantiate();
+    if (minimap_dot_shader.is_null()) {
+        // 简单 Shader： COLOR = INSTANCE_CUSTOM 或是直接用 Vertex Color
+        minimap_dot_shader = ResourceLoader::get_singleton()->load("res://shader/minimap_dot.gdshader");
+    }
+    mat->set_shader(minimap_dot_shader);
+    // 传入实时视野贴图
+    mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+    // 传入地图尺寸
+    mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+    // 传入地图位置
+    mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+    minimap_dot_renderer->set_material_override(mat);
 }
 
 // 2.单位生命周期（生成，死亡判定，内存回收）
@@ -1191,6 +1233,31 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
         // Color: 设置团队颜色（友绿敌红）
         Color team_color = Color(1.0, 0.0, 0.0);
         hp_mm->set_instance_color(i, team_color);
+    }
+
+    // 更新小地图点
+    Ref<MultiMesh> mmm = minimap_dot_renderer->get_multimesh();
+    if (mmm->get_instance_count() != units.size()) {
+        mmm->set_instance_count(units.size());
+    }
+
+    for (int i = 0; i < units.size(); ++i) {
+        UnitData& unit = units[i];
+
+        Transform3D xform;
+        // 关键点：将单位点放在 Y = -50，这样它会被 Y = 0 的迷雾遮挡
+        Vector2 pos = unit.position;
+        xform.origin = Vector3(pos.x, -50.0f + unit.next_height, pos.y);
+        xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
+
+        mmm->set_instance_transform(i, xform);
+        // 设置颜色为队伍色
+        mmm->set_instance_color(i, get_team_color(unit.team_id));
+
+        // 如果单位死亡，将缩放设为0
+        if (unit.state == DYING) {
+            mmm->set_instance_transform(i, Transform3D().scaled(Vector3(0, 0, 0)));
+        }
     }
 }
 

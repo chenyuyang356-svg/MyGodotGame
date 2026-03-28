@@ -81,6 +81,8 @@ namespace godot {
         float density_decay_factor = 0.2f;
         float max_density_cost = 100.0f;  // 动态代价上限，防止单位乱跑
 
+        bool is_setup = false;
+
     protected:
         static void _bind_methods();
 

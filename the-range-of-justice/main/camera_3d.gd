@@ -16,8 +16,8 @@ extends Camera3D
 var _target_zoom: float = 400.0
 
 # --- 地图边界限制变量 ---
-var _map_min: Vector2 = Vector2(-10000, -10000)
-var _map_max: Vector2 = Vector2(10000, 10000)
+var map_min: Vector2 = Vector2(-10000, -10000)
+var map_max: Vector2 = Vector2(10000, 10000)
 var _has_limit: bool = false
 
 func _ready():
@@ -36,13 +36,13 @@ func _process(delta: float):
 	audio_listener.position.y = 0.0
 
 func set_map_limits(used_rect: Rect2i, cell_size: Vector2i):
-	_map_min = Vector2(used_rect.position.x * cell_size.x, used_rect.position.y * cell_size.y)
-	_map_max = Vector2(used_rect.end.x * cell_size.x, used_rect.end.y * cell_size.y)
+	map_min = Vector2(used_rect.position.x * cell_size.x, used_rect.position.y * cell_size.y)
+	map_max = Vector2(used_rect.end.x * cell_size.x, used_rect.end.y * cell_size.y)
 	_has_limit = true
 	
 	# 根据地图大小自动修正最大缩放，防止缩放太远直接看到地图外
-	var map_w = _map_max.x - _map_min.x
-	var map_h = _map_max.y - _map_min.y
+	var map_w = map_max.x - map_min.x
+	var map_h = map_max.y - map_min.y
 	# 限制最大 size 不能超过地图的高度（或宽度的比例转换）
 	max_zoom = min(max_zoom, map_h) 
 	_target_zoom = clamp(_target_zoom, min_zoom, max_zoom)
@@ -92,19 +92,19 @@ func _apply_bounds_constraint():
 	
 	# 计算当前缩放下的合法移动范围
 	# 逻辑：相机坐标 + 半个屏幕尺寸 不能超过地图边缘
-	var limit_min_x = _map_min.x + half_width
-	var limit_max_x = _map_max.x - half_width
-	var limit_min_z = _map_min.y + half_height
-	var limit_max_z = _map_max.y - half_height
+	var limit_min_x = map_min.x + half_width
+	var limit_max_x = map_max.x - half_width
+	var limit_min_z = map_min.y + half_height
+	var limit_max_z = map_max.y - half_height
 	
 	# 如果地图比当前视野还小，则固定在中心
 	if limit_min_x > limit_max_x:
-		global_position.x = (_map_min.x + _map_max.x) / 2.0
+		global_position.x = (map_min.x + map_max.x) / 2.0
 	else:
 		global_position.x = clamp(global_position.x, limit_min_x, limit_max_x)
 		
 	if limit_min_z > limit_max_z:
-		global_position.z = (_map_min.y + _map_max.y) / 2.0
+		global_position.z = (map_min.y + map_max.y) / 2.0
 	else:
 		global_position.z = clamp(global_position.z, limit_min_z, limit_max_z)
 

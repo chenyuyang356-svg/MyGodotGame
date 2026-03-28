@@ -81,6 +81,8 @@ void FlowFieldManager::cleanup_flow_fields() {
 }
 
 void FlowFieldManager::setup_grid(int p_width, int p_height, Vector2i p_origin, Vector2i p_cell_size) {
+    if (is_setup) { return; }
+    
     width = p_width;
     height = p_height;
     size = width * height;
@@ -96,6 +98,8 @@ void FlowFieldManager::setup_grid(int p_width, int p_height, Vector2i p_origin, 
     metadata_grid.assign(size, CELL_META_NONE);
     density_maps[0].assign(size, 0.0f);
     density_maps[1].assign(size, 0.0f);
+
+    is_setup = true;
 }
 
 void FlowFieldManager::create_flow_field(Vector2i p_target_grid_pos, int p_nav_type, bool p_overwrite) {

@@ -22,7 +22,7 @@ splash_radius    = 0.0
 # 枚举可选: Closest, Lowest_hp, Highest_value
 target_priority  = Closest
 # 挂载武器 1: 机枪 (调用 MarineBullet 子弹，伤害6，射程250，0.15秒开一枪)
-weapon = Missile, 10.0, 300.0, 0.3, 500.0, 2.0
+weapon = Missile, 10.0, 300.0, 0.3, 500.0, 4.0
 # 格式: weapon_mount = [武器名称],[相对单位中心的本地偏移X], [本地偏移Y]
 weapon_mount = HeavyCannon, 0.0, 0.0
 

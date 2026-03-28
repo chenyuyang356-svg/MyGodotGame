@@ -31,6 +31,12 @@ void BuildingManager::set_weapon_manager(Node* p_node) {
     weapon_manager = Object::cast_to<WeaponManager>(p_node);
 }
 
+void BuildingManager::setup_system(int p_width, int p_height, Vector2i p_cell_size) {
+    _setup_progress_bar_system();
+    _gather_resource_positions();
+    _setup_minimap_renderer(p_width, p_height, p_cell_size);
+}
+
 void BuildingManager::_setup_progress_bar_system() {
     if (global_progress_bar_renderer) return;
 
@@ -66,6 +72,71 @@ void BuildingManager::_setup_progress_bar_system() {
     mat->set_shader(progress_bar_shader);
 
     global_progress_bar_renderer->set_material_override(mat);
+}
+
+void BuildingManager::_setup_minimap_renderer(int p_width, int p_height, Vector2i p_cell_size) {
+    if (minimap_dot_renderer) return;
+
+    minimap_dot_renderer = memnew(MultiMeshInstance3D);
+    minimap_dot_renderer->set_name("MinimapBuildingDots");
+    // Layer 2 为小地图专用层
+    minimap_dot_renderer->set_layer_mask(2);
+    add_child(minimap_dot_renderer);
+
+    Ref<MultiMesh> mm;
+    mm.instantiate();
+    mm->set_transform_format(MultiMesh::TRANSFORM_3D);
+    mm->set_use_colors(true);
+
+    Ref<QuadMesh> qm;
+    qm.instantiate();
+
+    // 计算点的大小
+    float map_max_dim = float(std::max(p_width * p_cell_size.x, p_height * p_cell_size.y));
+    float dot_size_val = map_max_dim * MINIMAP_DOT_SCALE;
+
+    qm->set_size(Vector2(dot_size_val, dot_size_val));
+    mm->set_mesh(qm);
+    minimap_dot_renderer->set_multimesh(mm);
+
+    // 材质设置
+    Ref<ShaderMaterial> mat;
+    mat.instantiate();
+    if (minimap_dot_shader.is_null()) {
+        minimap_dot_shader = ResourceLoader::get_singleton()->load("res://shader/minimap_dot.gdshader");
+    }
+    mat->set_shader(minimap_dot_shader);
+
+    if (fog_manager) {
+        mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+        mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+        mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+    }
+
+    minimap_dot_renderer->set_material_override(mat);
+}
+
+void BuildingManager::_gather_resource_positions() {
+    if (!flow_field_manager || resources_gathered) return;
+
+    cached_resource_positions.clear();
+    int w = flow_field_manager->get_width();
+    int h = flow_field_manager->get_height();
+    Vector2i cell_sz = flow_field_manager->get_cell_size();
+    Vector2i origin = flow_field_manager->get_grid_origin();
+
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            Vector2i gp = origin + Vector2i(x, y);
+            // 检查元数据是否包含资源标记
+            if (flow_field_manager->get_cell_metadata(gp) & 1 /* CELL_META_RESOURCE */) {
+                // 计算世界坐标中心
+                Vector2 pos = Vector2(gp.x * cell_sz.x, gp.y * cell_sz.y) + Vector2(cell_sz) * 0.5f;
+                cached_resource_positions.push_back(pos);
+            }
+        }
+    }
+    resources_gathered = true;
 }
 
 void BuildingManager::update(double p_delta) {
@@ -388,6 +459,67 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
         }
 
         bar_idx += 2;
+    }
+
+    // ========== 处理小地图点渲染 ==========
+    if (flow_field_manager) {
+        if (!minimap_dot_renderer) {
+            _setup_minimap_renderer(flow_field_manager->get_width(), flow_field_manager->get_height(), flow_field_manager->get_cell_size());
+        }
+        if (!resources_gathered) {
+            _gather_resource_positions();
+        }
+    }
+
+    if (!minimap_dot_renderer) return;
+
+    Ref<MultiMesh> mmm = minimap_dot_renderer->get_multimesh();
+    int building_count = (int)buildings.size();
+    int resource_count = (int)cached_resource_positions.size();
+    int total_instances = building_count + resource_count;
+
+    if (mmm->get_instance_count() != total_instances) {
+        mmm->set_instance_count(total_instances);
+    }
+
+    int inst_idx = 0;
+    Vector2 cell_sz_vec = Vector2(32, 32);
+    if (flow_field_manager) cell_sz_vec = Vector2(flow_field_manager->get_cell_size());
+
+    // 1. 绘制建筑点
+    for (auto const& [id, b] : buildings) {
+        Vector2 fp_size = Vector2(b.stats->get_footprint()) * cell_sz_vec;
+        Vector2 center = Vector2(b.grid_pos) * cell_sz_vec + fp_size * 0.5f;
+
+        Transform3D xform;
+        // Y = -50.0f 使其受迷雾遮挡
+        xform.origin = Vector3(center.x, -50.0f, center.y);
+        xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
+
+        if (b.state == BuildingState::DYING) {
+            xform.basis = xform.basis.scaled(Vector3(0, 0, 0));
+        }
+
+        mmm->set_instance_transform(inst_idx, xform);
+        mmm->set_instance_color(inst_idx, get_team_color(b.team_id));
+        inst_idx++;
+    }
+
+    // 2. 绘制资源点 (白点)
+    for (const Vector2& res_pos : cached_resource_positions) {
+        Transform3D xform;
+        // 偏移量：向右下偏移 4 像素，避免被采集器正中心遮挡
+        Vector2 offset_pos = res_pos + Vector2(4.0f, 4.0f);
+
+        // Y = 300.0f 使其位于迷雾平面之上，永远可见
+        xform.origin = Vector3(offset_pos.x, 300.0f, offset_pos.y);
+        xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
+        // 资源点可以稍微小一点
+        xform.basis = xform.basis.scaled(Vector3(0.7f, 0.7f, 0.7f));
+
+        mmm->set_instance_transform(inst_idx, xform);
+        mmm->set_instance_color(inst_idx, Color(1, 1, 1, 1)); // 纯白色
+        inst_idx++;
     }
 }
 

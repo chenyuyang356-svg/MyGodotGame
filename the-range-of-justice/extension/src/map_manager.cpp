@@ -76,6 +76,8 @@ void MapManager::load_from_tilemap(Node* p_node) {
         mat->set_shader_parameter("atlas_size", atlas_grid_size);
     }
     map_renderer->set_material_override(mat);
+
+    map_renderer->set_layer_mask(3);
 }
 
 void MapManager::_bind_methods() {

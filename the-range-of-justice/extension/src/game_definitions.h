@@ -4,6 +4,7 @@
 
 namespace godot {
 
+    const float MINIMAP_DOT_SCALE = 0.003;
     // --- 1. 定义所有枚举 ---
 
     enum ArmorType {

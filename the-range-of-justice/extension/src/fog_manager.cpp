@@ -85,7 +85,7 @@ void FogManager::setup_fog(Vector2 p_map_pos, Vector2 p_map_size, Ref<Texture2D>
 
     // 旋转并放置到地图中心
     fog_overlay_mesh->set_rotation(Vector3(-Math_PI / 2.0, 0, 0));
-    fog_overlay_mesh->set_position(Vector3(p_map_pos.x + p_map_size.x / 2.0, 1000.0, p_map_pos.y + p_map_size.y / 2.0));
+    fog_overlay_mesh->set_position(Vector3(p_map_pos.x + p_map_size.x / 2.0, 100.0, p_map_pos.y + p_map_size.y / 2.0));
 
     // 设置材质
     Ref<ShaderMaterial> mat; mat.instantiate();
@@ -94,6 +94,8 @@ void FogManager::setup_fog(Vector2 p_map_pos, Vector2 p_map_size, Ref<Texture2D>
     mat->set_shader_parameter("tex_live", vpc_live->get_texture());
     mat->set_shader_parameter("tex_history", vpc_history->get_texture());
     fog_overlay_mesh->set_material_override(mat);
+
+    fog_overlay_mesh->set_layer_mask(3);
 
     add_child(fog_overlay_mesh);
 }

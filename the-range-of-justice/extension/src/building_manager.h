@@ -69,6 +69,14 @@ namespace godot {
         Ref<Shader> progress_bar_shader;
         void _setup_progress_bar_system();
 
+        // --- 小地图"点"渲染器 ---
+        MultiMeshInstance3D* minimap_dot_renderer = nullptr;
+        Ref<Shader> minimap_dot_shader;
+        std::vector<Vector2> cached_resource_positions; // 缓存地图上的资源点位置
+        bool resources_gathered = false;
+        void _setup_minimap_renderer(int p_width, int p_height, Vector2i p_cell_size);
+        void _gather_resource_positions(); // 扫描并记录资源点
+
     protected:
         static void _bind_methods();
 
@@ -84,6 +92,7 @@ namespace godot {
         void set_economy_manager(Node* p_node);
         void set_fog_manager(Node* p_node);
         void set_weapon_manager(Node* p_node);
+        void setup_system(int p_width, int p_height, Vector2i p_cell_size);
 
         // --- 核心功能 ---
 

@@ -7,6 +7,14 @@
 [ext_resource type="Script" uid="uid://cxdwnig240dls" path="res://main/selection_manager.gd" id="4_3wy1v"]
 [ext_resource type="Script" uid="uid://3bqvng8q6y28" path="res://main/camera_3d.gd" id="5_3wy1v"]
 [ext_resource type="Script" uid="uid://rcx1w1scq2ev" path="res://main/debug_draw.gd" id="6_kfbq2"]
+[ext_resource type="Script" uid="uid://bb0bcvmid0u6y" path="res://main/minimap_input.gd" id="8_67ri8"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4dugh"]
+bg_color = Color(0, 0, 0, 0.39215687)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
 
 [node name="main" type="Node" unique_id=224165495]
 script = ExtResource("1_3wy1v")
@@ -87,12 +95,39 @@ offset_bottom = 40.0
 
 [node name="DebugDraw" type="Node2D" parent="DebugCanvas" unique_id=1412301083]
 script = ExtResource("6_kfbq2")
+show_debug = false
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=217203825]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 2000, 0)
+cull_mask = 1048573
 projection = 1
 script = ExtResource("5_3wy1v")
 
 [node name="AudioListener3D" type="AudioListener3D" parent="Camera3D" unique_id=1385057487]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0)
 current = true
+
+[node name="MinimapBorder" type="PanelContainer" parent="." unique_id=941737]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -40.0
+offset_bottom = 40.0
+grow_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_4dugh")
+
+[node name="SubViewportContainer" type="SubViewportContainer" parent="MinimapBorder" unique_id=450585872 node_paths=PackedStringArray("main_camera")]
+layout_mode = 2
+size_flags_horizontal = 0
+mouse_filter = 0
+script = ExtResource("8_67ri8")
+main_camera = NodePath("../../Camera3D")
+
+[node name="SubViewport" type="SubViewport" parent="MinimapBorder/SubViewportContainer" unique_id=1701825384]
+handle_input_locally = false
+render_target_update_mode = 4
+
+[node name="MinimapCamera3D" type="Camera3D" parent="MinimapBorder/SubViewportContainer/SubViewport" unique_id=523048990]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 2000, 0)
+cull_mask = 1048574
+projection = 1

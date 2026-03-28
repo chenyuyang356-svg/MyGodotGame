@@ -96,6 +96,10 @@ namespace godot {
 		MultiMeshInstance3D* global_hp_bar_renderer = nullptr;
 		Ref<Shader> hp_bar_shader;
 
+		// 小地图“点”渲染器
+		MultiMeshInstance3D* minimap_dot_renderer = nullptr;
+		Ref<Shader> minimap_dot_shader;
+
 		HashMap<String, Ref<UnitStats>> unit_types_cache;
 
 		const float AIR_HEIGHT_THRESHOLD = 20.0f; // 定义高度阈值
@@ -116,6 +120,7 @@ namespace godot {
 		// --- 系统管理 ---
 		void setup_system(int p_width, int p_height, Vector2i p_cell_size, Vector2i p_origin);
 		void _setup_hp_bar_system();
+		void _setup_minimap_renderer(int p_width, int p_height, Vector2i p_cell_size);
 
 		// --- 单位生命周期 ---
 		int spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id = 0, int p_forced_id = -1);

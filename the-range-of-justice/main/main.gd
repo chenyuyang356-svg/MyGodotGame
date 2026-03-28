@@ -55,6 +55,14 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	var grid_origin: Vector2i = used_rect.position
 	var debug_draw: Node2D = $DebugCanvas/DebugDraw
 	var main_camera: Camera3D = $Camera3D
+	var minimap_viewport: SubViewport = $MinimapBorder/SubViewportContainer/SubViewport
+	var minimap_container: SubViewportContainer = $MinimapBorder/SubViewportContainer
+	var minimap_border: PanelContainer = $MinimapBorder
+	var minimap_camera: Camera3D = $MinimapBorder/SubViewportContainer/SubViewport/MinimapCamera3D
+	
+	var map_real_width = width * cell_size.x
+	var map_real_height = height * cell_size.y
+	var map_aspect_ratio = float(map_real_width) / float(map_real_height)
 	
 	$ProjectileManager.setup($UnitManager, $AttackManager)
 	
@@ -76,30 +84,7 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	GlobalGameManager.set_effect_manager(effect_manager)
 	GlobalGameManager.set_audio_manager(audio_manager)
 	
-	# 设置流场系统尺寸
-	GlobalGameManager.setup_system(width, height, cell_size, grid_origin)
-	
-	# 注册配置（这部分建议放在 GlobalGameManager 的 init 里只运行一次）
-	var dust_tex: Texture2D = ResourceLoader.load("res://asset/particle/dust.png")
-	effect_manager.register_effect_type("Dust", dust_tex, 2000, -1.8, 0.9, 0.2)
-	
-	var water_foam_tex: Texture2D = ResourceLoader.load("res://asset/particle/water_effect/water_foam.png")
-	effect_manager.register_effect_type("WaterFoam", water_foam_tex, 2000, 0.0, 0.85, 1.0)
-	
-	var water_splash_tex: Texture2D = ResourceLoader.load("res://asset/particle/water_effect/water_splash.png")
-	effect_manager.register_effect_type("WaterSplash", water_splash_tex, 2000, -9.8, 0.98, 1.1)
-	
-	var water_ripple_tex: Texture2D = ResourceLoader.load("res://asset/particle/water_effect/water_ripple.png")
-	effect_manager.register_effect_type("WaterRipple", water_ripple_tex, 2000, 0.0, 1.0, 0.3)
-	
-	var explosion_tex: Texture2D = ResourceLoader.load("res://asset/particle/explosion.png")
-	effect_manager.register_effect_type("Explosion", explosion_tex, 1000, 0.0, 0.9, 1.0)
-	
-	weapon_manager.register_weapons_from_dir("res://config/weapon/")
-	unit_manager.register_units_from_dir("res://config/unit/")
-	building_manager.register_buildings_from_dir("res://config/building/")
-	projectile_manager.register_projectiles_from_dir("res://config/projectile/")
-	
+	flow_field_manager.setup_grid(width, height, grid_origin, cell_size)
 	# --- 遍历 TileMap 填充元数据和代价地图 ---
 	for x in range(used_rect.position.x, used_rect.end.x):
 		for y in range(used_rect.position.y, used_rect.end.y):
@@ -139,8 +124,32 @@ func setup_game_with_map(map_res: MapResource) -> void:
 							is_near_land = true
 							break
 				flow_field_manager.init_cost(coords, 30 if is_near_land else 1, 1)
-
-
+	
+	# 设置流场系统尺寸
+	GlobalGameManager.setup_system(width, height, cell_size, grid_origin)
+	
+	# 注册配置（这部分建议放在 GlobalGameManager 的 init 里只运行一次）
+	var dust_tex: Texture2D = ResourceLoader.load("res://asset/particle/dust.png")
+	effect_manager.register_effect_type("Dust", dust_tex, 2000, -1.8, 0.9, 0.2)
+	
+	var water_foam_tex: Texture2D = ResourceLoader.load("res://asset/particle/water_effect/water_foam.png")
+	effect_manager.register_effect_type("WaterFoam", water_foam_tex, 2000, 0.0, 0.85, 1.0)
+	
+	var water_splash_tex: Texture2D = ResourceLoader.load("res://asset/particle/water_effect/water_splash.png")
+	effect_manager.register_effect_type("WaterSplash", water_splash_tex, 2000, -9.8, 0.98, 1.1)
+	
+	var water_ripple_tex: Texture2D = ResourceLoader.load("res://asset/particle/water_effect/water_ripple.png")
+	effect_manager.register_effect_type("WaterRipple", water_ripple_tex, 2000, 0.0, 1.0, 0.3)
+	
+	var explosion_tex: Texture2D = ResourceLoader.load("res://asset/particle/explosion.png")
+	effect_manager.register_effect_type("Explosion", explosion_tex, 1000, 0.0, 0.9, 1.0)
+	
+	weapon_manager.register_weapons_from_dir("res://config/weapon/")
+	unit_manager.register_units_from_dir("res://config/unit/")
+	building_manager.register_buildings_from_dir("res://config/building/")
+	projectile_manager.register_projectiles_from_dir("res://config/projectile/")
+	
+	
 	var players_settings: Dictionary = GlobalGameManager.get_all_player_settings()
 	
 	# 初始化玩家经济
@@ -176,6 +185,33 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	main_camera.set_map_limits(used_rect, cell_size)
 	main_camera.global_position.x = camera_start_pos.x
 	main_camera.global_position.z = camera_start_pos.y
+	
+	# --- 初始化小地图 ---
+	var max_minimap_ui_size = 512.0
+	
+	var map_min_vec = Vector2(used_rect.position * cell_size)
+	var map_max_vec = Vector2(used_rect.end * cell_size)
+	minimap_container.set_limits(map_min_vec, map_max_vec)
+	
+	if map_aspect_ratio > 1.0:
+		# 横向较长的地图
+		minimap_container.custom_minimum_size = Vector2(max_minimap_ui_size, max_minimap_ui_size / map_aspect_ratio)
+	else:
+		# 纵向较长或正方形的地图
+		minimap_container.custom_minimum_size = Vector2(max_minimap_ui_size * map_aspect_ratio, max_minimap_ui_size)
+
+	# 初始化小地图相机位置
+	# 将相机定位在地图中心
+	var map_center_world = Vector2(used_rect.position) * Vector2(cell_size) + (Vector2(used_rect.size) * Vector2(cell_size)) / 2.0
+	minimap_camera.position.x = map_center_world.x
+	minimap_camera.position.z = map_center_world.y
+	
+	# 正交相机的大小(size)代表垂直方向覆盖的单位距离
+	# 如果我们要完美契合，需要根据比例设置
+	minimap_camera.size = map_real_height
+	# 如果地图特别宽，可能需要根据宽度来适配 size
+	if map_aspect_ratio > (minimap_container.custom_minimum_size.x / minimap_container.custom_minimum_size.y):
+		minimap_camera.size = map_real_width / (minimap_container.custom_minimum_size.x / minimap_container.custom_minimum_size.y)
 	
 	# 3. 生成初始单位 (仅由主机/服务器执行)
 	if multiplayer.is_server():
@@ -214,6 +250,6 @@ func spawn_test_units():
 			#GlobalGameManager.rpc_server_request_spawn_unit("AttackHelicopter", -32 * Vector2(x, y), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("HeavyTank", -32 * Vector2(x, y), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Gunboat", -32 * Vector2(x, y) + Vector2(-7000, 0), 1)
-			#GlobalGameManager.rpc_server_request_spawn_unit("HeavyTank", -32 * Vector2(x, y) + Vector2(0, 1500), 2)
+			#GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y) + Vector2(0, 1600), 2)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(11000, 3500), 2)
 			continue
