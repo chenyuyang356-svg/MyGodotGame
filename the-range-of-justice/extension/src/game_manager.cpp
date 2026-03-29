@@ -309,6 +309,7 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 
 	projectile_manager->set_effect_manager(effect_manager);
 	projectile_manager->set_audio_manager(audio_manager);
+	projectile_manager->set_building_manager(building_manager);
 
 	Vector2 map_size = Vector2(p_width, p_height) * Vector2(p_cell_size);
 	Vector2 map_pos = Vector2(p_origin) * Vector2(p_cell_size);
@@ -521,10 +522,10 @@ void GameManager::rpc_server_receive_move(PackedInt32Array p_ids, Vector2 p_pos)
 	}
 }
 
-void GameManager::rpc_server_receive_attack_unit(PackedInt32Array p_ids, int p_target_id) {
+void GameManager::rpc_server_receive_attack_unit(PackedInt32Array p_ids, int p_target_id, bool p_target_is_building) {
 	if (!get_multiplayer()->is_server()) return;
 	if (unit_manager) {
-		unit_manager->command_units_to_attack_target(p_ids, p_target_id);
+		unit_manager->command_units_to_attack_target(p_ids, p_target_id, p_target_is_building);
 	}
 }
 
@@ -844,17 +845,19 @@ void GameManager::_on_move_requested(PackedInt32Array p_ids, Vector2 p_pos) {
 
 void GameManager::_on_attack_unit_requested(PackedInt32Array p_ids, int p_target_id) {
 	if (get_multiplayer()->is_server()) {
-		if (unit_manager) unit_manager->command_units_to_attack_target(p_ids, p_target_id);
+		if (unit_manager) unit_manager->command_units_to_attack_target(p_ids, p_target_id, false);
 	}
 	else {
-		rpc_id(1, "rpc_server_receive_attack_unit", p_ids, p_target_id);
+		rpc_id(1, "rpc_server_receive_attack_unit", p_ids, p_target_id, false);
 	}
 }
 
 void GameManager::_on_attack_building_requested(PackedInt32Array p_ids, int p_target_id) {
-	if (unit_manager) {
-		// 同样调用攻击指令
-		//unit_manager->command_units_to_attack_target(p_ids, p_target_id);
+	if (get_multiplayer()->is_server()) {
+		if (unit_manager) unit_manager->command_units_to_attack_target(p_ids, p_target_id, true);
+	}
+	else {
+		rpc_id(1, "rpc_server_receive_attack_unit", p_ids, p_target_id, true);
 	}
 }
 
@@ -1006,7 +1009,7 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_all_player_settings"), &GameManager::get_all_player_settings);
 
 	ClassDB::bind_method(D_METHOD("rpc_server_receive_move", "ids", "pos"), &GameManager::rpc_server_receive_move);
-	ClassDB::bind_method(D_METHOD("rpc_server_receive_attack_unit", "ids", "target_id"), &GameManager::rpc_server_receive_attack_unit);
+	ClassDB::bind_method(D_METHOD("rpc_server_receive_attack_unit", "ids", "target_id", "target_is_building"), &GameManager::rpc_server_receive_attack_unit);
 
 	ClassDB::bind_method(D_METHOD("rpc_client_receive_snapshot", "data"), &GameManager::rpc_client_receive_snapshot);
 

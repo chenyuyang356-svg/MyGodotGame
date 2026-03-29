@@ -133,7 +133,7 @@ namespace godot {
 		// --- RPC 指令接口 (客户端发送，服务器执行) ---
 		// 在 Godot 4 C++ 中，RPC 函数名通常和普通函数一样，但在绑定时指定权限
 		void rpc_server_receive_move(PackedInt32Array p_ids, Vector2 p_pos);
-		void rpc_server_receive_attack_unit(PackedInt32Array p_ids, int p_target_id);
+		void rpc_server_receive_attack_unit(PackedInt32Array p_ids, int p_target_id, bool p_target_is_building);
 
 		// 服务器调用：广播所有单位状态
 		void broadcast_network_snapshot();

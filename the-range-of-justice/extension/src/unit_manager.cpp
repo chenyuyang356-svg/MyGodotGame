@@ -342,7 +342,7 @@ void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints) {
     }
 }
 
-void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_id) {
+void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_id, bool p_target_is_building) {
     if (p_unit_ids.is_empty()) return;
     if (p_target_id == -1) return;
     
@@ -361,6 +361,7 @@ void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_
 
             // 2.     Ŀ  
             unit.target_id = p_target_id;
+            unit.target_is_building = p_target_is_building;
             unit.is_manual_target = true;
 
             // 3. ֱ      ׷  ״̬  

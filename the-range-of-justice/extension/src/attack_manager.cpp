@@ -72,6 +72,14 @@ void AttackManager::update_units(double p_delta) {
     for (int i = 0; i < unit_manager->units.size(); ++i) {
         UnitData& unit = unit_manager->units[i];
 
+        if (unit.stats.is_valid()) {
+            for (size_t w = 0; w < unit.weapon_cooldowns.size(); ++w) {
+                if (unit.weapon_cooldowns[w] > 0.0f) {
+                    unit.weapon_cooldowns[w] -= (float)p_delta;
+                }
+            }
+        }
+
         switch (unit.state) {
         case IDLE:      _handle_idle(unit); break;
         case CHASING:   _handle_chasing(unit); break;
@@ -152,7 +160,7 @@ bool AttackManager::_is_target_valid(int p_target_id, bool p_is_building) {
         if (!building_manager) return false;
         auto it = building_manager->buildings.find(p_target_id);
         if (it == building_manager->buildings.end()) return false;
-        return it->second.current_health > 0 && it->second.state != BuildingState::BUILDING;
+        return it->second.current_health > 0 && it->second.state != BuildingState::DYING;
     }
     else {
         int idx = unit_manager->get_unit_index_by_id(p_target_id);
@@ -269,8 +277,16 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
 }
 
 void AttackManager::_handle_attacking(UnitData& p_unit, double p_delta) {
-    if (p_unit.target_id == -1) {
-        p_unit.state = IDLE;
+    if (p_unit.target_id == -1 || !_is_target_valid(p_unit.target_id, p_unit.target_is_building)) {
+        p_unit.target_id = -1;
+        // 立即尝试寻找新目标
+        if (_try_find_target(p_unit)) {
+            // 找到新目标后，切到 CHASING 重新计算距离和位置
+            p_unit.state = CHASING;
+        }
+        else {
+            p_unit.state = IDLE;
+        }
         return;
     }
 
@@ -294,11 +310,6 @@ void AttackManager::_handle_attacking(UnitData& p_unit, double p_delta) {
 
             // 计算这把武器的实际攻击距离（武器基础射程 + 双方碰撞半径）
             float real_range = weapon.attack_range + p_unit.stats->get_collision_radius() + target_radius;
-
-            // 独立扣减这把武器的冷却时间
-            if (p_unit.weapon_cooldowns[i] > 0.0f) {
-                p_unit.weapon_cooldowns[i] -= p_delta;
-            }
 
             // 判断目标是否在这把武器的射程内
             if (distance <= real_range) {
