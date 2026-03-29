@@ -13,4 +13,4 @@ tile_set = ExtResource("1_pbgsc")
 [node name="1" type="Marker2D" parent="SpawnPoints" unique_id=1261841268]
 
 [node name="2" type="Marker2D" parent="SpawnPoints" unique_id=1103070341]
-position = Vector2(11502, 3124)
+position = Vector2(11362, 2710)

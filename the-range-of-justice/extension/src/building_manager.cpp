@@ -139,9 +139,7 @@ void BuildingManager::_gather_resource_positions() {
     resources_gathered = true;
 }
 
-void BuildingManager::update(double p_delta) {
-    handle_dead_buildings(p_delta);
-
+void BuildingManager::physics_update(double p_delta) {
     for (auto& pair : buildings) {
         BuildingData& b = pair.second;
 
@@ -252,7 +250,10 @@ void BuildingManager::update(double p_delta) {
             economy_manager->add_resources(b.team_id, income);
         }
     }
+}
 
+void BuildingManager::update(double p_delta) {
+    handle_dead_buildings(p_delta);
     maintain_ghosts(p_delta);
 }
 
@@ -597,7 +598,10 @@ void BuildingManager::maintain_ghosts(double p_delta) {
                         int b_id = pair.first;
 
                         // 真实建筑存活着，直接跳过（它的隐藏交由Shader负责）
-                        if (buildings.find(b_id) != buildings.end()) continue;
+                        auto it = buildings.find(b_id);
+                        if (it != buildings.end()) {
+                            if (it->second.state != BuildingState::DYING) { continue; }
+                        }
 
                         const GhostBuildingData& g = pair.second;
                         Vector2 fp_size = Vector2(g.stats->get_footprint()) * cell_sz;

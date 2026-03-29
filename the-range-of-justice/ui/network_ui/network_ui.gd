@@ -28,13 +28,32 @@ func _ready():
 	
 	multiplayer.connected_to_server.connect(_on_connected_ok)
 	
-	# 初始化 UI
-	panel_connection.show()
-	panel_lobby.hide()
-	
 	# 监听本地设置变化，向服务器发送更新
 	spin_team.value_changed.connect(_on_local_settings_changed)
 	spin_spawn.value_changed.connect(_on_local_settings_changed)
+	
+	# 初始化 UI
+	# 获取当前的网络层实例
+	var peer = multiplayer.multiplayer_peer
+	
+	# 核心判断：
+	# 1. peer 不能为空
+	# 2. peer 不能是 OfflineMultiplayerPeer (Godot 4 默认的离线层)
+	# 3. peer 的连接状态必须是“已连接” (CONNECTION_CONNECTED)
+	if peer != null and not (peer is OfflineMultiplayerPeer) and peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		# 此时说明我们是从游戏中退回来的，且网络依然保持连接
+		if multiplayer.is_server():
+			enter_lobby(true)
+			populate_map_options()
+		else:
+			enter_lobby(false)
+		
+		# 强制触发一次同步，确保 UI 刷新
+		_on_lobby_updated()
+	else:
+		# 初始状态：显示连接面板
+		panel_connection.show()
+		panel_lobby.hide()
 
 
 # ================= 1. 连接阶段 =================

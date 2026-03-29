@@ -89,6 +89,12 @@ GameManager::GameManager() {
 	lobby_sync["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
 	lobby_sync["call_local"] = true;
 	rpc_config("rpc_client_sync_lobby", lobby_sync);
+
+	Dictionary game_over_config;
+	game_over_config["rpc_mode"] = MultiplayerAPI::RPC_MODE_AUTHORITY;
+	game_over_config["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
+	game_over_config["call_local"] = true; // 主机本地也要弹出结束界面
+	rpc_config("rpc_client_notify_game_over", game_over_config);
 }
 
 GameManager::~GameManager() {}
@@ -103,8 +109,7 @@ void GameManager::_physics_process(double p_delta) {
 
 		// 服务端更新物理和寻路逻辑
 		unit_manager->physics_update(p_delta);
-
-		building_manager->update(p_delta);
+		building_manager->physics_update(p_delta);
 
 		while (tick_accumulator >= logic_tick_rate) {
 
@@ -118,6 +123,13 @@ void GameManager::_physics_process(double p_delta) {
 
 			tick_accumulator -= logic_tick_rate;
 		}
+
+		// 胜负判定计时器
+		game_over_check_timer += p_delta;
+		if (game_over_check_timer >= CHECK_INTERVAL) {
+			game_over_check_timer = 0.0f;
+			check_victory_conditions();
+		}
 	}
 	else {
 		tick_accumulator += p_delta;
@@ -126,9 +138,11 @@ void GameManager::_physics_process(double p_delta) {
 
 // 渲染主循环
 void GameManager::_process(double p_delta) {
+	if (!unit_manager || !building_manager || !flow_field_manager || !selection_manager || !group_manager || !is_setup) { return; }
 	if (!is_setup) return;
 
 	unit_manager->update(p_delta);
+	building_manager->update(p_delta);
 
 	update_group(p_delta);
 	
@@ -143,7 +157,8 @@ void GameManager::_process(double p_delta) {
 	for (const auto& unit : unit_manager->units) {
 		if (unit.team_id == selection_manager->get_team_id()) {
 			// 记录 3D 世界的 X 和 Z 坐标
-			positions.push_back(Vector2(unit.position.x, unit.position.y));
+			Vector2 visual_pos = UtilityFunctions::lerp(unit.prev_position, unit.next_position, alpha);
+			positions.push_back(visual_pos);
 			radii.push_back(unit.stats->sight_range);
 		}
 	}
@@ -320,6 +335,7 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 	building_manager->setup_system(p_width, p_height, p_cell_size);
 	weapon_manager->setup_system(fog_manager);
 	is_setup = true;
+	game_over = false;
 }
 
 // 房间/联机会话管理
@@ -675,7 +691,7 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 		offset += 4;
 
 		for (int i = 0; i < bld_count; i++) {
-			if (offset + 9 > p_raw_data.size()) break;
+			if (offset + 13 > p_raw_data.size()) break;
 
 			int id = p_raw_data.decode_s32(offset);
 			float health = p_raw_data.decode_float(offset + 4);
@@ -833,6 +849,15 @@ void GameManager::sync_resources_to_client(int p_team_id) {
 	rpc("rpc_client_sync_resources", p_team_id, current_gold);
 }
 
+void GameManager::rpc_client_notify_game_over(int p_winner_team) {
+	game_over = true;
+	UtilityFunctions::print("Game Over! Winner Team: ", p_winner_team);
+
+	// 停止本地部分模拟
+	// 可以在这里通知 UI 层显示结算画面
+	emit_signal("game_finished", p_winner_team);
+}
+
 // 本地事件监听
 void GameManager::_on_move_requested(PackedInt32Array p_ids, Vector2 p_pos) {
 	if (get_multiplayer()->is_server()) {
@@ -938,13 +963,17 @@ void GameManager::leave_game() {
 	}
 
 	players_settings.clear();
-	game_in_progress = false;
-	is_setup = false;
+	reset_game_state();
 
 	UtilityFunctions::print("Left game and disconnected network.");
 
 	// 发出自定义断开信号，供 GDScript 侧响应（如清理场景或切回主菜单）
 	emit_signal("game_left");
+}
+
+void GameManager::reset_game_state() {
+	is_setup = false;
+	game_in_progress = false;
 }
 
 void GameManager::_on_peer_disconnected(int p_id) {
@@ -972,6 +1001,37 @@ void GameManager::_on_connection_failed() {
 	UtilityFunctions::print("Client: Connection failed or rejected (Game already in progress).");
 	// 如果连接由于在游戏中被拒绝（或超时），则清理退出
 	leave_game();
+}
+
+void GameManager::check_victory_conditions() {
+	if (!is_server_authority()) { return; }
+	if (game_over) { return; }
+
+	std::set<int> active_teams;
+
+	// 1. 检查谁还有建筑
+	for (const auto& pair : building_manager->buildings) {
+		active_teams.insert(pair.second.team_id);
+	}
+
+	// 2. (可选) 检查谁还有单位，如果只有建筑没有单位也算输可以不加这步
+	/*
+	for (const auto& unit : unit_manager->units) {
+		active_teams.insert(unit.team_id);
+	}
+	*/
+
+	// 3. 判定结果
+	if (active_teams.empty()) {
+		// 极端情况：同归于尽或地图无玩家
+		return;
+	}
+
+	if (active_teams.size() == 1) {
+		// 只剩一支队伍，获胜
+		int winner = *active_teams.begin();
+		rpc("rpc_client_notify_game_over", winner);
+	}
 }
 
 // godot绑定
@@ -1036,6 +1096,8 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("rpc_client_sync_resources", "team_id", "amount"),
 		&GameManager::rpc_client_sync_resources);
 
+	ClassDB::bind_method(D_METHOD("rpc_client_notify_game_over", "winner_team"), &GameManager::rpc_client_notify_game_over);
+
 	ClassDB::bind_method(D_METHOD("_on_move_requested", "ids", "pos"), &GameManager::_on_move_requested);
 	ClassDB::bind_method(D_METHOD("_on_attack_unit_requested", "ids", "target_id"), &GameManager::_on_attack_unit_requested);
 	ClassDB::bind_method(D_METHOD("_on_attack_building_requested", "ids", "target_id"), &GameManager::_on_attack_building_requested);
@@ -1051,6 +1113,7 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_connected_to_server"), &GameManager::_on_connected_to_server);
 
 	ClassDB::bind_method(D_METHOD("leave_game"), &GameManager::leave_game);
+	ClassDB::bind_method(D_METHOD("reset_game_state"), &GameManager::reset_game_state);
 
 	ClassDB::bind_method(D_METHOD("_on_peer_disconnected", "id"), &GameManager::_on_peer_disconnected);
 	ClassDB::bind_method(D_METHOD("_on_server_disconnected"), &GameManager::_on_server_disconnected);
@@ -1072,8 +1135,11 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_local_player_name"), &GameManager::get_local_player_name);
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "local_player_name"), "set_local_player_name", "get_local_player_name");
 
+	ClassDB::bind_method(D_METHOD("start_game"), &GameManager::start_game);
+
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "available_maps", PROPERTY_HINT_NONE, "24/17:Resource"), "set_available_maps", "get_available_maps");
 
 	ADD_SIGNAL(MethodInfo("lobby_updated"));
 	ADD_SIGNAL(MethodInfo("game_left"));
+	ADD_SIGNAL(MethodInfo("game_finished", PropertyInfo(Variant::INT, "winner_team_id")));
 }

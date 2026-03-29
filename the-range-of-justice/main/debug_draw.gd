@@ -10,6 +10,8 @@ var unit_ids_to_draw: Array = []
 const STATE_NAMES = ["IDLE", "MOVING", "CHASING", "ATTACKING", "PATROLLING"]
 
 func _process(_delta: float) -> void:
+	if not show_debug:
+		return
 	# 1. 诊断信息：每 60 帧打印一次（去掉了错误的 return）
 	if Engine.get_process_frames() % 60 == 0:
 		print("=== DebugDraw 诊断信息 ===")

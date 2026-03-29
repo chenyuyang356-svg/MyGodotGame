@@ -96,6 +96,7 @@ namespace godot {
 
         // --- 核心功能 ---
 
+        void physics_update(double p_delta);
         void update(double p_delta);
         void update_multimesh_buffer(double p_delta, float p_alpha, SelectionManager* p_selection_manager);
 

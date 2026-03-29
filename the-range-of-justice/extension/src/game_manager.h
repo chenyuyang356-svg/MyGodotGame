@@ -73,6 +73,11 @@ namespace godot {
 		// 使用 Godot 的 HashMap 方便存储 peer_id -> settings
 		HashMap<int, PlayerSettings> players_settings;
 
+		bool game_over = true;
+		float game_over_check_timer = 0.0f;
+		const float CHECK_INTERVAL = 1.0f; // 每秒检查一次胜负
+		void check_victory_conditions();
+
 	protected:
 		static void _bind_methods();
 
@@ -103,6 +108,7 @@ namespace godot {
 		void host_game(int p_port);
 		void join_game(String p_address, int p_port);
 		void leave_game();
+		void reset_game_state();
 
 		void rpc_client_load_game(int p_map_idx, Dictionary p_player_configs);
 		void rpc_server_request_registration(int p_team_id, String p_name);
@@ -168,6 +174,9 @@ namespace godot {
 		void rpc_client_sync_resources(int p_team_id, double p_amount); // 仅同步给对应的客户端
 		void sync_resources_to_client(int p_team_id);
 
+		// RPC：服务端通知客户端游戏结束
+		void rpc_client_notify_game_over(int p_winner_team);
+
 		// 信号回调函数
 		void _on_move_requested(PackedInt32Array p_ids, Vector2 p_pos);
 		void _on_attack_unit_requested(PackedInt32Array p_ids, int p_target_id);
@@ -207,6 +216,8 @@ namespace godot {
 
 		String get_local_player_name() const { return local_player_name; }
 		void set_local_player_name(const String& p_name) { local_player_name = p_name; }
+
+		void start_game() { game_over = false; }
 	};
 
 }

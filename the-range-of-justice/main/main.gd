@@ -125,7 +125,6 @@ func setup_game_with_map(map_res: MapResource) -> void:
 							break
 				flow_field_manager.init_cost(coords, 30 if is_near_land else 1, 1)
 	
-	# 设置流场系统尺寸
 	GlobalGameManager.setup_system(width, height, cell_size, grid_origin)
 	
 	# 注册配置（这部分建议放在 GlobalGameManager 的 init 里只运行一次）
@@ -215,7 +214,7 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	
 	# 3. 生成初始单位 (仅由主机/服务器执行)
 	if multiplayer.is_server():
-		spawn_initial_units(spawn_positions, players_settings)
+		spawn_initial_units(spawn_positions, players_settings, cell_size)
 		spawn_test_units()
 
 	if debug_draw != null:
@@ -223,8 +222,9 @@ func setup_game_with_map(map_res: MapResource) -> void:
 		debug_draw.camera = main_camera
 	
 	GlobalAudioManager.play_bgm("res://asset/audio/music/02_-_sam_goor00_collard_-_reign_supreme.ogg", -8.0, 3.0)
+	GlobalGameManager.start_game()
 
-func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictionary):
+func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictionary, cell_size: Vector2i):
 	for peer_id in players_settings.keys():
 		var p_info = players_settings[peer_id]
 		var team_id = p_info["team"]
@@ -234,9 +234,9 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 		if spawn_positions.has(spawn_id):
 			var pos = spawn_positions[spawn_id]
 			# 在基地旁边生成坦克 (注意传递的是 team_id，让单位归属于该阵营)
+			GlobalGameManager.rpc_server_request_place_building("HumanBarrack", Vector2i(pos / Vector2(cell_size)), team_id)
 			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(300, 400), team_id)
 			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(0, 400), team_id)
-			GlobalGameManager.rpc_server_request_place_building("HumanBarrack", Vector2i(pos), team_id)
 			
 			# 如果是陆地地图，生成防空
 			GlobalGameManager.rpc_server_request_spawn_unit("Fighter", pos + Vector2(150, 350), team_id)
@@ -251,5 +251,5 @@ func spawn_test_units():
 			#GlobalGameManager.rpc_server_request_spawn_unit("HeavyTank", -32 * Vector2(x, y), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Gunboat", -32 * Vector2(x, y) + Vector2(-7000, 0), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y) + Vector2(0, 1600), 2)
-			GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(0, 1600), 2)
+			#GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(0, 1600), 2)
 			continue
