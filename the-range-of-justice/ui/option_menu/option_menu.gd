@@ -35,7 +35,7 @@ func _on_check_button_toggled(toggled_on: bool):
 	if toggled_on:
 		# 切换到全屏模式
 		# WINDOW_MODE_FULLSCREEN 通常指“无边框全屏窗口”，Alt-Tab 切换更顺滑
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
 		print("信号接收到了！正在尝试切换全屏...")
 
 	else:

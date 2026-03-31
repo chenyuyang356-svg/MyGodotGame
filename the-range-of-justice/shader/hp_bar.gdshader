@@ -32,6 +32,7 @@ void fragment() {
     } else {
         ALBEDO = bg_color;
     }
+	ALPHA *= 0.6;
 }
 
 //void light() {

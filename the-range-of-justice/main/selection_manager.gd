@@ -53,18 +53,19 @@ func _unhandled_input(event: InputEvent):
 			_on_left_drag_motion()
 	
 	elif event is InputEventKey and event.pressed and not event.echo:
-		var keycode = event.keycode
-		match keycode:
-			KEY_1:
-				team_id = 1
-			KEY_2:
-				team_id = 2
-			KEY_3:
-				team_id = 3
-			KEY_4:
-				team_id = 4
-			KEY_5:
-				team_id = 5
+		if multiplayer.is_server():
+			var keycode = event.keycode
+			match keycode:
+				KEY_1:
+					team_id = 1
+				KEY_2:
+					team_id = 2
+				KEY_3:
+					team_id = 3
+				KEY_4:
+					team_id = 4
+				KEY_5:
+					team_id = 5
 	
 
 func _on_selection_changed():

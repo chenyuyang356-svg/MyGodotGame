@@ -33,10 +33,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -150.0
-offset_top = -335.5
-offset_right = 150.0
-offset_bottom = 335.5
+offset_left = -446.0
+offset_top = -381.25
+offset_right = 446.0
+offset_bottom = 381.25
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 50
@@ -46,48 +46,55 @@ theme_override_constants/margin_bottom = 50
 
 [node name="ContentVBox" type="VBoxContainer" parent="MainLayout" unique_id=414355949]
 layout_mode = 2
-size_flags_vertical = 8
 
 [node name="Title" type="Label" parent="MainLayout/ContentVBox" unique_id=959528904]
 layout_mode = 2
+size_flags_vertical = 6
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 96
+text = "The Range of Justice"
+horizontal_alignment = 1
+vertical_alignment = 1
+uppercase = true
 
 [node name="MenuButtons" type="VBoxContainer" parent="MainLayout/ContentVBox" unique_id=41079230]
 custom_minimum_size = Vector2(200, 50)
 layout_mode = 2
-size_flags_vertical = 6
+size_flags_horizontal = 4
+size_flags_vertical = 10
 alignment = 1
 
 [node name="SinglePlayerButtonayButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=967664777]
 custom_minimum_size = Vector2(200, 50)
 layout_mode = 2
 localize_numeral_system = false
-text = "SINGLE PLAYER"
+text = "单人游戏"
 
 [node name="MultiplayerButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=1469595126]
 custom_minimum_size = Vector2(200, 50)
 layout_mode = 2
-text = "MULTIPLAYER"
+text = "多人游戏"
 
 [node name="OptionsButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=53033225]
 custom_minimum_size = Vector2(100, 50)
 layout_mode = 2
-text = "OPTIONS"
+text = "设置"
+
+[node name="HelpButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=1230442850]
+custom_minimum_size = Vector2(100, 50)
+layout_mode = 2
+text = "帮助"
+
+[node name="ModsButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=1441497434]
+custom_minimum_size = Vector2(100, 50)
+layout_mode = 2
+text = "模组"
 
 [node name="ExitButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=781588597]
 custom_minimum_size = Vector2(100, 50)
 layout_mode = 2
 size_flags_vertical = 4
-text = "EXIT"
-
-[node name="HelpButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=1230442850]
-custom_minimum_size = Vector2(100, 50)
-layout_mode = 2
-text = "Help"
-
-[node name="ModsButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=1441497434]
-custom_minimum_size = Vector2(100, 50)
-layout_mode = 2
-text = "Mods"
+text = "退出"
 
 [connection signal="pressed" from="MainLayout/ContentVBox/MenuButtons/SinglePlayerButtonayButton" to="." method="_on_single_player_pressed"]
 [connection signal="pressed" from="MainLayout/ContentVBox/MenuButtons/MultiplayerButton" to="." method="_on_multiplayer_pressed"]

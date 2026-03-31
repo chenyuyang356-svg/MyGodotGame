@@ -3,6 +3,12 @@
 [ext_resource type="Script" uid="uid://dt8fo8njh081d" path="res://ui/network_ui/network_ui.gd" id="1_3q5o4"]
 [ext_resource type="Texture2D" uid="uid://c1eqh0dj8lj01" path="res://icon.svg" id="2_njb74"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_njb74"]
+bg_color = Color(0, 0, 0, 0.39215687)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vm2oc"]
+bg_color = Color(0, 0, 0, 0.39215687)
+
 [node name="NetworkUI" type="Control" unique_id=2050431705]
 layout_mode = 3
 anchors_preset = 15
@@ -36,6 +42,7 @@ offset_right = 55.0
 offset_bottom = 99.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_njb74")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="Panel_Connection" unique_id=1054894841]
 layout_mode = 2
@@ -46,43 +53,62 @@ layout_mode = 2
 
 [node name="Label" type="Label" parent="Panel_Connection/VBoxContainer/HBoxContainer" unique_id=761828632]
 layout_mode = 2
-text = "IP:"
+size_flags_horizontal = 6
+text = "IP地址:"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="LineEdit_IP" type="LineEdit" parent="Panel_Connection/VBoxContainer/HBoxContainer" unique_id=1225207256]
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "127.0.0.1"
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="Panel_Connection/VBoxContainer" unique_id=254247753]
 layout_mode = 2
-size_flags_horizontal = 8
 
 [node name="Label" type="Label" parent="Panel_Connection/VBoxContainer/HBoxContainer2" unique_id=419196873]
 layout_mode = 2
-text = "Port:"
+size_flags_horizontal = 6
+text = "端口:"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="LineEdit_Port" type="LineEdit" parent="Panel_Connection/VBoxContainer/HBoxContainer2" unique_id=246175222]
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
+size_flags_horizontal = 10
 text = "7777"
 
-[node name="Label" type="Label" parent="Panel_Connection/VBoxContainer" unique_id=576446050]
+[node name="HBoxContainer3" type="HBoxContainer" parent="Panel_Connection/VBoxContainer" unique_id=872235753]
 layout_mode = 2
-text = "Name:"
+
+[node name="Label" type="Label" parent="Panel_Connection/VBoxContainer/HBoxContainer3" unique_id=576446050]
+layout_mode = 2
+size_flags_horizontal = 6
+text = "名字:"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HSplitContainer" type="HSplitContainer" parent="Panel_Connection/VBoxContainer/HBoxContainer3" unique_id=1710376902]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 10
 
 [node name="LineEdit_Name" type="LineEdit" parent="Panel_Connection/VBoxContainer" unique_id=565665321]
 layout_mode = 2
 
 [node name="Button_Host" type="Button" parent="Panel_Connection/VBoxContainer" unique_id=1218555685]
 layout_mode = 2
-text = "Host"
+text = "主持房间"
 
 [node name="Button_Join" type="Button" parent="Panel_Connection/VBoxContainer" unique_id=1779476235]
 layout_mode = 2
-text = "Join"
+text = "加入房间"
 
 [node name="Button_Back" type="Button" parent="Panel_Connection/VBoxContainer" unique_id=719287519]
 layout_mode = 2
-text = "Back"
+text = "返回"
 
 [node name="Panel_Lobby" type="PanelContainer" parent="." unique_id=1931718696]
 layout_mode = 1
@@ -97,6 +123,7 @@ offset_right = 20.0
 offset_bottom = 20.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_vm2oc")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="Panel_Lobby" unique_id=124404884]
 layout_mode = 2

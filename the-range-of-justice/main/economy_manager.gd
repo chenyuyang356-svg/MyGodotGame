@@ -4,4 +4,4 @@ extends EconomyManager
 @export var resource_label: Label
 
 func _process(delta: float) -> void:
-	resource_label.text = str(int(get_balance(selection_manager.team_id)))
+	resource_label.text = "经济: " + str(int(get_balance(selection_manager.team_id)))

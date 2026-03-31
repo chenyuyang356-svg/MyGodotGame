@@ -697,6 +697,65 @@ bool FlowFieldManager::is_path_traversable(Vector2 p_start, Vector2 p_end, int p
     return true;
 }
 
+Vector2i FlowFieldManager::find_nearest_walkable_cell(Vector2i p_target, int p_nav_type, int p_max_range)
+{
+    if (p_nav_type < 0 || p_nav_type >= NAV_MAX) return p_target;
+
+    // 1. 检查初始点是否已经可达
+    if (get_cost(p_target, p_nav_type) < 255) {
+        return p_target;
+    }
+
+    // 2. BFS 准备
+    std::queue<Vector2i> q;
+    q.push(p_target);
+
+    // 使用 unordered_set 或 vector 记录已访问的节点，防止重复搜索
+    // 这里简单起见使用 relative 坐标系下的 vector 记录
+    std::vector<bool> visited(size, false);
+
+    Vector2i rel_start = p_target - grid_origin;
+    if (rel_start.x >= 0 && rel_start.x < width && rel_start.y >= 0 && rel_start.y < height) {
+        visited[rel_start.y * width + rel_start.x] = true;
+    }
+
+    // 搜索方向 (4连通或8连通均可，8连通更精确)
+    const int dx[] = { 0, 0, 1, -1, 1, 1, -1, -1 };
+    const int dy[] = { 1, -1, 0, 0, 1, -1, 1, -1 };
+
+    while (!q.empty()) {
+        Vector2i current = q.front();
+        q.pop();
+
+        // 检查曼哈顿距离，防止搜索过大范围
+        if (abs(current.x - p_target.x) > p_max_range || abs(current.y - p_target.y) > p_max_range) {
+            continue;
+        }
+
+        for (int i = 0; i < 8; ++i) {
+            Vector2i neighbor = Vector2i(current.x + dx[i], current.y + dy[i]);
+
+            if (!is_in_grid(neighbor)) continue;
+
+            Vector2i rel_neighbor = neighbor - grid_origin;
+            int idx = rel_neighbor.y * width + rel_neighbor.x;
+
+            if (visited[idx]) continue;
+            visited[idx] = true;
+
+            // 找到第一个不是墙的格子，直接返回
+            if (cost_maps[p_nav_type][idx] < 255) {
+                return neighbor;
+            }
+
+            q.push(neighbor);
+        }
+    }
+
+    // 如果没找到，返回原点
+    return p_target;
+}
+
 // 绑定方法，以便在 GDScript 中调用
 void FlowFieldManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("setup_grid", "width", "height", "grid_origin", "cell_size"), &FlowFieldManager::setup_grid);

@@ -78,7 +78,7 @@ void fragment() {
         final_rgb = vec3(gray);
         
         // 2. 变透明：设置一个固定的透明度（如 0.6）
-        current_alpha = 0.6;
+        current_alpha = 0.4;
     }
 
     ALBEDO = final_rgb * modulate;

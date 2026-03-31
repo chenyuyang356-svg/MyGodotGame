@@ -214,8 +214,8 @@ void UnitManager::handle_dead_unit(double p_delta) {
 void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos) {
     if (!flow_field_manager || p_unit_ids.is_empty()) return;
 
-    Vector2i target_grid_pos = flow_field_manager->world_to_grid(p_target_world_pos);
-    if (!(flow_field_manager->is_in_grid(target_grid_pos))) return;
+    Vector2i original_target_grid = flow_field_manager->world_to_grid(p_target_world_pos);
+    if (!(flow_field_manager->is_in_grid(original_target_grid))) return;
 
     // 创建一个新的临时组 ID
     int temp_gid = group_manager->create_temporary_group(p_target_world_pos);
@@ -241,64 +241,87 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
     // 记录本批指令中已请求过的导航类型，避免重复触发流场计算
     bool requested_types[NAV_MAX] = { false };
 
+    // 我们需要记录每种 Navigation Type 修正后的目标点
+    // 因为地面单位可能需要修正，而飞行单位（NAV_AIR）不需要
+    Vector2 corrected_world_targets[NAV_MAX];
+    Vector2i corrected_grid_targets[NAV_MAX];
+    bool type_initialized[NAV_MAX] = { false };
+
     // 2. 定义处理阵型分配的 Lambda 闭包
     auto process_sub_group = [&](const std::vector<int>& indices) {
         int sub_count = indices.size();
         if (sub_count == 0) return;
 
-        // 自动计算该子组的方阵列数
+        // 获取该组单位的导航类型
+        int nav_type = units[indices[0]].get_nav_type();
+
+        // --- 核心修改：目标点投影 ---
+        if (!type_initialized[nav_type]) {
+            // 寻找该导航类型下最近的可达点
+            Vector2i best_grid = flow_field_manager->find_nearest_walkable_cell(original_target_grid, nav_type);
+            corrected_grid_targets[nav_type] = best_grid;
+
+            // 将网格坐标转回世界坐标（取格子中心）
+            Vector2i cell_sz = flow_field_manager->get_cell_size();
+            corrected_world_targets[nav_type] = Vector2(
+                (float)best_grid.x * cell_sz.x + cell_sz.x * 0.5f,
+                (float)best_grid.y * cell_sz.y + cell_sz.y * 0.5f
+            );
+            type_initialized[nav_type] = true;
+        }
+
+        Vector2i final_grid_pos = corrected_grid_targets[nav_type];
+        Vector2 final_world_pos = corrected_world_targets[nav_type];
+
+        // 阵型计算逻辑
         int cols = (int)Math::ceil(Math::sqrt((float)sub_count));
         int rows = (sub_count + cols - 1) / cols;
 
         for (int i = 0; i < sub_count; i++) {
             UnitData& unit = units[indices[i]];
 
-            // --- A. 计算阵型偏移 (Target Position Offset) ---
+            // 使用修正后的 final_world_pos 计算偏移
             float spacing = unit.stats->get_collision_radius();
             int r = i / cols;
             int c = i % cols;
-
             Vector2 offset;
             offset.x = (c - (cols - 1) * 0.5f) * spacing;
             offset.y = (r - (rows - 1) * 0.5f) * spacing;
 
-            // 如果是地面单位，检查偏移后的目标点是否在墙里
+            // 检查偏移点是否在墙里（如果是地面单位）
             if (unit.height <= AIR_HEIGHT_THRESHOLD) {
-                Vector2 pot_pos = p_target_world_pos + offset;
+                Vector2 pot_pos = final_world_pos + offset;
                 Vector2i pot_grid = flow_field_manager->world_to_grid(pot_pos);
-                if (flow_field_manager->get_cost(pot_grid, unit.get_nav_type()) == 255) {
-                    // 如果偏移点在墙内，简单处理：让该单位直接去点击的中心点
+                if (flow_field_manager->get_cost(pot_grid, nav_type) == 255) {
                     offset = Vector2(0, 0);
                 }
             }
             unit.target_pos_offset = offset;
 
-            // --- B. 导航与流场逻辑 (基于原始 p_target_world_pos) 
-            // 调用探测函数
+            // --- 导航与流场逻辑 ---
+            // 使用修正后的 final_world_pos
+            unit.target_pos = final_world_pos;
+            unit.target_grid = final_grid_pos;
+
             bool is_traversable = flow_field_manager->is_path_traversable(
-                unit.position, unit.target_pos, unit.get_nav_type(), density_limit
+                unit.position, unit.target_pos, nav_type, density_limit
             );
             unit.use_direct_path = is_traversable;
 
-            int type = unit.get_nav_type();
-            if (type >= 0 && type < NAV_MAX && (!is_traversable)) {
-                if (!requested_types[type]) {
-                    // 为该导航类型生成流场（所有同类型单位共享一个点击点流场）
-                    flow_field_manager->create_flow_field(target_grid_pos, type, false);
-                    requested_types[type] = true;
-                }
+            if (!is_traversable && !requested_types[nav_type]) {
+                // 为修正后的坐标创建流场
+                flow_field_manager->create_flow_field(final_grid_pos, nav_type, false);
+                requested_types[nav_type] = true;
             }
 
-            // --- C. 更新组管理逻辑 ---
+            // --- 更新组管理逻辑 ---
             if (unit.temp_group_id != -1) {
                 group_manager->remove_unit_from_temp_group(unit.temp_group_id, unit);
             }
             group_manager->add_unit_to_temp_group(temp_gid, unit.id);
             unit.temp_group_id = temp_gid;
 
-            // --- D. 更新单位状态属性 ---
-            unit.target_grid = target_grid_pos;
-            unit.target_pos = p_target_world_pos; // 共享的流场目标点
+            // --- 更新单位状态属性 ---
             unit.state = MOVING;
             unit.target_id = -1;
             unit.is_patrolling = false;

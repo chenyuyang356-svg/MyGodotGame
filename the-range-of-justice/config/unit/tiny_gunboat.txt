@@ -23,8 +23,8 @@ weapon = MarineBullet, 5.0, 300.0, 0.35, 1200.0, 0.0
 mass             = 0.2
 move_speed       = 180.0
 acceleration     = 150.0
-turn_speed       = 1.5
-turn_acceleration= 1.0
+turn_speed       = 3.0
+turn_acceleration= 5.0
 # [关键] 碰撞半径
 collision_radius = 28.0
 # 枚举可选: Ground, Air, Sea, Hover

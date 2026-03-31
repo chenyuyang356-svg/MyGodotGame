@@ -1,5 +1,10 @@
 extends Node
 
+@export var minimap_border: PanelContainer
+@export var minimap_container: SubViewportContainer
+@export var minimap_viewport: SubViewport
+@export var minimap_camera: Camera3D
+
 func _ready() -> void:
 	var map_idx = GlobalGameManager.selected_map_index
 	var map_res = GlobalGameManager.available_maps[map_idx]
@@ -55,10 +60,6 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	var grid_origin: Vector2i = used_rect.position
 	var debug_draw: Node2D = $DebugCanvas/DebugDraw
 	var main_camera: Camera3D = $Camera3D
-	var minimap_viewport: SubViewport = $MinimapBorder/SubViewportContainer/SubViewport
-	var minimap_container: SubViewportContainer = $MinimapBorder/SubViewportContainer
-	var minimap_border: PanelContainer = $MinimapBorder
-	var minimap_camera: Camera3D = $MinimapBorder/SubViewportContainer/SubViewport/MinimapCamera3D
 	
 	var map_real_width = width * cell_size.x
 	var map_real_height = height * cell_size.y
@@ -186,7 +187,7 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	main_camera.global_position.z = camera_start_pos.y
 	
 	# --- 初始化小地图 ---
-	var max_minimap_ui_size = 512.0
+	var max_minimap_ui_size = 256.0
 	
 	var map_min_vec = Vector2(used_rect.position * cell_size)
 	var map_max_vec = Vector2(used_rect.end * cell_size)
@@ -237,7 +238,7 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 			GlobalGameManager.rpc_server_request_place_building("HumanBarrack", Vector2i(pos / Vector2(cell_size)), team_id, -1, true)
 			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(300, 400), team_id)
 			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(0, 400), team_id)
-			
+			GlobalGameManager.rpc_server_request_spawn_unit("Builder", pos + Vector2(150, 450), team_id)
 			# 如果是陆地地图，生成防空
 			GlobalGameManager.rpc_server_request_spawn_unit("Fighter", pos + Vector2(150, 350), team_id)
 		else:
@@ -249,7 +250,7 @@ func spawn_test_units():
 		for y in range(5):
 			#GlobalGameManager.rpc_server_request_spawn_unit("AttackHelicopter", -32 * Vector2(x, y), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Builder", -32 * Vector2(x, y), 1)
-			#GlobalGameManager.rpc_server_request_spawn_unit("Gunboat", -32 * Vector2(x, y) + Vector2(-7000, 0), 1)
+			#GlobalGameManager.rpc_server_request_spawn_unit("TinyGunboat", -32 * Vector2(x, y) + Vector2(-7000, 0), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y) + Vector2(0, 1600), 2)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(0, 1600), 2)
 			continue

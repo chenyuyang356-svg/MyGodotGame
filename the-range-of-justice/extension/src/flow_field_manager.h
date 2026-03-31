@@ -163,6 +163,10 @@ namespace godot {
         bool is_path_clear(Vector2 p_start_world, Vector2 p_end_world, int p_nav_type);
         bool is_path_traversable(Vector2 p_start, Vector2 p_end, int p_nav_type, float p_max_density_threshold);
 
+        // 寻找距离目标点最近的、代价不为 255 的格子
+        // p_max_range 为搜索半径（单位：格子），防止在全封闭地图中搜索过久
+        Vector2i find_nearest_walkable_cell(Vector2i p_target, int p_nav_type, int p_max_range = 250);
+
 
         void set_density_weight(float p_val) { density_weight = p_val; }
         float get_density_weight() const { return density_weight; }

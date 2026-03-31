@@ -9,6 +9,10 @@
 [ext_resource type="Script" uid="uid://rcx1w1scq2ev" path="res://main/debug_draw.gd" id="6_kfbq2"]
 [ext_resource type="Script" uid="uid://bb0bcvmid0u6y" path="res://main/minimap_input.gd" id="8_67ri8"]
 [ext_resource type="PackedScene" uid="uid://bvv64f2ms7u2t" path="res://ui/game_over_ui/game_over_ui.tscn" id="9_grrlh"]
+[ext_resource type="PackedScene" uid="uid://b2vnbu81yx75" path="res://ui/pause_menu/pause_menu.tscn" id="10_0i4oc"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_grrlh"]
+bg_color = Color(0, 0, 0, 0.39215687)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4dugh"]
 bg_color = Color(0, 0, 0, 0.39215687)
@@ -17,8 +21,12 @@ border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
 
-[node name="main" type="Node" unique_id=224165495]
+[node name="main" type="Node" unique_id=224165495 node_paths=PackedStringArray("minimap_border", "minimap_container", "minimap_viewport", "minimap_camera")]
 script = ExtResource("1_3wy1v")
+minimap_border = NodePath("GameHUB/RightSidePanel/RightSidebar/MinimapBorder")
+minimap_container = NodePath("GameHUB/RightSidePanel/RightSidebar/MinimapBorder/SubViewportContainer")
+minimap_viewport = NodePath("GameHUB/RightSidePanel/RightSidebar/MinimapBorder/SubViewportContainer/SubViewport")
+minimap_camera = NodePath("GameHUB/RightSidePanel/RightSidebar/MinimapBorder/SubViewportContainer/SubViewport/MinimapCamera3D")
 
 [node name="GroupManager" type="GroupManager" parent="." unique_id=2096338072]
 
@@ -68,29 +76,14 @@ script = ExtResource("4_3wy1v")
 unit_manager = NodePath("../UnitManager")
 building_manager = NodePath("../BuildingManager")
 camera_3d = NodePath("../Camera3D")
-production_panel = NodePath("CanvasLayer/ProductionPanel")
-
-[node name="CanvasLayer" type="CanvasLayer" parent="SelectionManager" unique_id=1806641996]
-
-[node name="ProductionPanel" type="VBoxContainer" parent="SelectionManager/CanvasLayer" unique_id=46532710]
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-grow_horizontal = 0
-size_flags_horizontal = 4
+production_panel = NodePath("../GameHUB/RightSidePanel/RightSidebar/ProductionPanel")
 
 [node name="BuildingManager" type="BuildingManager" parent="." unique_id=2078401615 node_paths=PackedStringArray("camera", "flow_field_manager", "selection_manager", "build_menu_container")]
 script = ExtResource("3_kfbq2")
 camera = NodePath("../Camera3D")
 flow_field_manager = NodePath("../FlowFieldManager")
 selection_manager = NodePath("../SelectionManager")
-build_menu_container = NodePath("CanvasLayer/BuildingMenu")
-
-[node name="CanvasLayer" type="CanvasLayer" parent="BuildingManager" unique_id=817356954]
-
-[node name="BuildingMenu" type="VBoxContainer" parent="BuildingManager/CanvasLayer" unique_id=1512739518]
-offset_right = 40.0
-offset_bottom = 40.0
+build_menu_container = NodePath("../GameHUB/RightSidePanel/RightSidebar/BuildingMenu")
 
 [node name="DebugCanvas" type="CanvasLayer" parent="." unique_id=800377856]
 
@@ -108,33 +101,57 @@ script = ExtResource("5_3wy1v")
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0)
 current = true
 
-[node name="MinimapBorder" type="PanelContainer" parent="." unique_id=941737]
-anchors_preset = 1
+[node name="GameHUB" type="CanvasLayer" parent="." unique_id=2034646896]
+
+[node name="RightSidePanel" type="PanelContainer" parent="GameHUB" unique_id=601299288]
+anchors_preset = 11
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -40.0
-offset_bottom = 40.0
+anchor_bottom = 1.0
+offset_left = -324.0
 grow_horizontal = 0
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_grrlh")
+
+[node name="RightSidebar" type="VBoxContainer" parent="GameHUB/RightSidePanel" unique_id=1654943511]
+layout_mode = 2
+
+[node name="MinimapBorder" type="PanelContainer" parent="GameHUB/RightSidePanel/RightSidebar" unique_id=941737]
+layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_4dugh")
 
-[node name="SubViewportContainer" type="SubViewportContainer" parent="MinimapBorder" unique_id=450585872 node_paths=PackedStringArray("main_camera")]
+[node name="SubViewportContainer" type="SubViewportContainer" parent="GameHUB/RightSidePanel/RightSidebar/MinimapBorder" unique_id=450585872 node_paths=PackedStringArray("main_camera")]
 layout_mode = 2
-size_flags_horizontal = 0
+size_flags_horizontal = 8
+size_flags_vertical = 0
 mouse_filter = 0
 script = ExtResource("8_67ri8")
-main_camera = NodePath("../../Camera3D")
+main_camera = NodePath("../../../../../Camera3D")
 
-[node name="SubViewport" type="SubViewport" parent="MinimapBorder/SubViewportContainer" unique_id=1701825384]
+[node name="SubViewport" type="SubViewport" parent="GameHUB/RightSidePanel/RightSidebar/MinimapBorder/SubViewportContainer" unique_id=1701825384]
 handle_input_locally = false
+texture_mipmap_bias = -1.0
+anisotropic_filtering_level = 0
+fsr_sharpness = 0.0
+size = Vector2i(320, 320)
 render_target_update_mode = 4
 
-[node name="MinimapCamera3D" type="Camera3D" parent="MinimapBorder/SubViewportContainer/SubViewport" unique_id=523048990]
+[node name="MinimapCamera3D" type="Camera3D" parent="GameHUB/RightSidePanel/RightSidebar/MinimapBorder/SubViewportContainer/SubViewport" unique_id=523048990]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 2000, 0)
 cull_mask = 1048574
 projection = 1
 
-[node name="UILayer" type="CanvasLayer" parent="." unique_id=2034646896]
+[node name="BuildingMenu" type="VBoxContainer" parent="GameHUB/RightSidePanel/RightSidebar" unique_id=1512739518]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
 
-[node name="GameOverUI" parent="UILayer" unique_id=175026487 node_paths=PackedStringArray("selection_manager") instance=ExtResource("9_grrlh")]
+[node name="ProductionPanel" type="VBoxContainer" parent="GameHUB/RightSidePanel/RightSidebar" unique_id=46532710]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+
+[node name="GameOverUI" parent="GameHUB" unique_id=175026487 node_paths=PackedStringArray("selection_manager") instance=ExtResource("9_grrlh")]
 visible = false
 selection_manager = NodePath("../../SelectionManager")
+
+[node name="PauseMenu" parent="GameHUB" unique_id=1426329972 instance=ExtResource("10_0i4oc")]
+visible = false

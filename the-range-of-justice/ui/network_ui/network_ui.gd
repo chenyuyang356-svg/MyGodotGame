@@ -103,7 +103,7 @@ func _on_game_left():
 	panel_connection.show()
 	
 	btn_join.disabled = false
-	btn_join.text = "Join"
+	btn_join.text = "加入房间"
 	
 	# 清理玩家列表缓存
 	for child in players_container.get_children():

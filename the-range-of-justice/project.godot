@@ -15,6 +15,10 @@ run/main_scene="uid://mtrpe2gqo68j"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
+[audio]
+
+buses/default_bus_layout="uid://dga60tnuwdm0"
+
 [autoload]
 
 GlobalGameManager="*uid://cwdgep2fl8ooa"
@@ -25,6 +29,8 @@ GlobalAudioManager="*uid://dug07hpdafcp6"
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/subwindows/embed_subwindows=false
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [input]
 
@@ -57,3 +63,4 @@ camera_right={
 
 textures/canvas_textures/default_texture_filter=0
 rendering_device/driver.windows="d3d12"
+anti_aliasing/quality/screen_space_aa=1
