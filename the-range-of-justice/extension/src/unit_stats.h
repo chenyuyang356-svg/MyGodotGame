@@ -58,6 +58,7 @@ namespace godot {
         int cost = 100;
         float build_time = 5.0f;
         BitField<UnitTag> unit_tags = TAG_NONE; // 使用 BitField 包装
+        PackedStringArray producible_buildings;
 
         // 纹理与图集基础信息
         String texture_path;
@@ -149,6 +150,9 @@ namespace godot {
 
         void set_unit_tags(BitField<UnitTag> p_value) { unit_tags = p_value; }
         BitField<UnitTag> get_unit_tags() const { return unit_tags; }
+
+        void set_producible_buildings(const PackedStringArray& p_buildings) { producible_buildings = p_buildings; }
+        PackedStringArray get_producible_buildings() const { return producible_buildings; }
 
         // 纹理路径
         void set_texture_path(const String p_path) { texture_path = p_path; }

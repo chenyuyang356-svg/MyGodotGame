@@ -153,30 +153,13 @@ void BuildingManager::physics_update(double p_delta) {
 
         // 逻辑 A：处理建筑自身的建造过程
         if (b.state == BuildingState::BUILDING) {
-            // 累加建造时间
-            b.build_timer += (float)p_delta;
-
-            float required_time = b.stats->get_build_time();
-            float max_health = b.stats->get_health_max();
-
-            // --- 新增：按建造比例逐渐增加血量 ---
-            if (required_time > 0.0f) {
-                b.current_health = UtilityFunctions::clamp(
-                    max_health * (b.build_timer / required_time),
-                    1.0f, max_health
-                );
-            }
-            else {
-                b.current_health = max_health;
-            }
-
-            // 检查是否建造完成
-            if (b.build_timer >= required_time) {
+            // 如果血量满了，自动转为 IDLE
+            if (b.current_health >= b.stats->get_health_max()) {
+                b.current_health = b.stats->get_health_max();
                 b.state = BuildingState::IDLE;
                 b.build_timer = 0.0f;
-                b.current_health = max_health;
             }
-
+            // 移除原本基于时间的自动回血逻辑，改为由建造者提供
             continue;
         }
 
@@ -309,8 +292,8 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
             s_mm->set_instance_transform(i, s_xform);
 
             // --- C. 动画同步 ---
-            int frames = (b.state == BuildingState::WORKING) ? s_ptr->get_working_frames() : s_ptr->get_idle_frames();
-            int row = (b.state == BuildingState::WORKING) ? s_ptr->get_working_row() : s_ptr->get_idle_row();
+            int frames = (b.stats)->get_frames(b.state);
+            int row = (int)(b.state);
             float duration = (float)frames / s_ptr->get_anim_fps();
             int frame_idx = (int)(Math::fmod(b.anim_time, duration) * s_ptr->get_anim_fps());
 
@@ -890,7 +873,7 @@ std::vector<int> BuildingManager::get_buildings_in_box(Rect2 p_box, int p_team_i
     return result;
 }
 
-int BuildingManager::place_building_by_type(String p_type_name, Vector2i p_grid_pos, int p_team_id, int p_forced_id) {
+int BuildingManager::place_building_by_type(String p_type_name, Vector2i p_grid_pos, int p_team_id, int p_forced_id, bool is_pre_placed) {
     if (!building_types_cache.has(p_type_name)) return -1;
 
     Ref<BuildingStats> stats = building_types_cache[p_type_name];
@@ -908,8 +891,15 @@ int BuildingManager::place_building_by_type(String p_type_name, Vector2i p_grid_
     b.grid_pos = p_grid_pos;
     b.stats = stats;
     b.team_id = p_team_id;
-    b.state = BuildingState::BUILDING;
-    b.current_health = 1.0f;
+
+    if (is_pre_placed) {
+        b.state = BuildingState::IDLE;
+        b.current_health = b.stats->get_health_max();
+    }
+    else {
+        b.state = BuildingState::BUILDING;
+        b.current_health = 1.0f;
+    }
 
     for (const auto& mount : stats->weapon_mounts) {
         WeaponData wd;
@@ -1050,7 +1040,8 @@ void BuildingManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("register_building_type", "name", "path"), &BuildingManager::register_building_type);
     ClassDB::bind_method(D_METHOD("register_buildings_from_dir", "path"), &BuildingManager::register_buildings_from_dir);
 
-    ClassDB::bind_method(D_METHOD("place_building_by_type", "type_name", "grid_pos", "team_id"), &BuildingManager::place_building_by_type);
+    ClassDB::bind_method(D_METHOD("place_building_by_type", "type_name", "grid_pos", "team_id", "forced_id", "is_pre_placed"),
+        &BuildingManager::place_building_by_type, DEFVAL(-1), DEFVAL(false));
     ClassDB::bind_method(D_METHOD("is_area_clear", "grid_pos", "building_stats"), &BuildingManager::is_area_clear);
 
     ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &BuildingManager::set_flow_field_manager);
@@ -1066,7 +1057,7 @@ void BuildingManager::_bind_methods() {
 
     // 参数：类型名称, 网格坐标, 队伍ID
     ADD_SIGNAL(MethodInfo("placement_requested", PropertyInfo(Variant::STRING, "type_name"), PropertyInfo(Variant::VECTOR2I, "grid_pos"), 
-        PropertyInfo(Variant::INT, "team_id")));
+        PropertyInfo(Variant::INT, "team_id"), PropertyInfo(Variant::INT, "forced_id"), PropertyInfo(Variant::BOOL, "is_pre_placed")));
     ADD_SIGNAL(MethodInfo("spawn_unit_requested", PropertyInfo(Variant::STRING, "type_name"), PropertyInfo(Variant::VECTOR2, "spawn_pos"),
         PropertyInfo(Variant::INT, "team_id")));
 

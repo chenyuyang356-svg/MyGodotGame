@@ -21,8 +21,6 @@ func _ready():
 	# 动态创建画布层，防止手动在编辑器里摆放麻烦
 	_setup_overlay()
 	
-	call_deferred("_create_build_buttons")
-	
 	if build_menu_container:
 		build_menu_container.hide()
 
@@ -56,11 +54,6 @@ func _update_logic():
 
 # --- UI 与 输入处理 (保持原样) ---
 func _unhandled_input(event: InputEvent):
-	if event is InputEventKey and event.pressed and event.keycode == KEY_B:
-		if build_menu_container:
-			build_menu_container.visible = !build_menu_container.visible
-			if not build_menu_container.visible: _exit_building_mode()
-
 	if is_building_mode:
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
 			if not event.pressed: 
@@ -78,7 +71,8 @@ func _on_build_button_pressed(type_name: String):
 
 func _try_place():
 	if can_place and current_stats != null:
-		emit_signal("placement_requested", current_type_name, ghost_grid_pos, selection_manager.team_id)
+		emit_signal("placement_requested", current_type_name, ghost_grid_pos, selection_manager.team_id, -1, false)
+		_exit_building_mode()
 
 func _exit_building_mode():
 	is_building_mode = false
@@ -135,3 +129,28 @@ func _create_build_buttons():
 		btn.custom_minimum_size = Vector2(100, 40)
 		btn.pressed.connect(_on_build_button_pressed.bind(type_name))
 		build_menu_container.add_child(btn)
+
+
+func show_builder_menu(building_names: Array):
+	if !build_menu_container: return
+	
+	# 清空并重新生成按钮
+	for child in build_menu_container.get_children():
+		child.queue_free()
+	
+	for type_name in building_names:
+		var stats = get_building_stats_by_type(type_name)
+		if !stats: continue
+		
+		var btn = Button.new()
+		btn.text = "Build " + stats.building_name
+		btn.custom_minimum_size = Vector2(120, 40)
+		btn.pressed.connect(_on_build_button_pressed.bind(type_name))
+		build_menu_container.add_child(btn)
+	
+	build_menu_container.show()
+
+func hide_builder_menu():
+	if build_menu_container:
+		build_menu_container.hide()
+		_exit_building_mode()

@@ -21,8 +21,9 @@ namespace godot {
         String projectile_name = "new_projectile";
         float speed = 20.0f;
         float damage = 10.0f;
-        String visual_path = "";
+        bool is_healing = false;
 
+        String visual_path = "";
         int h_frames = 1;
         int v_frames = 1;
         float anim_fps = 10.0f;
@@ -62,6 +63,10 @@ namespace godot {
             ClassDB::bind_method(D_METHOD("get_damage"), &ProjectileStats::get_damage);
             ClassDB::bind_method(D_METHOD("set_damage", "damage"), &ProjectileStats::set_damage);
             ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "damage"), "set_damage", "get_damage");
+
+            ClassDB::bind_method(D_METHOD("get_is_healing"), &ProjectileStats::get_is_healing);
+            ClassDB::bind_method(D_METHOD("set_is_healing", "is_healing"), &ProjectileStats::set_is_healing);
+            ADD_PROPERTY(PropertyInfo(Variant::BOOL, "is_healing"), "set_is_healing", "get_is_healing");
 
             // 4. 特效所在路径
             ClassDB::bind_method(D_METHOD("get_visual_path"), &ProjectileStats::get_visual_path);
@@ -118,6 +123,9 @@ namespace godot {
 
         float get_damage() const { return damage; }
         void set_damage(float p_damage) { damage = p_damage; }
+
+        void set_is_healing(bool p_val) { is_healing = p_val; }
+        bool get_is_healing() const { return is_healing; }
 
         String get_visual_path() const { return visual_path; }
         void set_visual_path(const String& p_visual_path) { visual_path = p_visual_path; }

@@ -8,6 +8,7 @@
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/classes/dir_access.hpp>
 #include "game_manager.h"
+#include "building_manager.h"
 
 using namespace godot;
 
@@ -342,31 +343,40 @@ void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints) {
     }
 }
 
-void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_id, bool p_target_is_building) {
-    if (p_unit_ids.is_empty()) return;
-    if (p_target_id == -1) return;
-    
-    for (int i = 0; i < p_unit_ids.size(); i++) {
-        int uid = p_unit_ids[i];
-        auto it = id_to_index.find(uid);
-        if (it != id_to_index.end()) {
-            UnitData& unit = units[it->second];
+void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_id, bool p_target_is_building, BuildingManager* p_building_manager) {
+    // 1. 获取目标所属队伍
+    int target_team = -1;
+    if (p_target_is_building) {
+        target_team = p_building_manager->get_building_team_id(p_target_id);
+    }
+    else {
+        int t_idx = get_unit_index_by_id(p_target_id);
+        if (t_idx != -1) target_team = units[t_idx].team_id;
+    }
 
-            if (unit.temp_group_id != -1) {
-                group_manager->remove_unit_from_temp_group(unit.temp_group_id, unit);
-            }
+    for (int i = 0; i < p_unit_ids.size(); ++i) {
+        int idx = get_unit_index_by_id(p_unit_ids[i]);
+        if (idx == -1) continue;
 
-            // 1.       е  ƶ   Ѳ  ״̬
-            unit.is_patrolling = false;
+        UnitData& u = units[idx];
+        bool is_builder = (u.stats->get_unit_tags() & TAG_BUILDER);
+        bool target_is_ally = (target_team == u.team_id);
 
-            // 2.     Ŀ  
-            unit.target_id = p_target_id;
-            unit.target_is_building = p_target_is_building;
-            unit.is_manual_target = true;
+        // A. 指令目标是【敌方】：建造者直接跳过，不执行任何操作
+        if (!target_is_ally && is_builder) continue;
 
-            // 3. ֱ      ׷  ״̬  
-            unit.state = CHASING;
-        }
+        // B. 指令目标是【己方】：非建造者单位跳过（只有建造者能“攻击”己方执行修复/建造）
+        if (target_is_ally && !is_builder) continue;
+
+        // 执行追击/建造指令
+        u.target_id = p_target_id;
+        u.target_is_building = p_target_is_building;
+        u.is_manual_target = true;
+        u.state = CHASING;
+
+        // 停止之前的移动
+        u.use_direct_path = false;
+        u.target_pos_offset = Vector2(0, 0);
     }
 }
 
@@ -794,19 +804,47 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     // --- B. 速度限制计算 (Arrival & Grouping) ---
     if (p_unit.state != IDLE) {
         // 1. 到达减速 (Arrival)
-        Vector2 target_with_offset = p_unit.target_pos + p_unit.target_pos_offset;
-        float distance_squared = p_unit.position.distance_squared_to(target_with_offset);
+        if (p_unit.state == MOVING) {
+            Vector2 target_with_offset = p_unit.target_pos + p_unit.target_pos_offset;
+            float distance_squared = p_unit.position.distance_squared_to(target_with_offset);
 
-        // 定义开始减速的半径（通常是碰撞半径的 3~5 倍）
-        float arrival_radius = p_unit.stats->get_collision_radius() * 4.0f;
-        float arrival_radius_squared = arrival_radius * arrival_radius;
+            // 定义开始减速的半径（通常是碰撞半径的 3~5 倍）
+            float arrival_radius = p_unit.stats->get_collision_radius() * 4.0f;
+            float arrival_radius_squared = arrival_radius * arrival_radius;
 
-        if (distance_squared < arrival_radius_squared) {
-            // 计算减速因子 (0.0 到 1.0)
-            // 为了防止单位完全停不下来，给一个最小速度百分比 (比如 0.2)
-            float arrival_modifier = Math::max(0.2f, distance_squared / arrival_radius_squared);
-            final_max_speed *= arrival_modifier;
+            if (distance_squared < arrival_radius_squared) {
+                // 计算减速因子 (0.0 到 1.0)
+                // 为了防止单位完全停不下来，给一个最小速度百分比 (比如 0.2)
+                float arrival_modifier = Math::max(0.2f, distance_squared / arrival_radius_squared);
+                final_max_speed *= arrival_modifier;
+            }
         }
+        else if (p_unit.state == CHASING) {
+            // --- 新增：追击时的减速逻辑 ---
+            Vector2 target_pos = p_unit.target_pos; // 此时 target_pos 是敌方单位位置
+            float dist = p_unit.position.distance_to(target_pos);
+
+            // 获取单位射程（此处建议在 UnitData 里缓存这个值，避免每帧遍历）
+            float atk_range = get_unit_attack_range(p_unit.id);
+
+            // 如果没有武器，则使用碰撞半径（肉搏单位）
+            if (atk_range <= 0.0f) atk_range = 10.0f;
+
+            // 停止半径：武器射程 + 双方碰撞体积
+            // 注意：这里我们不获取目标的半径，仅用单位自身的射程做预判
+            float stop_dist = atk_range + p_unit.stats->get_collision_radius();
+
+            // 当距离接近停止距离时（例如在 1.5 倍停止距离时开始减速）
+            float slow_down_start = stop_dist * 1.5f;
+
+            if (dist < slow_down_start) {
+                // 距离越接近停止点，速度越慢。
+                // 当 dist <= stop_dist 时，理想速度应该接近 0
+                float factor = (dist - stop_dist) / (slow_down_start - stop_dist);
+                final_max_speed *= Math::clamp(factor, 0.1f, 1.0f);
+            }
+        }
+
 
         // 2. 软约束 (Rubber-banding)
         if (p_unit.temp_group_id != -1 && p_unit.state == MOVING && p_unit.stats->get_move_type() != MOVE_AIR) {
@@ -841,7 +879,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     Vector2 steering_vec = flow_vec + sep_force;
 
     // 如果没有任何引导力且处于 IDLE，则不产生动力
-    if (p_unit.state == IDLE && steering_vec.length_squared() < 1.0f) {
+    if ((p_unit.state == IDLE || p_unit.state == ATTACKING) && steering_vec.length_squared() < 1.0f) {
         steering_vec = Vector2(0, 0);
     }
 
@@ -849,7 +887,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
 
     // --- 计算动力 (Propulsion) ---
     Vector2 propulsion_force = Vector2(0, 0);
-    if (p_unit.state != IDLE && (desired_dir.length_squared()) > 0) {
+    if ((p_unit.state != IDLE && p_unit.state != ATTACKING) && (desired_dir.length_squared()) > 0) {
         // 单位当前的物理朝向
         Vector2 forward_vec = Vector2(Math::cos(p_unit.rotation), Math::sin(p_unit.rotation));
 
@@ -886,7 +924,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     // 阻尼/摩擦力 (Friction)
     // 这里的摩擦力与速度成正比，防止单位无限滑行
     // 质量越大，摩擦力（阻力）也越大，这样重型单位停下来也需要更久
-    float current_friction = (p_unit.state == IDLE) ? friction_factor * 3.0f : friction_factor;
+    float current_friction = (p_unit.state == IDLE || p_unit.state == ATTACKING) ? friction_factor * 3.0f : friction_factor;
     acceleration_vec -= p_unit.velocity * current_friction;
 
     // --- E. 更新速度 ---
@@ -923,7 +961,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     p_unit.rotation += p_unit.angular_velocity * p_delta;
 
     // 停止微小移动
-    if (p_unit.state == IDLE && (p_unit.velocity).length_squared() < 1.0f) {
+    if ((p_unit.state == IDLE || p_unit.state == ATTACKING) && (p_unit.velocity).length_squared() < 1.0f) {
         p_unit.velocity = Vector2(0, 0);
     }
 }
@@ -1539,9 +1577,10 @@ void UnitManager::_bind_methods() {
     );
     ClassDB::bind_method(D_METHOD("command_units_to_move", "unit_ids", "target_world_pos"), &UnitManager::command_units_to_move);
     ClassDB::bind_method(D_METHOD("command_units_to_patrol", "unit_ids", "waypoints"), &UnitManager::command_units_to_patrol);
-    ClassDB::bind_method(D_METHOD("command_units_to_attack_target", "unit_ids", "target_id"), &UnitManager::command_units_to_attack_target);
+    ClassDB::bind_method(D_METHOD("command_units_to_attack_target", "unit_ids", "target_id", "target_is_building", "building_manager"), &UnitManager::command_units_to_attack_target);
     ClassDB::bind_method(D_METHOD("get_unit_position", "unit_id"), &UnitManager::get_unit_position);
     ClassDB::bind_method(D_METHOD("get_unit_state", "unit_id"), &UnitManager::get_unit_state);
+    ClassDB::bind_method(D_METHOD("get_unit_stats", "unit_id"), &UnitManager::get_unit_stats);
     ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &UnitManager::set_flow_field_manager);
     ClassDB::bind_method(D_METHOD("set_group_manager", "node"), &UnitManager::set_group_manager);
     ClassDB::bind_method(D_METHOD("set_attack_manager", "node"), &UnitManager::set_attack_manager);

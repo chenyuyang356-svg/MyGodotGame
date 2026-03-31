@@ -29,7 +29,7 @@ void fragment() {
 	vec2 fog_uv = vec2((world_pos.x - map_pos.x) / map_size.x,
 	 (world_pos.z - map_pos.y) / map_size.y);
 	float visibility = texture(tex_fog_live, fog_uv).r;
-	ALPHA *= smoothstep(0.0, 0.2, visibility);
+	float fog_alpha = smoothstep(0.0, 0.2, visibility);
 	
     float frame = floor(custom_data.x);
     float row = floor(custom_data.y); 
@@ -66,5 +66,21 @@ void fragment() {
         final_rgb = tex.rgb; 
     }
 
+	// --- 建造状态特殊效果 ---
+    // 判断是否在第一行 (row == 0.0)
+    // 使用 epsilon 避免浮点误差
+    bool is_constructing = row < 0.5;
+    float current_alpha = 1.0;
+
+    if (is_constructing) {
+        // 1. 变灰：计算亮度并应用
+        float gray = dot(final_rgb, vec3(0.299, 0.587, 0.114));
+        final_rgb = vec3(gray);
+        
+        // 2. 变透明：设置一个固定的透明度（如 0.6）
+        current_alpha = 0.6;
+    }
+
     ALBEDO = final_rgb * modulate;
+	ALPHA = fog_alpha * current_alpha;
 }

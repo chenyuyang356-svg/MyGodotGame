@@ -541,7 +541,7 @@ void GameManager::rpc_server_receive_move(PackedInt32Array p_ids, Vector2 p_pos)
 void GameManager::rpc_server_receive_attack_unit(PackedInt32Array p_ids, int p_target_id, bool p_target_is_building) {
 	if (!get_multiplayer()->is_server()) return;
 	if (unit_manager) {
-		unit_manager->command_units_to_attack_target(p_ids, p_target_id, p_target_is_building);
+		unit_manager->command_units_to_attack_target(p_ids, p_target_id, p_target_is_building, building_manager);
 	}
 }
 
@@ -750,28 +750,43 @@ void GameManager::rpc_client_spawn_unit(int p_id, String p_type, Vector2 p_pos, 
 }
 
 // 2. 建筑生成与销毁
-void GameManager::rpc_server_request_place_building(String p_type, Vector2i p_grid_pos, int p_team) {
+void GameManager::rpc_server_request_place_building(
+	String p_type, Vector2i p_grid_pos, int p_team, int p_force_id, bool p_is_pre_placed, PackedInt32Array p_builder_ids) {
 	if (!is_server_authority()) return;
 
 	Ref<BuildingStats> stats = building_manager->get_building_stats_by_type(p_type);
 	if (stats.is_null()) return;
 
-	// 1. 先检查钱够不够并扣费
-	if (economy_manager->try_spend(p_team, stats->get_cost())) {
-		int new_id = building_manager->place_building_by_type(p_type, p_grid_pos, p_team);
-		if (new_id != -1) {
-			rpc("rpc_client_spawn_building", new_id, p_type, p_grid_pos, p_team);
-			sync_resources_to_client(p_team); // 同步新余预1�7
-		}
+	int new_id = -1;
+
+	// 1. 处理预放置建筑或正常扣费逻辑
+	if (p_is_pre_placed) {
+		new_id = building_manager->place_building_by_type(p_type, p_grid_pos, p_team, -1, true);
 	}
 	else {
+		if (economy_manager->try_spend(p_team, stats->get_cost())) {
+			new_id = building_manager->place_building_by_type(p_type, p_grid_pos, p_team, -1, false);
+			sync_resources_to_client(p_team);
+		}
 	}
 
+	// 2. 如果建筑生成成功，且有传入的建造者 ID
+	if (new_id != -1) {
+		// 同步给所有客户端显示建筑
+		rpc("rpc_client_spawn_building", new_id, p_type, p_grid_pos, p_team, p_is_pre_placed);
+
+		// --- 新增功能：指挥单位建造 ---
+		if (p_builder_ids.size() > 0 && unit_manager) {
+			// 指挥这些单位去“攻击”这个新建筑（即执行建造逻辑）
+			// 参数说明: 单位 ID 数组, 目标 ID, 目标是否为建筑 (true), 建筑管理器
+			unit_manager->command_units_to_attack_target(p_builder_ids, new_id, true, building_manager);
+		}
+	}
 }
 
-void GameManager::rpc_client_spawn_building(int p_id, String p_type, Vector2i p_grid_pos, int p_team) {
+void GameManager::rpc_client_spawn_building(int p_id, String p_type, Vector2i p_grid_pos, int p_team, bool p_is_pre_placed) {
 	if (is_server_authority()) return;
-	building_manager->place_building_by_type(p_type, p_grid_pos, p_team, p_id);
+	building_manager->place_building_by_type(p_type, p_grid_pos, p_team, p_id, p_is_pre_placed);
 }
 
 void GameManager::rpc_client_despawn_unit(int p_id) {
@@ -870,7 +885,7 @@ void GameManager::_on_move_requested(PackedInt32Array p_ids, Vector2 p_pos) {
 
 void GameManager::_on_attack_unit_requested(PackedInt32Array p_ids, int p_target_id) {
 	if (get_multiplayer()->is_server()) {
-		if (unit_manager) unit_manager->command_units_to_attack_target(p_ids, p_target_id, false);
+		if (unit_manager) unit_manager->command_units_to_attack_target(p_ids, p_target_id, false, building_manager);
 	}
 	else {
 		rpc_id(1, "rpc_server_receive_attack_unit", p_ids, p_target_id, false);
@@ -879,20 +894,26 @@ void GameManager::_on_attack_unit_requested(PackedInt32Array p_ids, int p_target
 
 void GameManager::_on_attack_building_requested(PackedInt32Array p_ids, int p_target_id) {
 	if (get_multiplayer()->is_server()) {
-		if (unit_manager) unit_manager->command_units_to_attack_target(p_ids, p_target_id, true);
+		if (unit_manager) unit_manager->command_units_to_attack_target(p_ids, p_target_id, true, building_manager);
 	}
 	else {
 		rpc_id(1, "rpc_server_receive_attack_unit", p_ids, p_target_id, true);
 	}
 }
 
-void GameManager::_on_placement_requested(String p_type_name, Vector2i p_grid_pos, int p_team_id) {
+void GameManager::_on_placement_requested(String p_type_name, Vector2i p_grid_pos, int p_team_id, int p_forced_id, bool p_is_pre_placed) {
+	// 获取当前选中的单位 ID 列表
+	PackedInt32Array builder_ids;
+	if (selection_manager) {
+		builder_ids = selection_manager->get_selected_unit_ids(); // 假设你的 SelectionManager 有这个方法
+	}
+	
 	if (get_multiplayer()->is_server()) {
 		// 如果是服务器（比如单机测试或主机），直接进入处理逻辑
-		rpc_server_request_place_building(p_type_name, p_grid_pos, p_team_id);
+		rpc_server_request_place_building(p_type_name, p_grid_pos, p_team_id, p_forced_id, p_is_pre_placed, builder_ids);
 	}
 	else {
-		rpc_id(1, "rpc_server_request_place_building", p_type_name, p_grid_pos, p_team_id);
+		rpc_id(1, "rpc_server_request_place_building", p_type_name, p_grid_pos, p_team_id, p_forced_id, p_is_pre_placed, builder_ids);
 	}
 }
 
@@ -1081,9 +1102,12 @@ void GameManager::_bind_methods() {
 		&GameManager::rpc_client_despawn_unit);
 
 
-	ClassDB::bind_method(D_METHOD("rpc_server_request_place_building", "type", "grid_pos", "team"),
-		&GameManager::rpc_server_request_place_building);
-	ClassDB::bind_method(D_METHOD("rpc_client_spawn_building", "id", "type", "grid_pos", "team"),
+	ClassDB::bind_method(
+		D_METHOD("rpc_server_request_place_building", "type", "grid_pos", "team", "forced_id", "is_pre_placed", "builder_ids"),
+		&GameManager::rpc_server_request_place_building,
+		DEFVAL(PackedInt32Array()) // 设置默认值
+	);
+	ClassDB::bind_method(D_METHOD("rpc_client_spawn_building", "id", "type", "grid_pos", "team", "is_pre_placed"),
 		&GameManager::rpc_client_spawn_building);
 	ClassDB::bind_method(D_METHOD("rpc_client_remove_building", "id"),
 		&GameManager::rpc_client_remove_building);
@@ -1102,7 +1126,7 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_attack_unit_requested", "ids", "target_id"), &GameManager::_on_attack_unit_requested);
 	ClassDB::bind_method(D_METHOD("_on_attack_building_requested", "ids", "target_id"), &GameManager::_on_attack_building_requested);
 	ClassDB::bind_method(D_METHOD("_on_unit_production_requested", "id", "type"), &GameManager::_on_unit_production_requested);
-	ClassDB::bind_method(D_METHOD("_on_placement_requested", "ids", "grid_pos", "team_id"), &GameManager::_on_placement_requested);
+	ClassDB::bind_method(D_METHOD("_on_placement_requested", "ids", "grid_pos", "team_id", "forced_id", "is_pre_placed"), &GameManager::_on_placement_requested);
 	ClassDB::bind_method(D_METHOD("_on_spawn_unit_requested", "ids", "pos", "team_id"), &GameManager::_on_spawn_unit_requested);
 	ClassDB::bind_method(D_METHOD("_on_despawn_unit_requested", "id"), &GameManager::_on_despawn_unit_requested);
 	ClassDB::bind_method(D_METHOD("_on_despawn_building_requested", "id"), &GameManager::_on_despawn_building_requested);

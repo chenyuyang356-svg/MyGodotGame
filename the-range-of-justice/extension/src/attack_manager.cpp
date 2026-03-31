@@ -66,6 +66,21 @@ bool AttackManager::_get_target_info(int p_target_id, bool p_is_building, Vector
     }
 }
 
+bool AttackManager::_is_target_full_health(int p_target_id, bool p_is_building) {
+    if (p_is_building) {
+        if (!building_manager) return true;
+        auto it = building_manager->buildings.find(p_target_id);
+        if (it == building_manager->buildings.end()) return true;
+        return it->second.current_health >= it->second.stats->get_health_max();
+    }
+    else {
+        int idx = unit_manager->get_unit_index_by_id(p_target_id);
+        if (idx == -1) return true;
+        UnitData& u = unit_manager->units[idx];
+        return u.current_health >= u.stats->get_health_max();
+    }
+}
+
 void AttackManager::update_units(double p_delta) {
     if (!unit_manager) return;
 
@@ -146,11 +161,13 @@ bool AttackManager::try_get_combat_force(UnitData& p_unit, Vector2& out_force) {
         out_force = Vector2(0, 0);
         return false;
     }
+    /*
     else if (p_unit.state == ATTACKING) {
         // 攻击时施加摩擦力使其停稳
         out_force = unit_manager->get_friction(p_unit) * unit_manager->get_friction_factor() * 2.0f;
         return true;
     }
+    */
     return false;
 }
 
@@ -234,8 +251,16 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
     }
     float atk_range = max_attack_range + p_unit.stats->get_collision_radius() + target_radius;
 
-    // 2. 如果进入了最大射程
-    if (dist_sq <= atk_range * atk_range) {
+    // 设定一个“舒服”的开火距离（比如最大射程的 85%），防止单位反复横跳
+    float comfortable_atk_range = atk_range * 0.85f;
+
+    // 2. 如果进入了射程
+    if (dist_sq <= comfortable_atk_range * comfortable_atk_range) {
+        // 如果进入了“舒服”的射程，无论是否支持移动射击，都切换到 ATTACKING 状态来停下
+        p_unit.state = ATTACKING;
+    }
+    else if (dist_sq <= atk_range * atk_range) {
+        // 在边缘射程：如果能移动射击，就边走边打；如果不能，立即停下开火
         if (p_unit.stats->get_can_fire_on_move()) {
             for (size_t i = 0; i < p_unit.stats->weapons.size(); ++i) {
                 const Weapon& weapon = p_unit.stats->weapons[i];
@@ -265,10 +290,10 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
             }
         }
         else {
-            // 如果不能移动射击，停下脚步切换到 ATTACKING 状态
             p_unit.state = ATTACKING;
         }
     }
+
     // 3. 当敌方单位跑出了目标射程的 2 倍则脱战
     else if (!p_unit.is_manual_target && dist_sq > p_unit.stats->get_aggro_range() * p_unit.stats->get_aggro_range() * 4.0f) {
         p_unit.target_id = -1;
@@ -288,6 +313,15 @@ void AttackManager::_handle_attacking(UnitData& p_unit, double p_delta) {
             p_unit.state = IDLE;
         }
         return;
+    }
+
+    // --- 建造者逻辑 ---
+    if (p_unit.stats->get_unit_tags() & TAG_BUILDER) {
+        if (_is_target_full_health(p_unit.target_id, p_unit.target_is_building)) {
+            p_unit.target_id = -1;
+            p_unit.state = IDLE;
+            return;
+        }
     }
 
     Vector2 target_pos;
@@ -386,6 +420,10 @@ void AttackManager::_handle_moving(UnitData& p_unit) {
 bool AttackManager::_try_find_target(UnitData& p_unit) {
     if (!p_unit.stats.is_valid() || p_unit.stats->weapons.empty()) {
         return false;
+    }
+
+    if (p_unit.stats->get_unit_tags() & TAG_BUILDER) {
+        return false; // 建造者不会主动寻找敌人
     }
 
     float max_weapon_range = 0.0f;
@@ -718,3 +756,34 @@ void AttackManager::apply_aoe_damage(Vector2 p_epicenter, float p_radius, float 
     }
 }
 
+void AttackManager::apply_healing(int target_id, bool is_building, float amount, int attacker_id) {
+    if (is_building) {
+        if (!building_manager) return;
+        auto it = building_manager->buildings.find(target_id);
+        if (it != building_manager->buildings.end()) {
+            BuildingData& b = it->second;
+            if (b.current_health <= 0 || b.state == BuildingState::DYING) return;
+
+            float max_h = b.stats->get_health_max();
+            b.current_health = std::min(b.current_health + amount, max_h);
+
+            // 如果是正在建造中的建筑，且血量达到上限，则视为建造完成
+            if (b.state == BuildingState::BUILDING && b.current_health >= max_h) {
+                b.state = BuildingState::IDLE;
+                b.build_timer = 0.0f;
+                godot::UtilityFunctions::print("Building construction complete! ID: ", target_id);
+            }
+        }
+    }
+    else {
+        if (!unit_manager) return;
+        int idx = unit_manager->get_unit_index_by_id(target_id);
+        if (idx != -1) {
+            UnitData& u = unit_manager->units[idx];
+            if (u.current_health <= 0) return;
+
+            float max_h = u.stats->get_health_max();
+            u.current_health = std::min(u.current_health + amount, max_h);
+        }
+    }
+}

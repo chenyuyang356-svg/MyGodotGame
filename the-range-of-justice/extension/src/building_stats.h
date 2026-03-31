@@ -9,6 +9,7 @@
 #include <godot_cpp/core/class_db.hpp> 
 
 #include "weapon_stats.h"
+#include "game_definitions.h"
 
 namespace godot {
 
@@ -49,6 +50,7 @@ namespace godot {
         int idle_row = 0;
         int working_frames = 1;
         int working_row = 0;
+        int building_frames = 1;
 
         // --- 兵营类属性 ---
         PackedStringArray producible_units;
@@ -167,8 +169,26 @@ namespace godot {
         void set_working_row(int p_val) { working_row = p_val; }
         int get_working_row() const { return working_row; }
 
+        void set_building_frames(int p_val) { building_frames = p_val; }
+        int get_building_frames() const { return building_frames; }
+
         void set_dying_time(float p_val) { dying_time = p_val; }
         float get_dying_time() const { return dying_time; }
+    
+        int get_frames(BuildingState p_state) {
+            switch (p_state) {
+            case (BuildingState::BUILDING): {
+                return building_frames;
+            }
+            case (BuildingState::IDLE): {
+                return idle_frames;
+            }
+            case (BuildingState::WORKING): {
+                return working_frames;
+            }
+            }
+            return 1;
+        }
     };
 
 }

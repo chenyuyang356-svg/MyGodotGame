@@ -36,6 +36,7 @@ namespace godot {
         // 伤害接口
         void apply_damage(int target_id, bool is_building, float damage, int attacker_id, bool attacker_is_building);
         void apply_aoe_damage(Vector2 p_epicenter, float p_radius, float p_damage, int p_attacker_id, bool attacker_is_building);
+        void apply_healing(int target_id, bool is_building, float amount, int attacker_id);
 
     private:
         // 状态处理器
@@ -57,6 +58,6 @@ namespace godot {
         // 获取目标的位置和碰撞半径
         bool _get_target_info(int p_target_id, bool p_is_building, Vector2& out_pos, float& out_radius);
 
-        
+        bool _is_target_full_health(int p_target_id, bool p_is_building);
     };
 }

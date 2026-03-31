@@ -156,9 +156,10 @@ namespace godot {
 
 		// --- 建筑同步 ---
 		// 客户端调用：请求放置建筑
-		void rpc_server_request_place_building(String p_type, Vector2i p_grid_pos, int p_team);
+		void rpc_server_request_place_building(String p_type, Vector2i p_grid_pos, int p_team, int p_force_id,
+			bool p_is_pre_placed, PackedInt32Array p_builder_ids = PackedInt32Array());
 		// 服务器调用：同步建筑生成及 ID
-		void rpc_client_spawn_building(int p_id, String p_type, Vector2i p_grid_pos, int p_team);
+		void rpc_client_spawn_building(int p_id, String p_type, Vector2i p_grid_pos, int p_team, bool p_is_pre_placed);
 		// 服务器调用：同步移除建筑
 		void rpc_client_remove_building(int p_id);
 
@@ -182,7 +183,7 @@ namespace godot {
 		void _on_attack_unit_requested(PackedInt32Array p_ids, int p_target_id);
 		void _on_attack_building_requested(PackedInt32Array p_ids, int p_target_id);
 
-		void _on_placement_requested(String p_type_name, Vector2i p_grid_pos, int p_team_id);
+		void _on_placement_requested(String p_type_name, Vector2i p_grid_pos, int p_team_id, int p_forced_id, bool p_is_pre_placed);
 		void _on_spawn_unit_requested(String p_type_name, Vector2 p_pos, int p_team_id);
 
 		void _on_despawn_unit_requested(int p_unit_id);

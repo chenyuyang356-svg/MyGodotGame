@@ -279,15 +279,19 @@ void ProjectileManager::_physics_process(double p_delta) {
             // --- 联机逻辑关键修改 ---
             // 只有服务器有权调用 AttackManager 进行结算
             if (get_multiplayer()->is_server()) {
-                if (it->splash_radius > 0.0f) {
-                    attack_manager->apply_aoe_damage(it->target_pos, it->splash_radius, it->damage, it->source_id, it->source_is_building);
+                if (it->stats->get_is_healing()) {
+                    // 触发治疗逻辑
+                    attack_manager->apply_healing(it->target_id, it->target_is_building, it->damage, it->source_id);
                 }
                 else {
-                    if (target_alive) {
+                    // 触发原有伤害逻辑
+                    if (it->splash_radius > 0.0f) {
+                        attack_manager->apply_aoe_damage(it->target_pos, it->splash_radius, it->damage, it->source_id, it->source_is_building);
+                    }
+                    else if (target_alive) {
                         attack_manager->apply_damage(it->target_id, it->target_is_building, it->damage, it->source_id, it->source_is_building);
                     }
                 }
-                // UtilityFunctions::print("Server: Projectile Hit & Damage Applied.");
             }
             else {
                 // 客户端仅销毁，不处理伤害
@@ -295,7 +299,7 @@ void ProjectileManager::_physics_process(double p_delta) {
             }
 
             // 爆炸特效
-            if (it->target_id != -1) {
+            if (it->target_id != -1 && !(it->stats->get_is_healing())) {
                 // 计算从发射点到现在的位移
                 float traveled_so_far = it->start_pos.distance_to(it->position);
 

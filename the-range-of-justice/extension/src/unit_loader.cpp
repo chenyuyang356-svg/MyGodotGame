@@ -61,6 +61,7 @@ int UnitLoader::_parse_bitfield(String p_value) {
         String tag = tags[i].strip_edges();
         if (tag == "Biological") result |= TAG_BIOLOGICAL;
         else if (tag == "Mechanical") result |= TAG_MECHANICAL;
+        else if (tag == "Builder") result |= TAG_BUILDER;
         else if (tag == "Summoned") result |= TAG_SUMMONED;
         else if (tag == "Hero") result |= TAG_HERO;
         else if (tag.is_valid_int()) result |= tag.to_int();
@@ -155,6 +156,14 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, WeaponManager* p_w
                     UtilityFunctions::print("[UnitLoader] Error: 未找到武器资源 '", w_name, "' (请确保该武器名称存在并在单位前完成加载)");
                 }
             }
+        }
+
+        else if (key == "producible_buildings") {
+            PackedStringArray buildings = value_str.split(",");
+            for (int i = 0; i < buildings.size(); ++i) {
+                buildings[i] = buildings[i].strip_edges();
+            }
+            stats->set_producible_buildings(buildings);
         }
 
         else if (key == "emit_threshold") {

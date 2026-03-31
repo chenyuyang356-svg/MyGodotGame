@@ -18,6 +18,7 @@ var press_start_screen_pos: Vector2 = Vector2.ZERO # 屏幕坐标：用于绘制
 var press_start_world_pos: Vector2 = Vector2.ZERO  # 世界坐标：用于传给 C++ 逻辑
 var is_actual_drag: bool = false
 var last_left_click_time: int = 0
+const TAG_BUILDER = 4 
 
 func _ready() -> void:
 	connect("selection_changed", _on_selection_changed)
@@ -79,6 +80,23 @@ func _on_selection_changed():
 		
 		if stats and stats.building_type == BuildingStats.BUILDING_BARRACKS:
 			_show_production_buttons(b_id, stats)
+	
+	# --- 新增：建造者逻辑 ---
+	var selected_uids = get_selected_unit_ids()
+	var builder_stats_list = []
+	
+	for u_id in selected_uids:
+		var u_stats = unit_manager.get_unit_stats(u_id)
+		# 检查是否带有建造者标签
+		if u_stats and (u_stats.unit_tags & TAG_BUILDER):
+			builder_stats_list.append(u_stats)
+	
+	if builder_stats_list.size() > 0:
+		# 取第一个选中的建造者的建筑列表（或者合并所有建造者的列表）
+		var buildable_list = builder_stats_list[0].producible_buildings
+		building_manager.show_builder_menu(buildable_list)
+	else:
+		building_manager.hide_builder_menu()
 
 # --- 鼠标左键逻辑 ---
 
@@ -171,3 +189,7 @@ func _draw():
 		# 绘制半透明填充和描边
 		draw_rect(rect, Color(0, 1, 0, 0.15), true)
 		draw_rect(rect, Color(0, 1, 0, 0.5), false, 1.0)
+
+
+func get_current_unit_selection() -> Array:
+	return get_selected_unit_ids()

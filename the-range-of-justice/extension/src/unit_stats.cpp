@@ -120,6 +120,10 @@ void UnitStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_unit_tags"), &UnitStats::get_unit_tags);
     ADD_PROPERTY(PropertyInfo(Variant::INT, "unit_tags", PROPERTY_HINT_FLAGS, "Biological,Mechanical,Summoned,Hero"), "set_unit_tags", "get_unit_tags");
 
+    ClassDB::bind_method(D_METHOD("set_producible_buildings", "buildings"), &UnitStats::set_producible_buildings);
+    ClassDB::bind_method(D_METHOD("get_producible_buildings"), &UnitStats::get_producible_buildings);
+    ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "producible_buildings"), "set_producible_buildings", "get_producible_buildings");
+
     // 1. 绑定纹理路径和图集规格 (h_frames/v_frames)
     ClassDB::bind_method(D_METHOD("get_texture_path"), &UnitStats::get_texture_path);
     ClassDB::bind_method(D_METHOD("set_texture_path", "p_path"), &UnitStats::set_texture_path);

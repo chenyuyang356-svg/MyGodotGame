@@ -35,6 +35,7 @@
 namespace godot {
 	class AttackManager; // 前向声明
 	class SelectionManager;
+	class BuildingManager;
 
 	class UnitManager : public Node3D {
 		GDCLASS(UnitManager, Node3D)
@@ -130,7 +131,7 @@ namespace godot {
 		// --- 单位攻击逻辑 ---
 		void command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos);
 		void command_units_to_patrol(Array p_unit_ids, Array p_waypoints);
-		void command_units_to_attack_target(Array p_unit_ids, int p_target_id, bool p_target_is_building);
+		void command_units_to_attack_target(Array p_unit_ids, int p_target_id, bool p_target_is_building, BuildingManager* p_building_manager);
 
 		// --- 空间网格核心操作 ---
 		void update_spatial_grid();

@@ -234,7 +234,7 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 		if spawn_positions.has(spawn_id):
 			var pos = spawn_positions[spawn_id]
 			# 在基地旁边生成坦克 (注意传递的是 team_id，让单位归属于该阵营)
-			GlobalGameManager.rpc_server_request_place_building("HumanBarrack", Vector2i(pos / Vector2(cell_size)), team_id)
+			GlobalGameManager.rpc_server_request_place_building("HumanBarrack", Vector2i(pos / Vector2(cell_size)), team_id, -1, true)
 			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(300, 400), team_id)
 			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(0, 400), team_id)
 			
@@ -248,7 +248,7 @@ func spawn_test_units():
 	for x in range(5):
 		for y in range(5):
 			#GlobalGameManager.rpc_server_request_spawn_unit("AttackHelicopter", -32 * Vector2(x, y), 1)
-			#GlobalGameManager.rpc_server_request_spawn_unit("HeavyTank", -32 * Vector2(x, y), 1)
+			#GlobalGameManager.rpc_server_request_spawn_unit("Builder", -32 * Vector2(x, y), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Gunboat", -32 * Vector2(x, y) + Vector2(-7000, 0), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y) + Vector2(0, 1600), 2)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(0, 1600), 2)

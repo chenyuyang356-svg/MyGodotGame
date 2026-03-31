@@ -4,16 +4,9 @@
 #include <godot_cpp/classes/ref.hpp>
 #include "building_stats.h"
 #include "weapon_data.h"
+#include "game_definitions.h"
 
 namespace godot {
-    // 建筑状态机
-    enum class BuildingState {
-        BUILDING,
-        IDLE,
-        WORKING,
-        DYING
-    };
-
     struct BuildingData {
         int id;
         Vector2i grid_pos;   

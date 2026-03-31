@@ -154,8 +154,9 @@ void SelectionManager::handle_right_click(Vector2 p_mouse_pos, Node* p_um, Node*
     // 1. 探测单位 (优先级最高)
     int target_u_id = um->get_unit_at_position(p_mouse_pos);
     if (target_u_id != -1) {
-        if (um->get_unit_team_id(target_u_id) != team_id) {
+        if (1 || um->get_unit_team_id(target_u_id) != team_id) {
             // 发出攻击单位信号
+            // 敌我判断只在command_units_to_attack_target处进行
             emit_signal("attack_unit_requested", ids, target_u_id);
         }
         return;
@@ -165,8 +166,9 @@ void SelectionManager::handle_right_click(Vector2 p_mouse_pos, Node* p_um, Node*
     int target_b_id = bm->get_building_at_position(p_mouse_pos);
     if (target_b_id != -1) {
         // 假设 BuildingManager 有 get_building_team_id
-        if (bm->get_building_team_id(target_b_id) != team_id) {
+        if (1 || bm->get_building_team_id(target_b_id) != team_id) {
             // 发出攻击建筑信号
+            // 敌我判断只在command_units_to_attack_target处进行
             emit_signal("attack_building_requested", ids, target_b_id);
         }
         return;
@@ -238,6 +240,7 @@ void SelectionManager::_bind_methods() {
 
     ClassDB::bind_method(D_METHOD("request_unit_production", "building_id", "unit_type"), &SelectionManager::request_unit_production);
 
+    ClassDB::bind_method(D_METHOD("get_selected_unit_ids"), &SelectionManager::get_selected_unit_ids);
     ClassDB::bind_method(D_METHOD("get_selected_building_ids"), &SelectionManager::get_selected_building_ids);
 
 	ClassDB::bind_method(D_METHOD("get_team_id"), &SelectionManager::get_team_id);

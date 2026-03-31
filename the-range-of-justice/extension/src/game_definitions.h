@@ -38,8 +38,9 @@ namespace godot {
         TAG_NONE = 0,
         TAG_BIOLOGICAL = 1 << 0,
         TAG_MECHANICAL = 1 << 1,
-        TAG_SUMMONED = 1 << 2,
-        TAG_HERO = 1 << 3
+        TAG_BUILDER = 1 << 2,
+        TAG_SUMMONED = 1 << 3,
+        TAG_HERO = 1 << 4
     };
 
     enum NavigationType {
@@ -54,6 +55,14 @@ namespace godot {
     enum CellMetadata {
         CELL_META_NONE = 0,
         CELL_META_RESOURCE = 1 << 0 // 该格子含有资源
+    };
+
+    // 建筑状态机
+    enum class BuildingState {
+        BUILDING,
+        IDLE,
+        WORKING,
+        DYING
     };
 
     inline Color get_team_color(int p_team_id) {
