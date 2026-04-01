@@ -165,7 +165,7 @@ void GameManager::_process(double p_delta) {
 
 	for (auto& pair : building_manager->buildings) {
 		BuildingData& building = pair.second;
-		if (building.team_id == selection_manager->get_team_id()) {
+		if (building.team_id == selection_manager->get_team_id() && building.state != BuildingState::BUILDING) {
 			positions.push_back(Vector2(building.grid_pos * flow_field_manager->get_cell_size()) +
 				Vector2(building.stats->get_footprint() * flow_field_manager->get_cell_size()) / 2);
 			radii.push_back(building.stats->sight_range);

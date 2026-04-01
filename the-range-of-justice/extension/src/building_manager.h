@@ -25,6 +25,7 @@ namespace godot {
 
     struct GhostBuildingData {
         Ref<BuildingStats> stats;
+        BuildingState state;
         Vector2i grid_pos;
         int team_id;
         std::vector<WeaponData> weapons;

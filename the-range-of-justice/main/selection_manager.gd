@@ -71,18 +71,32 @@ func _unhandled_input(event: InputEvent):
 func _on_selection_changed():
 	production_panel.hide()
 	
-	# 获取选中的建筑 ID
+	# 1. 获取所有选中的建筑 ID
 	var selected_bids = get_selected_building_ids()
 	
-	# 逻辑：只有选中【一个】建筑，且它是【兵营】时显示按钮
-	if selected_bids.size() == 1:
-		var b_id = selected_bids[0]
-		var stats = building_manager.get_building_stats(b_id)
+	if selected_bids.size() > 0:
+		# 获取第一个建筑的状态作为基准
+		var first_bid = selected_bids[0]
+		var first_stats = building_manager.get_building_stats(first_bid)
 		
-		if stats and stats.building_type == BuildingStats.BUILDING_BARRACKS:
-			_show_production_buttons(b_id, stats)
+		# 检查是否是兵营
+		if first_stats and first_stats.building_type == BuildingStats.BUILDING_BARRACKS:
+			var target_type_name = first_stats.building_name
+			var is_homogeneous = true
+			
+			# 校验选中的所有建筑是否为同一种兵营
+			for i in range(1, selected_bids.size()):
+				var current_stats = building_manager.get_building_stats(selected_bids[i])
+				# 如果类型不匹配或不是同名建筑，则判定为非同类选择
+				if not current_stats or current_stats.building_name != target_type_name:
+					is_homogeneous = false
+					break
+			
+			# 如果全是同类兵营，显示生产面板
+			if is_homogeneous:
+				_show_production_buttons(selected_bids, first_stats)
 	
-	# --- 新增：建造者逻辑 ---
+	# --- 建造者逻辑 ---
 	var selected_uids = get_selected_unit_ids()
 	var builder_stats_list = []
 	
@@ -150,7 +164,7 @@ func _on_right_pressed():
 # --- 选中建筑 ---
 
 
-func _show_production_buttons(building_id: int, stats: BuildingStats):
+func _show_production_buttons(building_ids: Array, stats: BuildingStats):
 	production_panel.show()
 	# 清空旧按钮
 	for child in production_panel.get_children():
@@ -160,9 +174,17 @@ func _show_production_buttons(building_id: int, stats: BuildingStats):
 	for unit_type in units:
 		var btn = Button.new()
 		btn.text = "Produce " + unit_type
+		if building_ids.size() > 1:
+			btn.text += " (x%d)" % building_ids.size() # 提示正在操作多个建筑
+			
 		btn.custom_minimum_size = Vector2(100, 40)
-		# 绑定点击事件，发送 RPC 请求给服务器
-		btn.pressed.connect(func(): request_unit_production(building_id, unit_type))
+		
+		# 核心修改：点击按钮时，遍历所有选中的建筑并发送生产请求
+		btn.pressed.connect(func(): 
+			for b_id in building_ids:
+				request_unit_production(b_id, unit_type)
+		)
+		
 		production_panel.add_child(btn)
 
 

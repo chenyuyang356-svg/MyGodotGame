@@ -38,7 +38,7 @@ base_height = 50.0
 move_type        = Air
 
 # --- Vision (视野) ---
-sight_range      = 350.0
+sight_range      = 700.0
 aggro_range      = 3000.0
 
 # --- Economy (经济) ---

@@ -34,6 +34,7 @@ void fragment() {
     float frame = floor(custom_data.x);
     float row = floor(custom_data.y); 
 	float modulate = custom_data.z;
+	float construction_site_visibility = custom_data.w;
 
     vec2 frame_size = vec2(1.0 / float(h_frames), 1.0 / float(v_frames));
     
@@ -79,6 +80,10 @@ void fragment() {
         
         // 2. 变透明：设置一个固定的透明度（如 0.6）
         current_alpha = 0.4;
+		
+		if (construction_site_visibility > 0.5) {
+			fog_alpha = 1.0;	
+		}
     }
 
     ALBEDO = final_rgb * modulate;

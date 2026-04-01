@@ -309,7 +309,9 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
                 modulate = 1.0f - (b.current_dying_time / b.stats->get_dying_time()) * 0.5f;
             }
             
-            Color anim_data = Color((float)frame_idx, (float)row, modulate, 0);
+            float construction_site_visibility = (b.team_id == p_selection_manager->get_team_id()) ? 1.0f : 0.0f;
+
+            Color anim_data = Color((float)frame_idx, (float)row, modulate, construction_site_visibility);
             mm->set_instance_custom_data(i, anim_data);
             s_mm->set_instance_custom_data(i, anim_data); // 影子也播放同样动作
 
@@ -498,8 +500,6 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
         // Y = 300.0f 使其位于迷雾平面之上，永远可见
         xform.origin = Vector3(offset_pos.x, 300.0f, offset_pos.y);
         xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
-        // 资源点可以稍微小一点
-        xform.basis = xform.basis.scaled(Vector3(0.7f, 0.7f, 0.7f));
 
         mmm->set_instance_transform(inst_idx, xform);
         mmm->set_instance_color(inst_idx, Color(1, 1, 1, 1)); // 纯白色
@@ -551,6 +551,7 @@ void BuildingManager::maintain_ghosts(double p_delta) {
         const BuildingData& b = pair.second;
         GhostBuildingData gd;
         gd.stats = b.stats;
+        gd.state = b.state;
         gd.grid_pos = b.grid_pos;
         gd.team_id = b.team_id;
         gd.weapons = b.weapons;

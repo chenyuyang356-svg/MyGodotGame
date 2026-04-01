@@ -90,12 +90,14 @@ void WeaponManager::update_multimesh_buffer(double p_delta, float p_alpha, UnitM
     // 2. 扫描建筑与残影
     if (p_bld_mgr) {
         for (auto const& [b_id, b_data] : p_bld_mgr->buildings) {
+            if (b_data.state == BuildingState::BUILDING) { continue; }
             for (int w = 0; w < b_data.weapons.size(); ++w) {
                 WeaponStats* w_ptr = b_data.weapons[w].stats.ptr();
                 if (w_ptr) building_weapon_grouping_cache[w_ptr].push_back({ b_id, w });
             }
         }
         for (auto const& [b_id, g_data] : p_bld_mgr->ghost_buildings) {
+            if (g_data.state == BuildingState::BUILDING) { continue; }
             for (int w = 0; w < g_data.weapons.size(); ++w) {
                 WeaponStats* w_ptr = g_data.weapons[w].stats.ptr();
                 if (w_ptr) ghost_weapon_grouping_cache[w_ptr].push_back({ b_id, w });

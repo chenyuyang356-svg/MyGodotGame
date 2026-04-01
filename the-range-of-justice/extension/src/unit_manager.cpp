@@ -807,11 +807,55 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
         break;
     }
     case CHASING: {
-        // 强制追击单位尝试走直线，增强“扑向目标”的感觉
-        p_unit.use_direct_path = true;
+        int nav_type = p_unit.get_nav_type();
+        // 1. 获取目标真实位置（可能在建筑内或墙里）
+        Vector2 real_target_pos = p_unit.target_pos;
+        Vector2i raw_grid = flow_field_manager->world_to_grid(real_target_pos);
 
-        // 距离过近且无法移动射击时停止（交给 AttackManager 切换 ATTACKING 状态）
-        // 此处不需要额外逻辑，AttackManager 已经处理了状态切换
+        // 2. 找到最近的可达格子
+        Vector2i best_grid = flow_field_manager->find_nearest_walkable_cell(raw_grid, nav_type);
+
+        // 3. 计算该格子的物理矩形范围 (AABB)
+        Vector2i cell_sz = flow_field_manager->get_cell_size();
+        Vector2 cell_min = Vector2(best_grid.x * cell_sz.x, best_grid.y * cell_sz.y);
+        Vector2 cell_max = cell_min + Vector2(cell_sz.x, cell_sz.y);
+
+        // 核心修正：将目标点限制在格子的范围内（投影到边缘）
+        // 这样 target_pos 就会位于格子离敌人最近的那条边上
+        p_unit.target_pos = Vector2(
+            Math::clamp(real_target_pos.x, cell_min.x + 1.0f, cell_max.x - 1.0f),
+            Math::clamp(real_target_pos.y, cell_min.y + 1.0f, cell_max.y - 1.0f)
+        );
+
+        bool target_grid_changed = (best_grid != p_unit.target_grid);
+        p_unit.target_grid = best_grid;
+
+        p_unit.path_recheck_timer += (float)p_delta;
+
+        // 4. 定时或在目标剧烈移动时更新路径状态
+        if (target_grid_changed || p_unit.path_recheck_timer >= 0.5f) {
+            p_unit.path_recheck_timer = 0.0f;
+
+            // 检查从当前位置到目标的“直线”是否畅通
+            // 注意：这里探测的是原始 target_pos，增强追击的“侵略性”
+            bool is_traversable = flow_field_manager->is_path_traversable(
+                p_unit.position, p_unit.target_pos, nav_type, density_limit
+            );
+
+            if (is_traversable) {
+                // 如果能看到目标且没有厚重的“人墙”或障碍物，直接冲锋
+                p_unit.use_direct_path = true;
+            }
+            else {
+                // 如果被挡住了，切换到流场模式
+                p_unit.use_direct_path = false;
+
+                // 只有目标网格变了才重算流场，节省性能
+                if (target_grid_changed) {
+                    flow_field_manager->create_flow_field(p_unit.target_grid, nav_type, false);
+                }
+            }
+        }
         break;
     }
     }
@@ -843,29 +887,21 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
             }
         }
         else if (p_unit.state == CHASING) {
-            // --- 新增：追击时的减速逻辑 ---
-            Vector2 target_pos = p_unit.target_pos; // 此时 target_pos 是敌方单位位置
-            float dist = p_unit.position.distance_to(target_pos);
-
-            // 获取单位射程（此处建议在 UnitData 里缓存这个值，避免每帧遍历）
+            // 追击模式：
+            float dist_to_target = p_unit.position.distance_to(p_unit.target_pos);
             float atk_range = get_unit_attack_range(p_unit.id);
-
-            // 如果没有武器，则使用碰撞半径（肉搏单位）
-            if (atk_range <= 0.0f) atk_range = 10.0f;
-
-            // 停止半径：武器射程 + 双方碰撞体积
-            // 注意：这里我们不获取目标的半径，仅用单位自身的射程做预判
             float stop_dist = atk_range + p_unit.stats->get_collision_radius();
 
-            // 当距离接近停止距离时（例如在 1.5 倍停止距离时开始减速）
+            // 只有当真正快进入“射程”时才减速，而不是快接近“格子边缘”时减速
+            // 如果 dist_to_target 很大，即使接近了 target_pos (投影点)，也不要大幅减速
             float slow_down_start = stop_dist * 1.5f;
 
-            if (dist < slow_down_start) {
-                // 距离越接近停止点，速度越慢。
-                // 当 dist <= stop_dist 时，理想速度应该接近 0
-                float factor = (dist - stop_dist) / (slow_down_start - stop_dist);
-                final_max_speed *= Math::clamp(factor, 0.1f, 1.0f);
+            if (dist_to_target < slow_down_start) {
+                float factor = (dist_to_target - stop_dist) / (slow_down_start - stop_dist);
+                final_max_speed *= Math::clamp(factor, 0.3f, 1.0f); // 保持至少 30% 速度冲刺
             }
+            // 注意：如果目标不可达，投影点 target_pos 会挡住单位，
+            // 物理系统的 move() 函数自然会处理碰撞，不需要这里提前减速到 0
         }
 
 

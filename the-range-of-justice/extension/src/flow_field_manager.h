@@ -3,6 +3,7 @@
 #include <vector>
 #include <queue>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <godot_cpp/classes/node2d.hpp>
 #include <godot_cpp/variant/vector2.hpp>
@@ -165,7 +166,7 @@ namespace godot {
 
         // 寻找距离目标点最近的、代价不为 255 的格子
         // p_max_range 为搜索半径（单位：格子），防止在全封闭地图中搜索过久
-        Vector2i find_nearest_walkable_cell(Vector2i p_target, int p_nav_type, int p_max_range = 250);
+        Vector2i find_nearest_walkable_cell(Vector2i p_start_grid, int p_nav_type);
 
 
         void set_density_weight(float p_val) { density_weight = p_val; }

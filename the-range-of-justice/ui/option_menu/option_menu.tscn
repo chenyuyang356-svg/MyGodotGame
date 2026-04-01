@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://cfu3ko8mlh5b1" path="res://ui/option_menu/option_menu.gd" id="1_0hfiv"]
 [ext_resource type="Texture2D" uid="uid://c1eqh0dj8lj01" path="res://icon.svg" id="1_0vc6n"]
 
-[node name="OperationMenu" type="Control" unique_id=1075139515]
+[node name="OptionMenu" type="Control" unique_id=1075139515]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -74,6 +74,7 @@ text = "Fullscreen"
 horizontal_alignment = 1
 
 [node name="CheckButton_Fullscreen" type="CheckButton" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer2/HBoxContainer" unique_id=1166585129]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 10
 
@@ -99,6 +100,7 @@ text = "Master Volume"
 horizontal_alignment = 1
 
 [node name="HSlider_Master" type="HSlider" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/HBoxContainer" unique_id=472482377]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(325, 0)
 layout_mode = 2
 size_flags_horizontal = 2
@@ -117,6 +119,7 @@ text = "Music Volume"
 horizontal_alignment = 1
 
 [node name="HSlider_Music" type="HSlider" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/HBoxContainer2" unique_id=1400087992]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(325, 0)
 layout_mode = 2
 size_flags_horizontal = 2
@@ -135,6 +138,7 @@ text = "SFX Volume"
 horizontal_alignment = 1
 
 [node name="HSlider_SFX" type="HSlider" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/HBoxContainer3" unique_id=992726691]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(325, 0)
 layout_mode = 2
 size_flags_horizontal = 2
@@ -153,6 +157,7 @@ text = "UI Volume"
 horizontal_alignment = 1
 
 [node name="HSlider_UI" type="HSlider" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/HBoxContainer4" unique_id=1942166963]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(325, 0)
 layout_mode = 2
 size_flags_horizontal = 2
