@@ -257,16 +257,28 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
 
         // --- 核心修改：目标点投影 ---
         if (!type_initialized[nav_type]) {
-            // 寻找该导航类型下最近的可达点
-            Vector2i best_grid = flow_field_manager->find_nearest_walkable_cell(original_target_grid, nav_type);
-            corrected_grid_targets[nav_type] = best_grid;
+            // 检查原始点击的格子是否可行走 (Cost < 255)
+            if (flow_field_manager->get_cost(original_target_grid, nav_type) < 255) {
+                // 如果点击位置本身就是合法的，直接使用精确的鼠标位置
+                corrected_grid_targets[nav_type] = original_target_grid;
+                corrected_world_targets[nav_type] = p_target_world_pos;
+            }
+            else {
+                // 如果点击了障碍物，寻找最近的可达格子
+                Vector2i best_grid = flow_field_manager->find_nearest_walkable_cell(original_target_grid, nav_type);
+                corrected_grid_targets[nav_type] = best_grid;
 
-            // 将网格坐标转回世界坐标（取格子中心）
-            Vector2i cell_sz = flow_field_manager->get_cell_size();
-            corrected_world_targets[nav_type] = Vector2(
-                (float)best_grid.x * cell_sz.x + cell_sz.x * 0.5f,
-                (float)best_grid.y * cell_sz.y + cell_sz.y * 0.5f
-            );
+                // 计算该格子的 AABB 范围
+                Vector2i cell_sz = flow_field_manager->get_cell_size();
+                Vector2 cell_min = Vector2(best_grid.x * cell_sz.x, best_grid.y * cell_sz.y);
+                Vector2 cell_max = cell_min + Vector2(cell_sz.x, cell_sz.y);
+
+                // 将原始鼠标位置投影到该合法格子的 AABB 内 (保留 1.0f 的安全边距)
+                corrected_world_targets[nav_type] = Vector2(
+                    Math::clamp(p_target_world_pos.x, cell_min.x + 1.0f, cell_max.x - 1.0f),
+                    Math::clamp(p_target_world_pos.y, cell_min.y + 1.0f, cell_max.y - 1.0f)
+                );
+            }
             type_initialized[nav_type] = true;
         }
 
@@ -620,6 +632,9 @@ void UnitManager::physics_update(double p_delta) {
 }
 
 Vector2 UnitManager::get_flow(UnitData& p_unit) {
+    // 无论是否直接行进，都更新流场的使用时间，防止被清理
+    flow_field_manager->touch_field(p_unit.target_grid, p_unit.get_nav_type());
+
     // 最终目的地（带偏移）
     Vector2 final_target = p_unit.target_pos + p_unit.target_pos_offset;
     Vector2 to_target = final_target - p_unit.position;
@@ -758,8 +773,16 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
         float radius = p_unit.stats->get_collision_radius();
         bool is_air = (p_unit.height > AIR_HEIGHT_THRESHOLD);
 
-        float desired_distance = 2.0f * p_unit.stats->collision_radius;
+        float current_int = flow_field_manager->get_integration(p_unit.position, p_unit.target_pos, p_unit.get_nav_type());
+        float limit_int = ((is_air) ? group->air_target_integration : group->ground_target_integration) +
+            (radius / (float)(flow_field_manager->get_cell_size().x) *
+                (flow_field_manager->get_cost(flow_field_manager->world_to_grid(p_unit.position), p_unit.get_nav_type())));
+
+        float desired_distance = 1.5f * p_unit.stats->collision_radius;
         float soft_arrival_distance_squared = is_air ? group->air_idle_radius_sq_sum : group->ground_idle_radius_sq_sum;
+        float soft_arrivel_distance = (std::sqrtf(soft_arrival_distance_squared) + radius) * 1.1f;
+        soft_arrival_distance_squared = soft_arrivel_distance * soft_arrivel_distance;
+
         float distance_squared = (p_unit.position).distance_squared_to(p_unit.target_pos);
         float distance_squared_with_offset = (p_unit.position).distance_squared_to(p_unit.target_pos + p_unit.target_pos_offset); // 这里加上了offset
         if (distance_squared_with_offset <= desired_distance * desired_distance) {
@@ -767,8 +790,8 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
             break;
         }
         if (distance_squared <= soft_arrival_distance_squared ||
-            p_unit.velocity.length_squared() < velocity_threshold_squared * 5.0f) {
-            std::vector<int> ahead_units = get_nearby_units(p_unit.position, 3 * p_unit.stats->collision_radius);
+            (!is_air && current_int <= limit_int && current_int >= 0)) {
+            std::vector<int> ahead_units = get_nearby_units(p_unit.position, 3.0f * p_unit.stats->collision_radius);
             for (int neighbor_idx : ahead_units) {
                 UnitData& neighbor = units[neighbor_idx];
                 if (neighbor.id != p_unit.id && neighbor.state == IDLE && neighbor.target_grid == p_unit.target_grid) {
@@ -876,7 +899,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
             float distance_squared = p_unit.position.distance_squared_to(target_with_offset);
 
             // 定义开始减速的半径（通常是碰撞半径的 3~5 倍）
-            float arrival_radius = p_unit.stats->get_collision_radius() * 4.0f;
+            float arrival_radius = p_unit.stats->get_collision_radius() * 5.0f;
             float arrival_radius_squared = arrival_radius * arrival_radius;
 
             if (distance_squared < arrival_radius_squared) {
@@ -898,7 +921,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
 
             if (dist_to_target < slow_down_start) {
                 float factor = (dist_to_target - stop_dist) / (slow_down_start - stop_dist);
-                final_max_speed *= Math::clamp(factor, 0.3f, 1.0f); // 保持至少 30% 速度冲刺
+                final_max_speed *= Math::clamp(factor, 0.5f, 1.0f); // 保持至少 50% 速度冲刺
             }
             // 注意：如果目标不可达，投影点 target_pos 会挡住单位，
             // 物理系统的 move() 函数自然会处理碰撞，不需要这里提前减速到 0

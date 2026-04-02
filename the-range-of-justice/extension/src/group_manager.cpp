@@ -10,6 +10,71 @@ GroupManager::GroupManager() {
     }
 }
 
+void GroupManager::update_target_integrations(FlowFieldManager* ffm) {
+    Vector2i cell_sz = ffm->get_cell_size();
+    float cell_area = (float)cell_sz.x * cell_sz.y;
+
+    for (auto& pair : temp_groups) {
+        UnitGroup& group = pair.second;
+        Vector2i target_grid = ffm->world_to_grid(group.target_pos);
+
+        auto calc_for_type = [&](int nav_type, float radius_sq_sum) -> float {
+            if (radius_sq_sum <= 0) return 0.5f; // 默认值
+
+            const std::vector<float>* field_ptr = ffm->get_integration_field_ptr(target_grid, nav_type);
+            if (!field_ptr) return 0.5f;
+
+            float total_unit_area = radius_sq_sum * Math_PI;
+            float accumulated_area = 0.0f;
+            float max_int = 0.0f;
+
+            // BFS 扩散计算覆盖面积
+            std::queue<Vector2i> q;
+            std::unordered_set<uint64_t> visited;
+            auto get_key = [](Vector2i p) { return ((uint64_t)p.x << 32) | (uint32_t)p.y; };
+
+            q.push(target_grid);
+            visited.insert(get_key(target_grid));
+
+            int grid_w = ffm->get_width();
+            int grid_h = ffm->get_height();
+            Vector2i origin = ffm->get_grid_origin();
+
+            while (!q.empty() && accumulated_area < total_unit_area) {
+                Vector2i curr = q.front();
+                q.pop();
+
+                Vector2i rel = curr - origin;
+                if (rel.x < 0 || rel.x >= grid_w || rel.y < 0 || rel.y >= grid_h) continue;
+
+                int idx = rel.y * grid_w + rel.x;
+                float val = (*field_ptr)[idx];
+
+                // 忽略不可达点
+                if (val >= 65535.0f) continue;
+
+                accumulated_area += cell_area;
+                max_int = std::max(max_int, val);
+
+                // 检查 4 邻域
+                Vector2i dirs[] = { Vector2i(0,1), Vector2i(0,-1), Vector2i(1,0), Vector2i(-1,0) };
+                for (auto& d : dirs) {
+                    Vector2i next = curr + d;
+                    if (ffm->is_in_grid(next) && visited.find(get_key(next)) == visited.end()) {
+                        visited.insert(get_key(next));
+                        q.push(next);
+                    }
+                }
+            }
+            // 返回最大集成值作为判定线，稍微加宽 10% 容错
+            return max_int * 1.1f;
+            };
+
+        group.ground_target_integration = calc_for_type(NAV_LAND, group.ground_idle_radius_sq_sum);
+        group.air_target_integration = calc_for_type(NAV_AIR, group.air_idle_radius_sq_sum);
+    }
+}
+
 int GroupManager::create_temporary_group(Vector2 p_target_pos) {
     int gid = next_temp_id++;
     UnitGroup& group = temp_groups[gid];

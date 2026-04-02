@@ -138,6 +138,9 @@ namespace godot {
 
         uint32_t get_cell_metadata(Vector2i p_grid_pos);
 
+        void touch_field(Vector2i p_target_grid, int p_nav_type);
+        const std::vector<float>* get_integration_field_ptr(Vector2i p_target_grid, int p_nav_type);
+
         // 根据世界坐标和目标坐标，获取该位置与目标的距离
         float get_integration(Vector2 p_world_pos, Vector2 p_target_world_pos, int p_nav_type);
 

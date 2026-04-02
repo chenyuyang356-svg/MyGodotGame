@@ -77,8 +77,6 @@ unit_manager = NodePath("../UnitManager")
 building_manager = NodePath("../BuildingManager")
 camera_3d = NodePath("../Camera3D")
 production_panel = NodePath("../GameHUB/RightSidePanel/RightSidebar/ProductionPanel")
-double_click_interval_ms = null
-drag_threshold_pixels = null
 
 [node name="BuildingManager" type="BuildingManager" parent="." unique_id=2078401615 node_paths=PackedStringArray("camera", "flow_field_manager", "selection_manager", "build_menu_container")]
 script = ExtResource("3_kfbq2")

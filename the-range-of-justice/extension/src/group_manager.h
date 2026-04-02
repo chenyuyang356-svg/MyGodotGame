@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include "unit_data.h"
+#include "flow_field_manager.h"
 
 namespace godot {
 
@@ -18,6 +19,9 @@ namespace godot {
 
         float ground_idle_radius_sq_sum = 0.0f; // 已到达地面单位的半径平方和
         float air_idle_radius_sq_sum = 0.0f; // 已到达空中单位的半径平方和
+
+        float ground_target_integration = 0.0f;
+        float air_target_integration = 0.0f;
 
         UnitGroup() { unit_ids.reserve(256); }
 
@@ -61,6 +65,8 @@ namespace godot {
     public:
         GroupManager();
         ~GroupManager() = default;
+
+        void update_target_integrations(FlowFieldManager* ffm);
 
         // --- 临时组逻辑 ---
         int create_temporary_group(Vector2 p_target_pos);

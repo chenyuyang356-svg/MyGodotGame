@@ -17,6 +17,8 @@ var current_type_name: String = ""
 # 2D 绘图层引用
 var overlay: Control
 
+var is_dev_placement: bool = false # 是否是开发者模式下的放置
+
 func _ready():
 	# 动态创建画布层，防止手动在编辑器里摆放麻烦
 	_setup_overlay()
@@ -54,6 +56,11 @@ func _update_logic():
 
 # --- UI 与 输入处理 (保持原样) ---
 func _unhandled_input(event: InputEvent):
+	# 监听 B 键打开全建筑面板
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_B and DebugManager.is_dev_mode:
+			_open_dev_build_menu()
+	
 	if is_building_mode:
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
 			if not event.pressed: 
@@ -62,6 +69,7 @@ func _unhandled_input(event: InputEvent):
 		elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 			if not event.pressed: _try_place()
 
+
 func _on_build_button_pressed(type_name: String):
 	current_type_name = type_name
 	current_stats = get_building_stats_by_type(type_name)
@@ -69,16 +77,64 @@ func _on_build_button_pressed(type_name: String):
 		is_building_mode = true
 		Input.set_default_cursor_shape(Input.CURSOR_CROSS)
 
+
+# 打开包含所有已注册建筑的菜单
+func _open_dev_build_menu():
+	if !build_menu_container: return
+	
+	# 清空并显示面板
+	for child in build_menu_container.get_children():
+		child.queue_free()
+	
+	# 调用 C++ 接口获取所有建筑名
+	var all_types = get_registered_building_types()
+	
+	for type_name in all_types:
+		var stats = get_building_stats_by_type(type_name)
+		var btn = Button.new()
+		btn.text = "[DEV] " + stats.building_name
+		btn.custom_minimum_size = Vector2(150, 40)
+		
+		# 绑定点击事件
+		btn.pressed.connect(func():
+			_on_dev_build_button_pressed(type_name)
+		)
+		build_menu_container.add_child(btn)
+	
+	build_menu_container.show()
+
+# 开发者建造按钮按下
+func _on_dev_build_button_pressed(type_name: String):
+	is_dev_placement = true # 标记为开发者模式
+	_on_build_button_pressed(type_name) # 复用原有的按钮按下逻辑
+
+
 func _try_place():
 	if can_place and current_stats != null:
-		emit_signal("placement_requested", current_type_name, ghost_grid_pos, selection_manager.team_id, -1, false)
-		_exit_building_mode()
+		# 核心修改：如果是开发者模式点击的，最后一个参数设为 true (即 is_pre_placed)
+		emit_signal("placement_requested", 
+			current_type_name, 
+			ghost_grid_pos, 
+			selection_manager.team_id, 
+			-1, 
+			is_dev_placement # 这里的参数对应 C++ 的 is_pre_placed
+		)
+		if is_dev_placement:
+			# 如果是开发者模式，我们不调用 _exit_building_mode()
+			# 这样 is_building_mode 依然为 true，ghost 会继续跟随鼠标
+			# 我们只需要触发一次重绘即可
+			overlay.queue_redraw()
+		else:
+			# 普通建造模式（如农民建造），放置一个后立即退出
+			_exit_building_mode()
 
 func _exit_building_mode():
 	is_building_mode = false
+	is_dev_placement = false # 重置开发者标记
 	current_stats = null
 	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
 	overlay.queue_redraw()
+
 
 # --- 绘图逻辑 (由 Overlay 调用) ---
 func _on_overlay_draw():

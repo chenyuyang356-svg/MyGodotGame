@@ -24,6 +24,7 @@ buses/default_bus_layout="uid://dga60tnuwdm0"
 GlobalGameManager="*uid://cwdgep2fl8ooa"
 GlobalAudioManager="*uid://dug07hpdafcp6"
 SettingsManager="*uid://bcw2ihfyoitbf"
+DebugManager="*uid://lp7wfckmyttc"
 
 [display]
 

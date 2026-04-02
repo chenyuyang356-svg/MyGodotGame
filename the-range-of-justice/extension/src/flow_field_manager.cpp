@@ -364,9 +364,9 @@ void FlowFieldManager::compute_flow_directions(FlowFieldKey p_key) {
 
                 // 获取 8 个邻居的集成值，如果是边界或墙，则使用“当前值 + 较大偏移”来产生排斥感
                 auto get_val = [&](int nx, int ny) -> float {
-                    if (nx < 0 || nx >= width || ny < 0 || ny >= height) return field.integration_field[idx] + 5.0f;
+                    if (nx < 0 || nx >= width || ny < 0 || ny >= height) return field.integration_field[idx] + 1.2f;
                     int n_idx = ny * width + nx;
-                    if (cost_map[n_idx] == 255) return field.integration_field[idx] + 5.0f; // 给墙壁一个虚假的“高地”感
+                    if (cost_map[n_idx] == 255) return field.integration_field[idx] + 1.2f; // 给墙壁一个虚假的“高地”感
                     return field.integration_field[n_idx];
                     };
 
@@ -437,31 +437,98 @@ uint32_t FlowFieldManager::get_cell_metadata(Vector2i p_grid_pos) {
     return 0;
 }
 
+void FlowFieldManager::touch_field(Vector2i p_target_grid, int p_nav_type) {
+    FlowFieldKey key = { p_target_grid, p_nav_type };
+    auto it = flow_fields.find(key);
+    if (it != flow_fields.end()) {
+        it->second.last_used_time = Time::get_singleton()->get_ticks_msec() / 1000.0;
+        // 如果脏了顺便入队
+        if (it->second.is_dirty && !it->second.is_computing) {
+            calculation_queue.push(key);
+            it->second.is_computing = true;
+        }
+    }
+    else {
+        // 如果不存在直接创建
+        create_flow_field(p_target_grid, p_nav_type, false);
+    }
+}
+
+const std::vector<float>* FlowFieldManager::get_integration_field_ptr(Vector2i p_target_grid, int p_nav_type) {
+    FlowFieldKey key = { p_target_grid, p_nav_type };
+    auto it = flow_fields.find(key);
+    if (it != flow_fields.end() && !it->second.is_computing) {
+        return &it->second.integration_field;
+    }
+    return nullptr;
+}
+
 float FlowFieldManager::get_integration(Vector2 p_world_pos, Vector2 p_target_world_pos, int p_nav_type) {
-    Vector2i relative_grid_pos = world_to_grid(p_world_pos) - grid_origin;
+    // --- 1. 基础查找与状态维护 ---
     Vector2i target_grid = world_to_grid(p_target_world_pos);
     FlowFieldKey key = { target_grid, p_nav_type };
 
-    if (relative_grid_pos.x < 0 || relative_grid_pos.x >= width || relative_grid_pos.y < 0 || relative_grid_pos.y >= height) {
-        return -1.0;
-    }
-
     auto it = flow_fields.find(key);
     if (it == flow_fields.end()) {
-        return -1.0;
+        // 如果不存在则创建（异步计算），暂时返回一个极大值
+        create_flow_field(target_grid, p_nav_type, false);
+        return 65535.0f;
     }
 
     FlowField& field = it->second;
     field.last_used_time = Time::get_singleton()->get_ticks_msec() / 1000.0;
 
+    // 如果流场脏了，放入计算队列
     if (field.is_dirty && !field.is_computing) {
         calculation_queue.push(key);
         field.is_computing = true;
     }
 
-    int index = relative_grid_pos.y * width + relative_grid_pos.x;
+    // 如果流场正在计算且数据为空，返回极大值
+    if (field.is_computing && field.integration_field.empty()) {
+        return 65535.0f;
+    }
 
-    return field.integration_field[index];
+    // --- 2. 双线性插值采样逻辑 ---
+
+    // 计算相对于网格起点的浮点坐标 (单位：格)
+    Vector2 f_relative = (p_world_pos - Vector2(grid_origin * cell_size)) / Vector2(cell_size);
+
+    // 将采样中心偏移半个格子，使得在格中心处采样到的是原始值
+    Vector2 sample_pos = f_relative - Vector2(0.5f, 0.5f);
+
+    int x0 = (int)Math::floor(sample_pos.x);
+    int y0 = (int)Math::floor(sample_pos.y);
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+
+    // 计算插值权重 (0.0 ~ 1.0)
+    float tx = sample_pos.x - (float)x0;
+    float ty = sample_pos.y - (float)y0;
+
+    // 内部安全采样函数
+    auto get_val_safe = [&](int gx, int gy) -> float {
+        // 边界检查：如果越界，返回一个较大的代价（代表不可达或边缘）
+        if (gx < 0 || gx >= width || gy < 0 || gy >= height) {
+            return 65535.0f;
+        }
+        return field.integration_field[gy * width + gx];
+        };
+
+    // 获取相邻 4 个格子的集成值
+    float v00 = get_val_safe(x0, y0);
+    float v10 = get_val_safe(x1, y0);
+    float v01 = get_val_safe(x0, y1);
+    float v11 = get_val_safe(x1, y1);
+
+    // 进行双线性插值 (Bilinear Interpolation)
+    // 先在 X 方向插值
+    float top = Math::lerp(v00, v10, tx);
+    float bottom = Math::lerp(v01, v11, tx);
+    // 再在 Y 方向插值
+    float final_integration = Math::lerp(top, bottom, ty);
+
+    return final_integration;
 }
 
 Vector2 FlowFieldManager::get_flow_direction(Vector2 p_world_pos, Vector2 p_target_world_pos, int p_nav_type) {
@@ -479,6 +546,7 @@ Vector2 FlowFieldManager::get_flow_direction(Vector2 p_world_pos, Vector2 p_targ
 
     auto it = flow_fields.find(key);
     if (it == flow_fields.end()) {
+        create_flow_field(target_grid, p_nav_type, false);
         return Vector2(0, 0);
     }
 

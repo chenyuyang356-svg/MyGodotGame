@@ -25,7 +25,7 @@ target_priority  = Closest
 weapon = MarineBullet, 10.0, 400.0, 0.25, 1200.0, 2.0
 
 # --- Movement (移动与碰撞) ---
-mass             = 2.0
+mass             = 5.0
 move_speed       = 140.0
 acceleration     = 80.0
 turn_speed       = 0.7

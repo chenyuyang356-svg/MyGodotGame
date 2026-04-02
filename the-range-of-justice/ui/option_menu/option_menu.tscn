@@ -78,10 +78,6 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 10
 
-[node name="HSplitContainer" type="HSplitContainer" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer2/HBoxContainer" unique_id=1538954825]
-custom_minimum_size = Vector2(10, 0)
-layout_mode = 2
-
 [node name="VBoxContainer3" type="VBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=1718890214]
 layout_mode = 2
 
@@ -165,6 +161,28 @@ size_flags_vertical = 4
 max_value = 1.0
 step = 0.05
 value = 1.0
+
+[node name="VBoxContainer4" type="VBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=1057589805]
+layout_mode = 2
+
+[node name="Label_Debug" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer4" unique_id=833019663]
+layout_mode = 2
+text = "Debug"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer4" unique_id=24293482]
+layout_mode = 2
+
+[node name="Label_DebugMode" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer4/HBoxContainer" unique_id=930237554]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+text = "Debug Mode"
+horizontal_alignment = 1
+
+[node name="CheckButton_DebugMode" type="CheckButton" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer4/HBoxContainer" unique_id=1060585401]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 10
 
 [node name="HSplitContainer" type="HSplitContainer" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=941118750]
 custom_minimum_size = Vector2(0, 5)

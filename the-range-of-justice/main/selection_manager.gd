@@ -53,7 +53,7 @@ func _unhandled_input(event: InputEvent):
 			_on_left_drag_motion()
 	
 	elif event is InputEventKey and event.pressed and not event.echo:
-		if multiplayer.is_server():
+		if multiplayer.is_server() and DebugManager.is_dev_mode:
 			var keycode = event.keycode
 			match keycode:
 				KEY_1:

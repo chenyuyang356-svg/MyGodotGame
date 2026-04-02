@@ -183,11 +183,14 @@ void GameManager::_process(double p_delta) {
 }
 
 void GameManager::update_group(double p_delta) {
-	// 定期清理过期的编队
 	group_manager->cleanup_timer += p_delta;
 	if (group_manager->cleanup_timer < group_manager->CLEANUP_INTERVAL) return;
 	group_manager->cleanup_timer = 0.0;
 
+	// 计算每个组所需的到达集成值界限
+	group_manager->update_target_integrations(flow_field_manager);
+
+	// 清理过期的编队
 	auto it = group_manager->temp_groups.begin();
 	while (it != group_manager->temp_groups.end()) {
 		if (it->second.moving_units_count <= 0) {
