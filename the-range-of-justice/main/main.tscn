@@ -73,11 +73,12 @@ friction_factor = 20.0
 force_threshold_squared = 0.0
 desired_integration = 0.5
 
-[node name="SelectionManager" type="SelectionManager" parent="." unique_id=803111584 node_paths=PackedStringArray("unit_manager", "building_manager", "camera_3d", "production_panel")]
+[node name="SelectionManager" type="SelectionManager" parent="." unique_id=803111584 node_paths=PackedStringArray("unit_manager", "building_manager", "camera_3d", "Information_panel", "production_panel")]
 script = ExtResource("4_3wy1v")
 unit_manager = NodePath("../UnitManager")
 building_manager = NodePath("../BuildingManager")
 camera_3d = NodePath("../Camera3D")
+Information_panel = NodePath("../GameHUB/RightSidePanel/RightSidebar/InformationPanel")
 production_panel = NodePath("../GameHUB/RightSidePanel/RightSidebar/ProductionPanel")
 
 [node name="BuildingManager" type="BuildingManager" parent="." unique_id=2078401615 node_paths=PackedStringArray("camera", "flow_field_manager", "selection_manager", "build_menu_container")]
@@ -142,6 +143,12 @@ render_target_update_mode = 4
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 2000, 0)
 cull_mask = 1048574
 projection = 1
+
+[node name="InformationPanel" type="GridContainer" parent="GameHUB/RightSidePanel/RightSidebar" unique_id=477033690]
+layout_mode = 2
+theme_override_constants/h_separation = 5
+theme_override_constants/v_separation = 5
+columns = 2
 
 [node name="BuildingMenu" type="VBoxContainer" parent="GameHUB/RightSidePanel/RightSidebar" unique_id=1512739518]
 custom_minimum_size = Vector2(320, 0)

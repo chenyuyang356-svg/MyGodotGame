@@ -1,10 +1,13 @@
 extends SelectionManager
 
+var godot_icon: Texture2D = preload("res://icon.svg")
+@export var selection_item_scene: PackedScene = preload("res://ui/selection_item/selection_item.tscn")
 # --- 节点引用 (在编辑器中指定) ---
 @export_group("Dependencies")
 @export var unit_manager: Node3D
 @export var building_manager: Node3D
 @export var camera_3d: Node3D # 需具备 get_mouse_world_pos() 和 get_visible_world_rect() 方法
+@export var Information_panel: GridContainer
 @export var production_panel: VBoxContainer
 
 # --- 配置参数 ---
@@ -69,8 +72,9 @@ func _unhandled_input(event: InputEvent):
 	
 
 func _on_selection_changed():
-	production_panel.hide()
+	_update_information_panel()
 	
+	production_panel.hide()
 	# 1. 获取所有选中的建筑 ID
 	var selected_bids = get_selected_building_ids()
 	
@@ -161,7 +165,50 @@ func _on_right_pressed():
 	# 2. 自动 emit_signal("command_issued", ...) 信号给 GameManager
 	handle_right_click(mouse_world_pos, unit_manager, building_manager)
 
-# --- 选中建筑 ---
+
+# --- 选中单位或建筑 ---
+
+func _update_information_panel() -> void:
+	if not Information_panel:
+		return
+
+	# 1. 清空旧信息
+	for child in Information_panel.get_children():
+		child.queue_free()
+
+	# 2. 统计数据 (注意：现在我们要存更多信息)
+	# 数据结构: { "单位名": {"count": 1, "icon": Texture2D} }
+	var registry = {}
+
+	# 统计单位
+	for u_id in get_selected_unit_ids():
+		var stats = unit_manager.get_unit_stats(u_id)
+		if stats:
+			_add_to_registry(registry, stats.unit_name, godot_icon) # 假设Stats里有icon属性
+
+	# 统计建筑
+	for b_id in get_selected_building_ids():
+		var stats = building_manager.get_building_stats(b_id)
+		if stats:
+			_add_to_registry(registry, stats.building_name, godot_icon)
+
+	# 3. 排序 (可选：按名字排序，让UI整齐)
+	var keys = registry.keys()
+	keys.sort()
+
+	# 4. 生成美观的 UI
+	for name in keys:
+		var data = registry[name]
+		var item = selection_item_scene.instantiate()
+		Information_panel.add_child(item)
+		item.setup(name, data.count, data.icon)
+
+# 辅助函数：简化计数逻辑
+func _add_to_registry(reg: Dictionary, type_name: String, icon: Texture2D):
+	if reg.has(type_name):
+		reg[type_name].count += 1
+	else:
+		reg[type_name] = {"count": 1, "icon": icon}
 
 
 func _show_production_buttons(building_ids: Array, stats: BuildingStats):
