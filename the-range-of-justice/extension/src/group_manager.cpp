@@ -13,61 +13,64 @@ GroupManager::GroupManager() {
 void GroupManager::update_target_integrations(FlowFieldManager* ffm) {
     Vector2i cell_sz = ffm->get_cell_size();
     float cell_area = (float)cell_sz.x * cell_sz.y;
+    int grid_w = ffm->get_width();
+    int grid_h = ffm->get_height();
+    Vector2i origin = ffm->get_grid_origin();
+
+    // 临时缓冲区，用于存储和排序集成值，避免循环内重新分配
+    static std::vector<float> value_cache;
+    value_cache.reserve(1024);
 
     for (auto& pair : temp_groups) {
         UnitGroup& group = pair.second;
         Vector2i target_grid = ffm->world_to_grid(group.target_pos);
 
         auto calc_for_type = [&](int nav_type, float radius_sq_sum) -> float {
-            if (radius_sq_sum <= 0) return 0.5f; // 默认值
+            if (radius_sq_sum <= 0) return 0.0f;
 
             const std::vector<float>* field_ptr = ffm->get_integration_field_ptr(target_grid, nav_type);
-            if (!field_ptr) return 0.5f;
+            if (!field_ptr) return 0.0f;
 
+            // 1. 计算所需面积和大致覆盖半径
             float total_unit_area = radius_sq_sum * Math_PI;
-            float accumulated_area = 0.0f;
-            float max_int = 0.0f;
+            int needed_cells = std::ceil(total_unit_area / cell_area);
 
-            // BFS 扩散计算覆盖面积
-            std::queue<Vector2i> q;
-            std::unordered_set<uint64_t> visited;
-            auto get_key = [](Vector2i p) { return ((uint64_t)p.x << 32) | (uint32_t)p.y; };
+            // 估计半径 (在网格空间)，并给 1.5 倍余量处理地形障碍
+            float est_r_world = std::sqrt(radius_sq_sum);
+            int r_grid = std::ceil(est_r_world / cell_sz.x * 3.0f) + 1;
 
-            q.push(target_grid);
-            visited.insert(get_key(target_grid));
+            // 2. 在 2R * 2R 范围内收集所有可达格子的集成值
+            value_cache.clear();
+            Vector2i min_bound = target_grid - Vector2i(r_grid, r_grid);
+            Vector2i max_bound = target_grid + Vector2i(r_grid, r_grid);
 
-            int grid_w = ffm->get_width();
-            int grid_h = ffm->get_height();
-            Vector2i origin = ffm->get_grid_origin();
+            for (int y = min_bound.y; y <= max_bound.y; ++y) {
+                for (int x = min_bound.x; x <= max_bound.x; ++x) {
+                    Vector2i curr(x, y);
+                    if (!ffm->is_in_grid(curr)) continue;
 
-            while (!q.empty() && accumulated_area < total_unit_area) {
-                Vector2i curr = q.front();
-                q.pop();
+                    Vector2i rel = curr - origin;
+                    int idx = rel.y * grid_w + rel.x;
+                    float val = (*field_ptr)[idx];
 
-                Vector2i rel = curr - origin;
-                if (rel.x < 0 || rel.x >= grid_w || rel.y < 0 || rel.y >= grid_h) continue;
-
-                int idx = rel.y * grid_w + rel.x;
-                float val = (*field_ptr)[idx];
-
-                // 忽略不可达点
-                if (val >= 65535.0f) continue;
-
-                accumulated_area += cell_area;
-                max_int = std::max(max_int, val);
-
-                // 检查 4 邻域
-                Vector2i dirs[] = { Vector2i(0,1), Vector2i(0,-1), Vector2i(1,0), Vector2i(-1,0) };
-                for (auto& d : dirs) {
-                    Vector2i next = curr + d;
-                    if (ffm->is_in_grid(next) && visited.find(get_key(next)) == visited.end()) {
-                        visited.insert(get_key(next));
-                        q.push(next);
+                    // 只有可达的点才计入
+                    if (val < 65535.0f) {
+                        value_cache.push_back(val);
                     }
                 }
             }
-            // 返回最大集成值作为判定线，稍微加宽 10% 容错
-            return max_int * 1.1f;
+
+            if (value_cache.empty()) return 0.0f;
+
+            // 3. 排序集成值（从小到大，即从近到远）
+            std::sort(value_cache.begin(), value_cache.end());
+
+            // 4. 取出能覆盖所有单位面积的那个“最远”格子的集成值
+            // 如果收集到的格子不够多，取最后一个（说明单位群可能挤不下）
+            int result_idx = std::min((int)value_cache.size() - 1, needed_cells);
+
+            // 增加 10% 的容错缓冲，避免边缘单位频繁切换状态
+            return value_cache[result_idx] * 1.1f;
             };
 
         group.ground_target_integration = calc_for_type(NAV_LAND, group.ground_idle_radius_sq_sum);

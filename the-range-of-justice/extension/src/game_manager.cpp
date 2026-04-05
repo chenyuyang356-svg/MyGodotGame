@@ -111,7 +111,8 @@ void GameManager::_physics_process(double p_delta) {
 		unit_manager->physics_update(p_delta);
 		building_manager->physics_update(p_delta);
 
-		while (tick_accumulator >= logic_tick_rate) {
+		int max_steps = 3;
+		while (tick_accumulator >= logic_tick_rate && max_steps > 0) {
 
 			building_manager->prepare_interpolation_snapshot();
 
@@ -122,7 +123,9 @@ void GameManager::_physics_process(double p_delta) {
 			}
 
 			tick_accumulator -= logic_tick_rate;
+			max_steps--;
 		}
+		if (tick_accumulator > logic_tick_rate * 5) tick_accumulator = logic_tick_rate; // 丢弃过旧帧
 
 		// 胜负判定计时器
 		game_over_check_timer += p_delta;
@@ -151,28 +154,33 @@ void GameManager::_process(double p_delta) {
 	float alpha = UtilityFunctions::clamp(tick_accumulator / logic_tick_rate, 0.0, 1.2);
 
 	// 更新迷雾
-	std::vector<Vector2> positions;
-	std::vector<float> radii;
+	fog_update_timer += p_delta;
+	if (fog_update_timer >= FOG_UPDATE_INTERVAL) {
+		fog_update_timer = 0.0f;
 
-	for (const auto& unit : unit_manager->units) {
-		if (unit.team_id == selection_manager->get_team_id()) {
-			// 记录 3D 世界的 X 和 Z 坐标
-			Vector2 visual_pos = UtilityFunctions::lerp(unit.prev_position, unit.next_position, alpha);
-			positions.push_back(visual_pos);
-			radii.push_back(unit.stats->sight_range);
+		std::vector<Vector2> positions;
+		std::vector<float> radii;
+
+		for (const auto& unit : unit_manager->units) {
+			if (unit.team_id == selection_manager->get_team_id()) {
+				// 记录 3D 世界的 X 和 Z 坐标
+				Vector2 visual_pos = UtilityFunctions::lerp(unit.prev_position, unit.next_position, alpha);
+				positions.push_back(visual_pos);
+				radii.push_back(unit.stats->sight_range);
+			}
 		}
-	}
 
-	for (auto& pair : building_manager->buildings) {
-		BuildingData& building = pair.second;
-		if (building.team_id == selection_manager->get_team_id() && building.state != BuildingState::BUILDING) {
-			positions.push_back(Vector2(building.grid_pos * flow_field_manager->get_cell_size()) +
-				Vector2(building.stats->get_footprint() * flow_field_manager->get_cell_size()) / 2);
-			radii.push_back(building.stats->sight_range);
+		for (auto& pair : building_manager->buildings) {
+			BuildingData& building = pair.second;
+			if (building.team_id == selection_manager->get_team_id() && building.state != BuildingState::BUILDING) {
+				positions.push_back(Vector2(building.grid_pos * flow_field_manager->get_cell_size()) +
+					Vector2(building.stats->get_footprint() * flow_field_manager->get_cell_size()) / 2);
+				radii.push_back(building.stats->sight_range);
+			}
 		}
-	}
 
-	fog_manager->update_vision(positions, radii);
+		fog_manager->update_vision(positions, radii);
+	}
 
 	// 驱动底层 MultiMesh 实例，让显卡去画出介于 prev 和 next 之间的平滑位置
 	unit_manager->update_multimesh_buffer(p_delta, alpha, selection_manager);
@@ -331,8 +339,7 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 
 	Vector2 map_size = Vector2(p_width, p_height) * Vector2(p_cell_size);
 	Vector2 map_pos = Vector2(p_origin) * Vector2(p_cell_size);
-	Ref<Texture2D> brush = ResourceLoader::get_singleton()->load("res://asset/fog_brush.tres");
-	fog_manager->setup_fog(map_pos, map_size, brush);
+	fog_manager->setup_fog(map_pos, map_size);
 
 	unit_manager->setup_system(p_width, p_height, p_cell_size, p_origin);
 	building_manager->setup_system(p_width, p_height, p_cell_size);

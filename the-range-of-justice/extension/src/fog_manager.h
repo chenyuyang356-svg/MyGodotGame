@@ -47,6 +47,7 @@ namespace godot {
         Vector2 map_size;
         Vector2 map_pos;
         int fog_resolution = 512; // 贴图分辨率
+        Ref<Texture2D> brush_texture;
 
         // 默认模式为重雾
         FogMode fog_mode = FOG_HEAVY;
@@ -59,7 +60,7 @@ namespace godot {
         FogManager();
         ~FogManager();
 
-        void setup_fog(Vector2 p_map_pos, Vector2 p_map_size, Ref<Texture2D> p_brush_texture);
+        void setup_fog(Vector2 p_map_pos, Vector2 p_map_size);
 
         // 每帧调用：传入所有拥有视野的单位坐标和半径
         void update_vision(const std::vector<Vector2>& p_positions, const std::vector<float>& p_radii);
@@ -71,6 +72,9 @@ namespace godot {
 
         void set_fog_mode(FogMode p_mode);
         FogMode get_fog_mode() const;
+
+        void FogManager::set_brush_texture(Ref<Texture2D> p_tex) { brush_texture = p_tex; }
+        Ref<Texture2D> FogManager::get_brush_texture() const { return brush_texture; }
     };
 
 }

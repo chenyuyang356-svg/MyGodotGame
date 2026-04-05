@@ -78,6 +78,9 @@ namespace godot {
 		const float CHECK_INTERVAL = 1.0f; // 每秒检查一次胜负
 		void check_victory_conditions();
 
+		float fog_update_timer = 0.0f;
+		const float FOG_UPDATE_INTERVAL = 0.0f;
+
 	protected:
 		static void _bind_methods();
 

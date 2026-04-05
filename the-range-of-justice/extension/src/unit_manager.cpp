@@ -338,6 +338,8 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
             unit.target_id = -1;
             unit.is_patrolling = false;
             unit.is_manual_target = false;
+            unit.stuck_timer = 0.0f;
+            unit.last_stuck_check_pos = unit.position;
         }
         };
 
@@ -373,6 +375,8 @@ void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints) {
             unit.is_patrolling = true;
             unit.is_manual_target = false; 
             unit.target_id = -1;
+            unit.stuck_timer = 0.0f;
+            unit.last_stuck_check_pos = unit.position;
         }
        
     }
@@ -407,6 +411,8 @@ void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_
         u.target_id = p_target_id;
         u.target_is_building = p_target_is_building;
         u.is_manual_target = true;
+        u.stuck_timer = 0.0f;
+        u.last_stuck_check_pos = u.position;
         u.state = CHASING;
 
         // 停止之前的移动
@@ -654,7 +660,10 @@ Vector2 UnitManager::get_flow(UnitData& p_unit) {
     // 计算避让向量：避让强度受 density_weight 控制
     // 我们减去梯度向量（即沿着密度下降的方向走）
     // 为了防止避让力太大导致单位乱跑，我们只取垂直于移动方向的分量（Steering）
-    Vector2 avoidance = - (density_grad.limit_length(5.0f));
+    Vector2 avoidance = Vector2(0, 0);
+    if (!(p_unit.state == MOVING && p_unit.is_in_critial_area)) {
+        avoidance = -(density_grad.limit_length(1.0f));
+    }
 
     // 权衡参数：你可以根据需要调整避让强度（建议 5.0 - 20.0 之间测试）
     float avoidance_strength = 0.1f;
@@ -677,6 +686,10 @@ Vector2 UnitManager::get_flow(UnitData& p_unit) {
 Vector2 UnitManager::get_separation(UnitData& p_unit) {
     bool is_IDLE = (p_unit.state == IDLE);
     Vector2 separation = Vector2(0, 0);
+
+    if (p_unit.state == MOVING && p_unit.is_in_critial_area) {
+        return separation;
+    }
 
     float collision_radius = p_unit.stats->get_collision_radius();
     float search_radius = collision_radius * separation_radius_factor;
@@ -712,7 +725,7 @@ Vector2 UnitManager::get_separation(UnitData& p_unit) {
             }
             else {
                 if (nearby_unit.state == IDLE) {
-                    k = 0.5f;
+                    k = 0.1f;
                 }
             }
 
@@ -752,6 +765,7 @@ Vector2 UnitManager::get_force(UnitData& p_unit) {
 void UnitManager::stop_unit(UnitData& p_unit) {
     p_unit.state = IDLE;
     p_unit.velocity = Vector2(0, 0);
+    p_unit.is_in_critial_area = false;
     if (p_unit.temp_group_id != -1) {
         group_manager->decrement_moving_count(p_unit.temp_group_id, p_unit);
     }
@@ -774,13 +788,18 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
         bool is_air = (p_unit.height > AIR_HEIGHT_THRESHOLD);
 
         float current_int = flow_field_manager->get_integration(p_unit.position, p_unit.target_pos, p_unit.get_nav_type());
-        float limit_int = ((is_air) ? group->air_target_integration : group->ground_target_integration) +
+        float limit_int = ((is_air) ? group->air_target_integration : group->ground_target_integration) * 1.1f +
             (radius / (float)(flow_field_manager->get_cell_size().x) *
                 (flow_field_manager->get_cost(flow_field_manager->world_to_grid(p_unit.position), p_unit.get_nav_type())));
 
+        if (current_int < limit_int + 3.0f) {
+            p_unit.is_in_critial_area = true;
+            p_unit.target_pos_offset = Vector2(0, 0);
+        }
+
         float desired_distance = 1.5f * p_unit.stats->collision_radius;
         float soft_arrival_distance_squared = is_air ? group->air_idle_radius_sq_sum : group->ground_idle_radius_sq_sum;
-        float soft_arrivel_distance = (std::sqrtf(soft_arrival_distance_squared) + radius) * 1.1f;
+        float soft_arrivel_distance = std::sqrtf(soft_arrival_distance_squared) * 1.1f + radius;
         soft_arrival_distance_squared = soft_arrivel_distance * soft_arrivel_distance;
 
         float distance_squared = (p_unit.position).distance_squared_to(p_unit.target_pos);
@@ -789,6 +808,36 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
             stop_unit(p_unit);
             break;
         }
+
+        // --- 新增逻辑：位移判定（解决被墙或人墙堵死的情况） ---
+        p_unit.stuck_timer += (float)p_delta;
+
+        // 每 0.5 秒检查一次位移（检查频率不宜太高，要给单位挤过去的时间）
+        const float STUCK_CHECK_INTERVAL = 0.5f;
+        if (p_unit.stuck_timer >= STUCK_CHECK_INTERVAL) {
+            // 计算这段时间内的实际位移
+            float move_dist_sq = p_unit.position.distance_squared_to(p_unit.last_stuck_check_pos);
+            float rotation = UtilityFunctions::angle_difference(p_unit.rotation, p_unit.last_stuck_check_rot);
+
+            // 阈值设定
+            float stuck_threshold = std::min(0.025f * (p_unit.stats->move_speed), 0.5f);
+            float stuck_rotation_threshold = 0.08f * (p_unit.stats->turn_speed);
+
+            if (move_dist_sq >= (stuck_threshold * stuck_threshold) || 
+                rotation >= stuck_rotation_threshold) {
+                p_unit.stuck_timer = 0.0f;
+            }
+
+            if (p_unit.stuck_timer >= 8.0f) {
+                stop_unit(p_unit);
+                p_unit.stuck_timer = 0.0f;
+            }
+
+            // 更新记录点
+            p_unit.last_stuck_check_pos = p_unit.position;
+            p_unit.last_stuck_check_rot = p_unit.rotation;
+        }
+
         if (distance_squared <= soft_arrival_distance_squared ||
             (!is_air && current_int <= limit_int && current_int >= 0)) {
             std::vector<int> ahead_units = get_nearby_units(p_unit.position, 3.0f * p_unit.stats->collision_radius);
@@ -811,7 +860,7 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
 
             // 调用新的探测函数
             bool is_traversable = flow_field_manager->is_path_traversable(
-                p_unit.position, p_unit.target_pos, p_unit.get_nav_type(), density_limit
+                p_unit.position, p_unit.target_pos, p_unit.get_nav_type(), density_limit, false
             );
 
             if (is_traversable) {

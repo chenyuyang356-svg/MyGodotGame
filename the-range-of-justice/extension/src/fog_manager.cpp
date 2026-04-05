@@ -6,7 +6,7 @@ using namespace godot;
 FogManager::FogManager() {}
 FogManager::~FogManager() {}
 
-void FogManager::setup_fog(Vector2 p_map_pos, Vector2 p_map_size, Ref<Texture2D> p_brush_texture) {
+void FogManager::setup_fog(Vector2 p_map_pos, Vector2 p_map_size) {
     map_size = p_map_size;
     map_pos = p_map_pos;
 
@@ -38,7 +38,7 @@ void FogManager::setup_fog(Vector2 p_map_pos, Vector2 p_map_size, Ref<Texture2D>
     vision_multimesh->set_mesh(memnew(QuadMesh)); // 使用简单的平面
     vision_multimesh->set_transform_format(MultiMesh::TRANSFORM_2D);
     vision_renderer->set_multimesh(vision_multimesh);
-    vision_renderer->set_texture(p_brush_texture); // 这是一个带有羽化边缘的白色圆形贴图
+    vision_renderer->set_texture(brush_texture); // 这是一个带有羽化边缘的白色圆形贴图
     vpc_live->add_child(vision_renderer);
 
     // 4. 设置探索历史 Viewport
@@ -166,6 +166,12 @@ void FogManager::_bind_methods() {
 
     // 绑定至 Godot Editor: 将会出现一个下拉选单 [None, Light, Heavy]
     ADD_PROPERTY(PropertyInfo(Variant::INT, "fog_mode", PROPERTY_HINT_ENUM, "None,Light,Heavy"), "set_fog_mode", "get_fog_mode");
+
+    ClassDB::bind_method(D_METHOD("set_brush_texture", "texture"), &FogManager::set_brush_texture);
+    ClassDB::bind_method(D_METHOD("get_brush_texture"), &FogManager::get_brush_texture);
+
+    // 这样在 Godot 编辑器的 Inspector 面板就能看到 brush_texture 槽位了
+    ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "brush_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_brush_texture", "get_brush_texture");
 
     BIND_ENUM_CONSTANT(FOG_NONE);
     BIND_ENUM_CONSTANT(FOG_LIGHT);

@@ -2,10 +2,12 @@
 extends Node
 
 const SAVE_PATH = "user://settings.cfg"
+const max_fps_list = [30, 60, 90, 120]
 
 var settings = {
 	"video": {
-		"fullscreen": false
+		"fullscreen": false,
+		"max_fps": 2
 	},
 	"audio": {
 		"master": 0.8,
@@ -14,7 +16,7 @@ var settings = {
 		"ui": 0.8
 	},
 	"debug": {
-		"is_dev_mode": false # 新增：持久化开发者模式开关
+		"is_dev_mode": false
 	}
 }
 
@@ -45,14 +47,13 @@ func apply_settings():
 	var mode = Window.MODE_EXCLUSIVE_FULLSCREEN if settings.video.fullscreen else Window.MODE_WINDOWED
 	DisplayServer.window_set_mode(mode)
 	
+	Engine.max_fps = max_fps_list[settings.video.max_fps]
+	
 	# 2. 应用音量
 	_set_bus_volume("Master", settings.audio.master)
 	_set_bus_volume("Music", settings.audio.music)
 	_set_bus_volume("SFX", settings.audio.sfx)
 	_set_bus_volume("UI", settings.audio.ui)
-	
-	# 3. 开发者模式通知 (可选，用于调试)
-	print("Settings Applied. Dev Mode: ", settings.debug.is_dev_mode)
 
 func _set_bus_volume(bus_name: String, value: float):
 	var bus_index = AudioServer.get_bus_index(bus_name)

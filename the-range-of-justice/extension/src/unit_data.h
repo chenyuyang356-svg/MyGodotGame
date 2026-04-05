@@ -68,7 +68,13 @@ namespace godot {
         float dust_accumulator = 0.0f; // 扬尘距离累加器
         int emit_count = 0;
 
-        UnitData() : id(-1), state(IDLE), current_health(0) {}
+        Vector2 last_stuck_check_pos; // 上一次检查卡住时的位置
+        float last_stuck_check_rot;
+        float stuck_timer = 0.0f;     // 累计检查时间
+
+        bool is_in_critial_area = false;  // 是否足够接近目的地
+
+        UnitData() : id(-1), state(IDLE), current_health(0), last_stuck_check_pos(0, 0), stuck_timer(0.0f) {}
 
         int get_nav_type() {
             if (stats->move_type == MOVE_GROUND) { return NAV_LAND; }
