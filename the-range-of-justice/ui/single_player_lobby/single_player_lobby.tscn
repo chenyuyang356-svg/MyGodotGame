@@ -1,0 +1,113 @@
+[gd_scene format=3 uid="uid://c8e4oj2natpce"]
+
+[ext_resource type="Script" uid="uid://ltt7k7jtv0oc" path="res://ui/single_player_lobby/single_player_lobby.gd" id="1_qwggv"]
+[ext_resource type="Texture2D" uid="uid://c1eqh0dj8lj01" path="res://icon.svg" id="2_th61g"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vm2oc"]
+bg_color = Color(0, 0, 0, 0.39215687)
+
+[node name="SinglePlayerLobby" type="Control" unique_id=1137408169]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_qwggv")
+
+[node name="TextureRect" type="TextureRect" parent="." unique_id=349520079]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_th61g")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Panel_Lobby" type="PanelContainer" parent="." unique_id=792362047]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_vm2oc")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel_Lobby" unique_id=1921148621]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Panel_Lobby/VBoxContainer" unique_id=1899288767]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel_Lobby/VBoxContainer/HBoxContainer" unique_id=2018932016]
+layout_mode = 2
+text = "地图选择:"
+
+[node name="OptionButton_Map" type="OptionButton" parent="Panel_Lobby/VBoxContainer/HBoxContainer" unique_id=512909010]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="MapPreviewContainer" type="CenterContainer" parent="Panel_Lobby/VBoxContainer" unique_id=2075655596]
+layout_mode = 2
+
+[node name="SubViewportContainer" type="SubViewportContainer" parent="Panel_Lobby/VBoxContainer/MapPreviewContainer" unique_id=1130602223]
+custom_minimum_size = Vector2(1200, 900)
+layout_mode = 2
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="Panel_Lobby/VBoxContainer/MapPreviewContainer/SubViewportContainer" unique_id=930565869]
+unique_name_in_owner = true
+disable_3d = true
+transparent_bg = true
+handle_input_locally = false
+size = Vector2i(1200, 900)
+render_target_update_mode = 4
+
+[node name="PreviewRoot" type="Node2D" parent="Panel_Lobby/VBoxContainer/MapPreviewContainer/SubViewportContainer/SubViewport" unique_id=1607492912]
+unique_name_in_owner = true
+
+[node name="VBoxContainer_Players" type="VBoxContainer" parent="Panel_Lobby/VBoxContainer" unique_id=134747938]
+layout_mode = 2
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="Panel_Lobby/VBoxContainer" unique_id=305758187]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel_Lobby/VBoxContainer/HBoxContainer2" unique_id=1080792008]
+layout_mode = 2
+text = "队伍:"
+
+[node name="SpinBox_Team" type="SpinBox" parent="Panel_Lobby/VBoxContainer/HBoxContainer2" unique_id=1381329661]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+value = 1.0
+
+[node name="Label2" type="Label" parent="Panel_Lobby/VBoxContainer/HBoxContainer2" unique_id=1149830007]
+layout_mode = 2
+text = "出生点:"
+
+[node name="SpinBox_Spawn" type="SpinBox" parent="Panel_Lobby/VBoxContainer/HBoxContainer2" unique_id=1442519842]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+value = 1.0
+
+[node name="Button_StartGame" type="Button" parent="Panel_Lobby/VBoxContainer" unique_id=1882370375]
+layout_mode = 2
+text = "开始游戏"
+
+[node name="Button_Disconnect" type="Button" parent="Panel_Lobby/VBoxContainer" unique_id=1061757581]
+layout_mode = 2
+text = "返回"
+
+[connection signal="item_selected" from="Panel_Lobby/VBoxContainer/HBoxContainer/OptionButton_Map" to="." method="_on_map_selected"]
+[connection signal="pressed" from="Panel_Lobby/VBoxContainer/Button_StartGame" to="." method="_on_btn_start_pressed"]
+[connection signal="pressed" from="Panel_Lobby/VBoxContainer/Button_Disconnect" to="." method="_on_btn_back_pressed"]

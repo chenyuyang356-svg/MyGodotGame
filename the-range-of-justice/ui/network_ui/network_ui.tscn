@@ -30,6 +30,7 @@ expand_mode = 1
 stretch_mode = 6
 
 [node name="Panel_Connection" type="PanelContainer" parent="." unique_id=201819681]
+custom_minimum_size = Vector2(300, 0)
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -46,57 +47,56 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_njb74")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="Panel_Connection" unique_id=1054894841]
 layout_mode = 2
-size_flags_horizontal = 0
 
 [node name="HBoxContainer" type="HBoxContainer" parent="Panel_Connection/VBoxContainer" unique_id=546501738]
 layout_mode = 2
 
 [node name="Label" type="Label" parent="Panel_Connection/VBoxContainer/HBoxContainer" unique_id=761828632]
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
-size_flags_horizontal = 6
+size_flags_horizontal = 2
 text = "IP地址:"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="LineEdit_IP" type="LineEdit" parent="Panel_Connection/VBoxContainer/HBoxContainer" unique_id=1225207256]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 6
 text = "127.0.0.1"
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="Panel_Connection/VBoxContainer" unique_id=254247753]
 layout_mode = 2
 
 [node name="Label" type="Label" parent="Panel_Connection/VBoxContainer/HBoxContainer2" unique_id=419196873]
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
-size_flags_horizontal = 6
+size_flags_horizontal = 2
 text = "端口:"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="LineEdit_Port" type="LineEdit" parent="Panel_Connection/VBoxContainer/HBoxContainer2" unique_id=246175222]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
-size_flags_horizontal = 10
+size_flags_horizontal = 3
 text = "7777"
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="Panel_Connection/VBoxContainer" unique_id=872235753]
 layout_mode = 2
 
 [node name="Label" type="Label" parent="Panel_Connection/VBoxContainer/HBoxContainer3" unique_id=576446050]
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
-size_flags_horizontal = 6
+size_flags_horizontal = 2
 text = "名字:"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="HSplitContainer" type="HSplitContainer" parent="Panel_Connection/VBoxContainer/HBoxContainer3" unique_id=1710376902]
-custom_minimum_size = Vector2(100, 0)
+[node name="LineEdit_Name" type="LineEdit" parent="Panel_Connection/VBoxContainer/HBoxContainer3" unique_id=565665321]
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
-size_flags_horizontal = 10
-
-[node name="LineEdit_Name" type="LineEdit" parent="Panel_Connection/VBoxContainer" unique_id=565665321]
-layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="Button_Host" type="Button" parent="Panel_Connection/VBoxContainer" unique_id=1218555685]
 layout_mode = 2

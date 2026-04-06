@@ -1,0 +1,56 @@
+[gd_scene format=3 uid="uid://boyldq6pss1h0"]
+
+[ext_resource type="Script" uid="uid://dw7k31blp6l3l" path="res://ui/single_player_menu/single_player_menu.gd" id="1_bkoup"]
+[ext_resource type="Texture2D" uid="uid://c1eqh0dj8lj01" path="res://icon.svg" id="1_epdon"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_epdon"]
+bg_color = Color(0, 0, 0, 0.39215687)
+
+[node name="SinglePlayerMenu" type="Control" unique_id=315359340]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_bkoup")
+
+[node name="TextureRect" type="TextureRect" parent="." unique_id=1789377870]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("1_epdon")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="PanelContainer" type="PanelContainer" parent="." unique_id=1662890684]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -36.0
+offset_top = -33.0
+offset_right = 36.0
+offset_bottom = 33.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_epdon")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer" unique_id=1027053415]
+layout_mode = 2
+
+[node name="Button_Sandbox" type="Button" parent="PanelContainer/VBoxContainer" unique_id=1098841366]
+unique_name_in_owner = true
+layout_mode = 2
+text = "沙盒模式"
+
+[node name="Button_Back" type="Button" parent="PanelContainer/VBoxContainer" unique_id=717942215]
+unique_name_in_owner = true
+layout_mode = 2
+text = "返回"

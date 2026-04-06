@@ -10,9 +10,7 @@ func _ready():
 
 
 func _on_single_player_pressed():
-	# 单机模式：直接开启本地服务器并进入游戏
-	GlobalGameManager.host_game(7777)
-	GlobalGameManager.host_start_game()
+	get_tree().change_scene_to_file("res://ui/single_player_menu/single_player_menu.tscn")
 
 func _on_multiplayer_pressed():
 	get_tree().change_scene_to_file("res://ui/network_ui/network_ui.tscn")

@@ -5,7 +5,7 @@ extends Control
 @onready var panel_lobby = $Panel_Lobby
 @onready var ip_input = $Panel_Connection/VBoxContainer/HBoxContainer/LineEdit_IP
 @onready var port_input = $Panel_Connection/VBoxContainer/HBoxContainer2/LineEdit_Port
-@onready var name_input = $Panel_Connection/VBoxContainer/LineEdit_Name
+@onready var name_input = $Panel_Connection/VBoxContainer/HBoxContainer3/LineEdit_Name
 @onready var btn_join = $Panel_Connection/VBoxContainer/Button_Join
 
 @onready var map_option = $Panel_Lobby/VBoxContainer/HBoxContainer/OptionButton_Map

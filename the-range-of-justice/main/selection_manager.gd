@@ -7,7 +7,7 @@ var godot_icon: Texture2D = preload("res://icon.svg")
 @export var unit_manager: Node3D
 @export var building_manager: Node3D
 @export var camera_3d: Node3D # 需具备 get_mouse_world_pos() 和 get_visible_world_rect() 方法
-@export var Information_panel: GridContainer
+@export var information_panel: GridContainer
 @export var production_panel: VBoxContainer
 
 # --- 配置参数 ---
@@ -161,10 +161,10 @@ func _on_right_pressed():
 # --- 选中单位或建筑 ---
 
 func _update_information_panel() -> void:
-	if not Information_panel:
+	if not information_panel:
 		return
 
-	for child in Information_panel.get_children():
+	for child in information_panel.get_children():
 		child.queue_free()
 
 	# 统计数据。Key 存储原始的 KEY_字符串，不在此处翻译以防排序错乱
@@ -186,7 +186,7 @@ func _update_information_panel() -> void:
 	for key_name in keys:
 		var data = registry[key_name]
 		var item = selection_item_scene.instantiate()
-		Information_panel.add_child(item)
+		information_panel.add_child(item)
 		
 		# 在最终显示给 UI 时进行翻译
 		var translated_name = tr(key_name)
@@ -226,7 +226,7 @@ func _show_production_buttons(building_ids: Array, stats: BuildingStats):
 		btn.custom_minimum_size = Vector2(100, 40)
 		btn.pressed.connect(func(): 
 			for b_id in building_ids:
-				request_unit_production(b_id, unit_key)
+				request_unit_production(b_id, unit_type)
 		)
 		production_panel.add_child(btn)
 
