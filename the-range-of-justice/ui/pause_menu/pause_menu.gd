@@ -6,6 +6,8 @@ extends Control
 @onready var exit_button = $PanelContainer/VBoxContainer/Button_Disconnect
 @onready var option_menu = %OptionMenu
 
+signal change_ui(scene_path: String)
+
 func _ready():
 	hide()
 	option_menu.hide()
@@ -51,7 +53,7 @@ func _on_exit_pressed():
 	if GlobalGameManager.has_method("leave_game"):
 		GlobalGameManager.leave_game()
 	
-	get_tree().change_scene_to_file("res://ui/main_menu/main_menu.tscn")
+	emit_signal("change_ui", "res://ui/main_menu/main_menu.tscn")
 
 
 func _on_option_menu_back_button_pressed():

@@ -22,6 +22,7 @@ extends Control
 var current_preview_map_idx: int = -1
 
 func _ready():
+	GlobalAudioManager.play_bgm("res://asset/audio/music/thetreadofwarmix.ogg", 0.5)
 	# 绑定 GlobalGameManager 的大厅刷新信号
 	GlobalGameManager.lobby_updated.connect(_on_lobby_updated)
 	GlobalGameManager.game_left.connect(_on_game_left)
@@ -87,7 +88,7 @@ func _on_Button_Join_pressed():
 	btn_join.text = "Connecting..."
 
 func _on_Button_Back_pressed():
-	get_tree().change_scene_to_file("res://ui/main_menu/main_menu.tscn")
+	get_parent().change_ui("res://ui/main_menu/main_menu.tscn")
 
 func _on_Button_Disconnect_pressed():
 	# 通知 C++ 底层切断网络并清理数据，这会触发底层的 game_left 信号

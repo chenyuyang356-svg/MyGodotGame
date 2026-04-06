@@ -1,0 +1,20 @@
+[gd_scene format=3 uid="uid://y32r5pnpy182"]
+
+[ext_resource type="Script" uid="uid://cgvjoe1odvopd" path="res://ui/ui_master/ui_master.gd" id="1_aprmb"]
+[ext_resource type="PackedScene" uid="uid://ci28n324c5dh8" path="res://ui/menu_background.tscn" id="2_4yptq"]
+[ext_resource type="Script" uid="uid://cqe5x4sphoio2" path="res://ui/ui_master/ui_container.gd" id="3_4yptq"]
+
+[node name="UI_Master" type="Node" unique_id=2042656861]
+script = ExtResource("1_aprmb")
+
+[node name="MenuBackground" parent="." unique_id=1336065516 instance=ExtResource("2_4yptq")]
+
+[node name="UI_Container" type="Control" parent="." unique_id=1020168985]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("3_4yptq")

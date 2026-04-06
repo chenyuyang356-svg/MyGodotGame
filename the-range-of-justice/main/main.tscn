@@ -159,8 +159,10 @@ custom_minimum_size = Vector2(320, 0)
 layout_mode = 2
 
 [node name="GameOverUI" parent="GameHUB" unique_id=175026487 node_paths=PackedStringArray("selection_manager") instance=ExtResource("9_grrlh")]
+unique_name_in_owner = true
 visible = false
 selection_manager = NodePath("../../SelectionManager")
 
 [node name="PauseMenu" parent="GameHUB" unique_id=1426329972 instance=ExtResource("10_0i4oc")]
+unique_name_in_owner = true
 visible = false

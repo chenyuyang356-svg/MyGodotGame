@@ -4,13 +4,21 @@ extends Node
 @export var minimap_container: SubViewportContainer
 @export var minimap_viewport: SubViewport
 @export var minimap_camera: Camera3D
+@onready var game_over_ui: Control = %GameOverUI
+@onready var pause_menu: Control = %PauseMenu
 
 func _ready() -> void:
+	game_over_ui.change_ui.connect(_on_change_ui)
+	pause_menu.change_ui.connect(_on_change_ui)
+	
 	var map_idx = GlobalGameManager.selected_map_index
 	var map_res = GlobalGameManager.available_maps[map_idx]
 	
 	if map_res:
 		setup_game_with_map(map_res)
+
+func _on_change_ui(scene_path: String):
+	get_parent().change_ui(scene_path)
 
 func setup_game_with_map(map_res: MapResource) -> void:
 	# 1. 实例化地图场景

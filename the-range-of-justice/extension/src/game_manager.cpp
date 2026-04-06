@@ -512,7 +512,7 @@ void GameManager::rpc_client_load_game(int p_map_idx, Dictionary p_player_config
 	Ref<Resource> map_res = available_maps[selected_map_index];
 
 	String scene_path = "res://main/main.tscn"; // 你的主游戏主循环场景
-	get_tree()->change_scene_to_file(scene_path);
+	emit_signal("start_game");
 }
 
 void GameManager::rpc_server_request_registration(int p_team_id, String p_name) {
@@ -1176,4 +1176,5 @@ void GameManager::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("lobby_updated"));
 	ADD_SIGNAL(MethodInfo("game_left"));
 	ADD_SIGNAL(MethodInfo("game_finished", PropertyInfo(Variant::INT, "winner_team_id")));
+	ADD_SIGNAL(MethodInfo("start_game"));
 }

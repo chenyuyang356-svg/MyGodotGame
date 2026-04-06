@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://c8e4oj2natpce"]
 
 [ext_resource type="Script" uid="uid://ltt7k7jtv0oc" path="res://ui/single_player_lobby/single_player_lobby.gd" id="1_qwggv"]
-[ext_resource type="Texture2D" uid="uid://c1eqh0dj8lj01" path="res://icon.svg" id="2_th61g"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vm2oc"]
 bg_color = Color(0, 0, 0, 0.39215687)
@@ -14,17 +13,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_qwggv")
-
-[node name="TextureRect" type="TextureRect" parent="." unique_id=349520079]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-texture = ExtResource("2_th61g")
-expand_mode = 1
-stretch_mode = 6
 
 [node name="Panel_Lobby" type="PanelContainer" parent="." unique_id=792362047]
 layout_mode = 1

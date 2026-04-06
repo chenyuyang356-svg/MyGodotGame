@@ -10,13 +10,13 @@ func _ready():
 
 
 func _on_single_player_pressed():
-	get_tree().change_scene_to_file("res://ui/single_player_menu/single_player_menu.tscn")
+	get_parent().change_ui("res://ui/single_player_menu/single_player_menu.tscn")
 
 func _on_multiplayer_pressed():
-	get_tree().change_scene_to_file("res://ui/network_ui/network_ui.tscn")
+	get_parent().change_ui("res://ui/network_ui/network_ui.tscn")
 
 func _on_options_button_pressed():
-	get_tree().change_scene_to_file("res://ui/option_menu/option_menu.tscn")
+	get_parent().change_ui("res://ui/option_menu/option_menu.tscn")
 	
 
 func _on_exit_button_pressed():

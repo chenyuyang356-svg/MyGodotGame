@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://08rgqexg3d8r"]
 
 [ext_resource type="Script" uid="uid://dt8fo8njh081d" path="res://ui/network_ui/network_ui.gd" id="1_3q5o4"]
-[ext_resource type="Texture2D" uid="uid://c1eqh0dj8lj01" path="res://icon.svg" id="2_njb74"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_njb74"]
 bg_color = Color(0, 0, 0, 0.39215687)
@@ -17,17 +16,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_3q5o4")
-
-[node name="Background" type="TextureRect" parent="." unique_id=1486992035]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-texture = ExtResource("2_njb74")
-expand_mode = 1
-stretch_mode = 6
 
 [node name="Panel_Connection" type="PanelContainer" parent="." unique_id=201819681]
 custom_minimum_size = Vector2(300, 0)

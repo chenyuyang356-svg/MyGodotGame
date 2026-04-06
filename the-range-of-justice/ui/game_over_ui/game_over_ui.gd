@@ -6,6 +6,8 @@ extends Control
 @onready var disconnect_button = $PanelContainer/VBoxContainer/Button_Disconnect
 @export var selection_manager: SelectionManager
 
+signal change_ui(scene_path: String)
+
 func _ready():
 	hide()
 	# 连接 C++ 发出的信号
@@ -56,9 +58,9 @@ func rpc_back_to_lobby():
 	# 每个客户端清理本地游戏数据并切回大厅
 	GlobalGameManager.reset_game_state()
 	GlobalAudioManager.stop_bgm()
-	get_tree().change_scene_to_file("res://ui/network_ui/network_ui.tscn")
+	emit_signal("change_ui", "res://ui/network_ui/network_ui.tscn")
 
 # --- 选项 3：彻底退出 (断开连接) ---
 func _on_button_disconnect_pressed():
 	GlobalGameManager.leave_game() # 调用 C++ 的网络清理逻辑
-	get_tree().change_scene_to_file("res://ui/main_menu/main_menu.tscn")
+	emit_signal("change_ui", "res://ui/main_menu/main_menu.tscn")

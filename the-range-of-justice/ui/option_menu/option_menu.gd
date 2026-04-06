@@ -48,4 +48,4 @@ func _on_back_button_pressed():
 	# 退出菜单时统一保存到磁盘
 	SettingsManager.save_settings()
 	# 这里写返回上一级菜单的代码，例如:
-	get_tree().change_scene_to_file("res://ui/main_menu/main_menu.tscn")
+	get_parent().change_ui("res://ui/main_menu/main_menu.tscn")

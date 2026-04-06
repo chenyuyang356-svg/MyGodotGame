@@ -36,7 +36,7 @@ func _on_map_selected(index: int):
 	_update_map_preview(index)
 
 func _on_btn_back_pressed():
-	get_tree().change_scene_to_file("res://ui/single_player_menu/single_player_menu.tscn")
+	get_parent().change_ui("res://ui/single_player_menu/single_player_menu.tscn")
 
 func _on_btn_start_pressed():
 	# --- 核心逻辑：伪装成 Host 启动 ---

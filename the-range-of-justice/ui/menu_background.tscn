@@ -1,0 +1,103 @@
+[gd_scene format=3 uid="uid://ci28n324c5dh8"]
+
+[ext_resource type="Texture2D" uid="uid://dveukhtfcbi8x" path="res://asset/misc/grid.png" id="1_e8ewl"]
+[ext_resource type="Shader" uid="uid://cj2uah65l8if" path="res://shader/flicker.gdshader" id="2_6yovq"]
+[ext_resource type="Texture2D" uid="uid://bb7bc1y7hwi3l" path="res://asset/misc/map.png" id="2_hr1kg"]
+[ext_resource type="Shader" uid="uid://day7cemhagia7" path="res://shader/crt.gdshader" id="4_putcd"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_hr1kg"]
+shader = ExtResource("2_6yovq")
+
+[sub_resource type="Animation" id="Animation_e8ewl"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0, 0)]
+}
+
+[sub_resource type="Animation" id="Animation_hr1kg"]
+resource_name = "move"
+length = 10.0
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 10),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(-96, -96), Vector2(-32, -32)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_6yovq"]
+_data = {
+&"RESET": SubResource("Animation_e8ewl"),
+&"move": SubResource("Animation_hr1kg")
+}
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sbmfo"]
+shader = ExtResource("4_putcd")
+shader_parameter/scanline_count = 300.0
+
+[node name="MenuBackground" type="CanvasLayer" unique_id=1336065516]
+layer = -1
+
+[node name="ColorRect_Base" type="ColorRect" parent="." unique_id=652435193]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.1764706, 0.29411766, 0.43137255, 1)
+
+[node name="TextureRect_Map" type="TextureRect" parent="." unique_id=1454709340]
+material = SubResource("ShaderMaterial_hr1kg")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2_hr1kg")
+stretch_mode = 5
+
+[node name="TextureRect_Grid" type="TextureRect" parent="." unique_id=233522729]
+self_modulate = Color(1, 1, 1, 0.1)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 180.0
+offset_bottom = 220.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("1_e8ewl")
+stretch_mode = 1
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="TextureRect_Grid" unique_id=400594259]
+libraries/ = SubResource("AnimationLibrary_6yovq")
+autoplay = &"move"
+
+[node name="CanvasLayer_CRT" type="CanvasLayer" parent="." unique_id=1720878796]
+layer = -1
+
+[node name="ColorRect" type="ColorRect" parent="CanvasLayer_CRT" unique_id=2000349422]
+material = SubResource("ShaderMaterial_sbmfo")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
