@@ -1712,6 +1712,7 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_unit_position", "unit_id"), &UnitManager::get_unit_position);
     ClassDB::bind_method(D_METHOD("get_unit_state", "unit_id"), &UnitManager::get_unit_state);
     ClassDB::bind_method(D_METHOD("get_unit_stats", "unit_id"), &UnitManager::get_unit_stats);
+    ClassDB::bind_method(D_METHOD("get_unit_stats_by_type", "unit_type"), &UnitManager::get_unit_stats_by_type);
     ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &UnitManager::set_flow_field_manager);
     ClassDB::bind_method(D_METHOD("set_group_manager", "node"), &UnitManager::set_group_manager);
     ClassDB::bind_method(D_METHOD("set_attack_manager", "node"), &UnitManager::set_attack_manager);

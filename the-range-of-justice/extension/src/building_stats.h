@@ -3,6 +3,7 @@
 #include <vector>
 
 #include <godot_cpp/classes/resource.hpp>
+#include <godot_cpp/classes/translation_server.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
@@ -31,6 +32,9 @@ namespace godot {
         GDCLASS(BuildingStats, Resource)
 
     private:
+        // 用于翻译
+        String building_name_key = "KEY_NEW_BUILDING";
+        String building_description_key = "KEY_NO_DESC";
         // --- 基础属性 ---
         BuildingType building_type = BUILDING_GENERIC;
         uint32_t placement_requirement = PLACE_LAND;
@@ -81,6 +85,18 @@ namespace godot {
         float sight_range = 700.0f;
         std::vector<WeaponMount> weapon_mounts;
         // --- Getters & Setters ---
+
+        void set_building_name_key(const String p_key) { building_name_key = p_key; }
+        String get_building_name_key() const { return building_name_key; }
+        String get_translated_name() const {
+            return TranslationServer::get_singleton()->translate(building_name_key);
+        }
+
+        void set_building_description_key(const String p_key) { building_description_key = p_key; }
+        String get_building_description_key() const { return building_description_key; }
+        String get_translated_description() const {
+            return TranslationServer::get_singleton()->translate(building_description_key);
+        }
 
         // Base
         void set_building_type(BuildingType p_type) { building_type = p_type; }

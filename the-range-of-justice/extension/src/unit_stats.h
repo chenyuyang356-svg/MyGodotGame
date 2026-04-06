@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <godot_cpp/classes/resource.hpp>
+#include <godot_cpp/classes/translation_server.hpp>
 #include "game_definitions.h" // 引入枚举定义
 #include "weapon_stats.h"
 
@@ -29,6 +30,9 @@ namespace godot {
 
     public:
         String unit_name = "new_unit";
+        // 用于翻译
+        String unit_name_key = "KEY_NEW_UNIT";
+        String unit_description_key = "KEY_NO_DESC";
         // --- 生存 ---
         float health_max = 100.0f;
         float health_regen = 1.0f;
@@ -90,6 +94,18 @@ namespace godot {
         // --- Getters / Setters ---
         void set_unit_name(const String p_name) { unit_name = p_name; }
         String get_unit_name() const { return unit_name; }
+
+        void set_unit_name_key(const String p_key) { unit_name_key = p_key; }
+        String get_unit_name_key() const { return unit_name_key; }
+        String get_translated_name() const {
+            return TranslationServer::get_singleton()->translate(unit_name_key);
+        }
+
+        void set_unit_description_key(const String p_key) { unit_description_key = p_key; }
+        String get_unit_description_key() const { return unit_description_key; }
+        String get_translated_description() const {
+            return TranslationServer::get_singleton()->translate(unit_description_key);
+        }
 
         void set_health_max(float p_value) { health_max = p_value; }
         float get_health_max() const { return health_max; }

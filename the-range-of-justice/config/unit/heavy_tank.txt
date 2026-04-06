@@ -3,6 +3,7 @@
 #########################################
 
 unit_name = HeavyTank
+unit_name_key = KEY_UNIT_HEAVY_TANK
 # --- Survival (生存) ---
 health_max       = 150.0
 health_regen     = 0.5

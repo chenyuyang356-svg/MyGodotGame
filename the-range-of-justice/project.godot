@@ -58,6 +58,10 @@ camera_right={
 ]
 }
 
+[internationalization]
+
+locale/translations=PackedStringArray("res://translation/translation.zh.translation")
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

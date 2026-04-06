@@ -75,44 +75,36 @@ func _on_selection_changed():
 	_update_information_panel()
 	
 	production_panel.hide()
-	# 1. 获取所有选中的建筑 ID
 	var selected_bids = get_selected_building_ids()
 	
 	if selected_bids.size() > 0:
-		# 获取第一个建筑的状态作为基准
 		var first_bid = selected_bids[0]
 		var first_stats = building_manager.get_building_stats(first_bid)
 		
-		# 检查是否是兵营
 		if first_stats and first_stats.building_type == BuildingStats.BUILDING_BARRACKS:
 			var target_type_name = first_stats.building_name
 			var is_homogeneous = true
 			
-			# 校验选中的所有建筑是否为同一种兵营
 			for i in range(1, selected_bids.size()):
 				var current_stats = building_manager.get_building_stats(selected_bids[i])
-				# 如果类型不匹配或不是同名建筑，则判定为非同类选择
 				if not current_stats or current_stats.building_name != target_type_name:
 					is_homogeneous = false
 					break
 			
-			# 如果全是同类兵营，显示生产面板
 			if is_homogeneous:
 				_show_production_buttons(selected_bids, first_stats)
 	
 	# --- 建造者逻辑 ---
 	var selected_uids = get_selected_unit_ids()
 	var builder_stats_list = []
-	
 	for u_id in selected_uids:
 		var u_stats = unit_manager.get_unit_stats(u_id)
-		# 检查是否带有建造者标签
 		if u_stats and (u_stats.unit_tags & TAG_BUILDER):
 			builder_stats_list.append(u_stats)
 	
 	if builder_stats_list.size() > 0:
-		# 取第一个选中的建造者的建筑列表（或者合并所有建造者的列表）
 		var buildable_list = builder_stats_list[0].producible_buildings
+		# 注意：building_manager.show_builder_menu 内部也应使用 tr()
 		building_manager.show_builder_menu(buildable_list)
 	else:
 		building_manager.hide_builder_menu()
@@ -172,36 +164,33 @@ func _update_information_panel() -> void:
 	if not Information_panel:
 		return
 
-	# 1. 清空旧信息
 	for child in Information_panel.get_children():
 		child.queue_free()
 
-	# 2. 统计数据 (注意：现在我们要存更多信息)
-	# 数据结构: { "单位名": {"count": 1, "icon": Texture2D} }
+	# 统计数据。Key 存储原始的 KEY_字符串，不在此处翻译以防排序错乱
 	var registry = {}
 
-	# 统计单位
 	for u_id in get_selected_unit_ids():
 		var stats = unit_manager.get_unit_stats(u_id)
 		if stats:
-			_add_to_registry(registry, stats.unit_name, godot_icon) # 假设Stats里有icon属性
+			_add_to_registry(registry, stats.unit_name_key, godot_icon)
 
-	# 统计建筑
 	for b_id in get_selected_building_ids():
 		var stats = building_manager.get_building_stats(b_id)
 		if stats:
-			_add_to_registry(registry, stats.building_name, godot_icon)
+			_add_to_registry(registry, stats.building_name_key, godot_icon)
 
-	# 3. 排序 (可选：按名字排序，让UI整齐)
 	var keys = registry.keys()
 	keys.sort()
 
-	# 4. 生成美观的 UI
-	for name in keys:
-		var data = registry[name]
+	for key_name in keys:
+		var data = registry[key_name]
 		var item = selection_item_scene.instantiate()
 		Information_panel.add_child(item)
-		item.setup(name, data.count, data.icon)
+		
+		# 在最终显示给 UI 时进行翻译
+		var translated_name = tr(key_name)
+		item.setup(translated_name, data.count, data.icon)
 
 # 辅助函数：简化计数逻辑
 func _add_to_registry(reg: Dictionary, type_name: String, icon: Texture2D):
@@ -213,25 +202,32 @@ func _add_to_registry(reg: Dictionary, type_name: String, icon: Texture2D):
 
 func _show_production_buttons(building_ids: Array, stats: BuildingStats):
 	production_panel.show()
-	# 清空旧按钮
 	for child in production_panel.get_children():
 		child.queue_free()
 		
-	var units = stats.producible_units
+	var units = stats.producible_units # 这里存的是单位的类型名 KEY
 	for unit_type in units:
+		var unit_stats = unit_manager.get_unit_stats_by_type(unit_type)
+		if (!unit_stats): continue
+		var unit_key = unit_stats.unit_name_key
+		
 		var btn = Button.new()
-		btn.text = "Produce " + unit_type
+		
+		# 使用格式化字符串： "Produce %s" -> "生产 %s"
+		var base_text = tr("KEY_UI_PRODUCE_COMMAND") % tr(unit_key)
+		
+		# 如果操作多个建筑，增加数量显示，例如 "生产 坦克 (x3)"
 		if building_ids.size() > 1:
-			btn.text += " (x%d)" % building_ids.size() # 提示正在操作多个建筑
+			var count_text = tr("KEY_UI_MULTI_SELECT_COUNT") % building_ids.size()
+			btn.text = base_text + count_text
+		else:
+			btn.text = base_text
 			
 		btn.custom_minimum_size = Vector2(100, 40)
-		
-		# 核心修改：点击按钮时，遍历所有选中的建筑并发送生产请求
 		btn.pressed.connect(func(): 
 			for b_id in building_ids:
-				request_unit_production(b_id, unit_type)
+				request_unit_production(b_id, unit_key)
 		)
-		
 		production_panel.add_child(btn)
 
 

@@ -1,4 +1,5 @@
 unit_name = Helicopter
+unit_name_key = KEY_UNIT_HELICOPTER
 # --- Survival (生存) ---
 health_max       = 30.0
 health_regen     = 0.5

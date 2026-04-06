@@ -194,7 +194,7 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, WeaponManager* p_w
         else if (key == "texture_path") {
             stats->set(key, value_str);
         }
-        else if (key == "unit_name") {
+        else if (key == "unit_name" || key == "unit_name_key" || key == "unit_description_key") {
             stats->set(key, value_str);
         }
 

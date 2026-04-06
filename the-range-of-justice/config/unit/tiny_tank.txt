@@ -3,6 +3,7 @@
 #########################################
 
 unit_name = TinyTank
+unit_name_key = KEY_UNIT_TINY_TANK
 # --- Survival (生存) ---
 health_max       = 30.0
 health_regen     = 0.5

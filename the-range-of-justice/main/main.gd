@@ -222,7 +222,7 @@ func setup_game_with_map(map_res: MapResource) -> void:
 		debug_draw.unit_manager = unit_manager
 		debug_draw.camera = main_camera
 	
-	GlobalAudioManager.play_bgm("res://asset/audio/music/02_-_sam_goor00_collard_-_reign_supreme.ogg", -8.0, 3.0)
+	GlobalAudioManager.play_bgm("res://asset/audio/music/02_-_sam_goor00_collard_-_reign_supreme.ogg", -8.0, 0.5)
 	GlobalGameManager.start_game()
 
 func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictionary, cell_size: Vector2i):

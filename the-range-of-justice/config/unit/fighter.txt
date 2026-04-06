@@ -3,6 +3,7 @@
 #########################################
 
 unit_name = Fighter
+unit_name_key = KEY_UNIT_FIGHTER
 # --- Survival (生存) ---
 health_max       = 45.0
 health_regen     = 0.5

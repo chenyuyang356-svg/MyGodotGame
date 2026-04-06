@@ -19,6 +19,16 @@ void BuildingStats::_bind_methods() {
     BIND_ENUM_CONSTANT(PLACE_ON_RESOURCE);
 
     // --- 基础属性绑定 ---
+    ClassDB::bind_method(D_METHOD("set_building_name_key"), &BuildingStats::set_building_name_key);
+    ClassDB::bind_method(D_METHOD("get_building_name_key"), &BuildingStats::get_building_name_key);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "building_name_key"), "set_building_name_key", "get_building_name_key");
+    ClassDB::bind_method(D_METHOD("get_translated_name"), &BuildingStats::get_translated_name);
+
+    ClassDB::bind_method(D_METHOD("set_building_description_key"), &BuildingStats::set_building_description_key);
+    ClassDB::bind_method(D_METHOD("get_building_description_key"), &BuildingStats::get_building_description_key);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "building_description_key"), "set_building_description_key", "get_building_description_key");
+    ClassDB::bind_method(D_METHOD("get_translated_description"), &BuildingStats::get_translated_description);
+
     ClassDB::bind_method(D_METHOD("get_building_type"), &BuildingStats::get_building_type);
     ClassDB::bind_method(D_METHOD("set_building_type", "p_val"), &BuildingStats::set_building_type);
     ADD_PROPERTY(PropertyInfo(Variant::INT, "building_type", PROPERTY_HINT_ENUM, "Generic,Barracks,Turret,Collector,Storage"), "set_building_type", "get_building_type");

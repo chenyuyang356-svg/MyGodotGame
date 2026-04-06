@@ -82,20 +82,22 @@ func _on_build_button_pressed(type_name: String):
 func _open_dev_build_menu():
 	if !build_menu_container: return
 	
-	# 清空并显示面板
 	for child in build_menu_container.get_children():
 		child.queue_free()
 	
-	# 调用 C++ 接口获取所有建筑名
 	var all_types = get_registered_building_types()
 	
 	for type_name in all_types:
 		var stats = get_building_stats_by_type(type_name)
 		var btn = Button.new()
-		btn.text = "[DEV] " + stats.building_name
-		btn.custom_minimum_size = Vector2(150, 40)
 		
-		# 绑定点击事件
+		# 使用 tr() 翻译前缀，并翻译 stats.building_name (假设它存储的是 KEY)
+		# 格式示例: "[DEV] 兵营"
+		var dev_label = tr("KEY_UI_DEV_PREFIX") # 翻译 "[DEV]"
+		var b_name = tr(stats.building_name_key)    # 翻译 "KEY_BUILDING_BARRACKS"
+		btn.text = dev_label + " " + b_name
+		
+		btn.custom_minimum_size = Vector2(150, 40)
 		btn.pressed.connect(func():
 			_on_dev_build_button_pressed(type_name)
 		)
@@ -181,7 +183,10 @@ func _create_build_buttons():
 	for type_name in types:
 		var btn = Button.new()
 		var stats = get_building_stats_by_type(type_name)
-		btn.text = stats.building_name
+		
+		# 直接翻译建筑名称 Key
+		btn.text = tr(stats.building_name_key)
+		
 		btn.custom_minimum_size = Vector2(100, 40)
 		btn.pressed.connect(_on_build_button_pressed.bind(type_name))
 		build_menu_container.add_child(btn)
@@ -190,7 +195,6 @@ func _create_build_buttons():
 func show_builder_menu(building_names: Array):
 	if !build_menu_container: return
 	
-	# 清空并重新生成按钮
 	for child in build_menu_container.get_children():
 		child.queue_free()
 	
@@ -199,7 +203,12 @@ func show_builder_menu(building_names: Array):
 		if !stats: continue
 		
 		var btn = Button.new()
-		btn.text = "Build " + stats.building_name
+		
+		# 使用带参数的格式化字符串，例如 "建造 %s"
+		# KEY_UI_BUILD_COMMAND 在 CSV 中定义为 "Build %s" 或 "建造 %s"
+		var format_str = tr("KEY_UI_BUILD_COMMAND")
+		btn.text = format_str % tr(stats.building_name_key)
+		
 		btn.custom_minimum_size = Vector2(120, 40)
 		btn.pressed.connect(_on_build_button_pressed.bind(type_name))
 		build_menu_container.add_child(btn)

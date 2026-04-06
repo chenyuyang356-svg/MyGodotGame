@@ -4,6 +4,7 @@
 #########################################
 
 unit_name = Battleship
+unit_name_key = KEY_UNIT_BATTLESHIP
 # --- Survival (生存) ---
 health_max       = 90.0
 health_regen     = 0.5

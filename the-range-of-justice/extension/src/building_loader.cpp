@@ -93,7 +93,8 @@ Ref<BuildingStats> BuildingLoader::load_from_txt(String p_path, WeaponManager* p
                 }
             }
         }
-        else if (key == "texture_path" || key == "building_name" || key == "resource_type") {
+        else if (key == "texture_path" || key == "building_name" || key == "resource_type" ||
+            key == "building_name_key" || key == "building_description_key") {
             stats->set(key, val);
         }
         else {

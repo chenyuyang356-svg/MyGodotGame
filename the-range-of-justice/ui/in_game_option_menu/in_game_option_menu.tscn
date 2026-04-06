@@ -1,7 +1,6 @@
-[gd_scene format=3 uid="uid://dywbpnqknsp0r"]
+[gd_scene format=3 uid="uid://6vhoxhp2weir"]
 
-[ext_resource type="Script" uid="uid://cfu3ko8mlh5b1" path="res://ui/option_menu/option_menu.gd" id="1_0hfiv"]
-[ext_resource type="Texture2D" uid="uid://c1eqh0dj8lj01" path="res://icon.svg" id="1_0vc6n"]
+[ext_resource type="Script" uid="uid://b7snp0ues8dwr" path="res://ui/in_game_option_menu/in_game_option_menu.gd" id="1_wb5p3"]
 
 [node name="OptionMenu" type="Control" unique_id=1075139515]
 layout_mode = 3
@@ -10,18 +9,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_0hfiv")
-
-[node name="TextureRect" type="TextureRect" parent="." unique_id=1880929471]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-texture = ExtResource("1_0vc6n")
-expand_mode = 1
-stretch_mode = 6
+script = ExtResource("1_wb5p3")
 
 [node name="PanelContainer" type="PanelContainer" parent="." unique_id=561680224]
 layout_mode = 1

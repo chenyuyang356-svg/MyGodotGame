@@ -3,6 +3,7 @@
 #########################################
 
 unit_name = Builder
+unit_name_key = KEY_UNIT_BUILDER
 # --- Survival (生存) ---
 health_max       = 30.0
 health_regen     = 0.5

@@ -3,6 +3,7 @@
 # 适用类: BuildingStats (GDExtension)
 # ==========================================================
 
+building_name_key = KEY_BUILDING_SHIPYARD
 [Identity]
 # 建筑名称
 building_name=Shipyard

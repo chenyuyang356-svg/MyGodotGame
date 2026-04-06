@@ -33,6 +33,16 @@ void UnitStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_unit_name"), &UnitStats::get_unit_name);
     ADD_PROPERTY(PropertyInfo(Variant::STRING, "unit_name"), "set_unit_name", "get_unit_name");
 
+    ClassDB::bind_method(D_METHOD("set_unit_name_key"), &UnitStats::set_unit_name_key);
+    ClassDB::bind_method(D_METHOD("get_unit_name_key"), &UnitStats::get_unit_name_key);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "unit_name_key"), "set_unit_name_key", "get_unit_name_key");
+    ClassDB::bind_method(D_METHOD("get_translated_name"), &UnitStats::get_translated_name);
+
+    ClassDB::bind_method(D_METHOD("set_unit_description_key"), &UnitStats::set_unit_description_key);
+    ClassDB::bind_method(D_METHOD("get_unit_description_key"), &UnitStats::get_unit_description_key);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "unit_description_key"), "set_unit_description_key", "get_unit_description_key");
+    ClassDB::bind_method(D_METHOD("get_translated_description"), &UnitStats::get_translated_description);
+
     ADD_GROUP("Survival", "");
     ClassDB::bind_method(D_METHOD("set_health_max", "value"), &UnitStats::set_health_max);
     ClassDB::bind_method(D_METHOD("get_health_max"), &UnitStats::get_health_max);
