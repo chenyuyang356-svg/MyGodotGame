@@ -6,16 +6,14 @@
 [ext_resource type="Script" uid="uid://dm3xricwkeu64" path="res://main/economy_manager.gd" id="3_grrlh"]
 [ext_resource type="Script" uid="uid://dctuafq0a0mpn" path="res://main/building_manager.gd" id="3_kfbq2"]
 [ext_resource type="Script" uid="uid://cxdwnig240dls" path="res://main/selection_manager.gd" id="4_3wy1v"]
+[ext_resource type="Shader" uid="uid://c57souvxpg2mu" path="res://shader/projectile_glow.gdshader" id="4_73k8k"]
+[ext_resource type="Shader" uid="uid://csdode282ljdk" path="res://shader/unit_shadow.gdshader" id="4_fwcvl"]
 [ext_resource type="Script" uid="uid://3bqvng8q6y28" path="res://main/camera_3d.gd" id="5_3wy1v"]
+[ext_resource type="Shader" uid="uid://cx4f0cpphrr3g" path="res://shader/ground_light.gdshader" id="5_5xyti"]
 [ext_resource type="Script" uid="uid://rcx1w1scq2ev" path="res://main/debug_draw.gd" id="6_kfbq2"]
 [ext_resource type="Script" uid="uid://bb0bcvmid0u6y" path="res://main/minimap_input.gd" id="8_67ri8"]
 [ext_resource type="PackedScene" uid="uid://bvv64f2ms7u2t" path="res://ui/game_over_ui/game_over_ui.tscn" id="9_grrlh"]
 [ext_resource type="PackedScene" uid="uid://b2vnbu81yx75" path="res://ui/pause_menu/pause_menu.tscn" id="10_0i4oc"]
-
-[sub_resource type="Environment" id="Environment_bsumw"]
-adjustment_enabled = true
-adjustment_contrast = 1.1
-adjustment_saturation = 0.9
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_grrlh"]
 bg_color = Color(0, 0, 0, 0.39215687)
@@ -30,6 +28,17 @@ border_width_bottom = 2
 [sub_resource type="Environment" id="Environment_fwcvl"]
 ambient_light_source = 2
 ambient_light_color = Color(1, 1, 1, 1)
+
+[sub_resource type="Environment" id="Environment_bsumw"]
+tonemap_mode = 2
+tonemap_exposure = 0.9
+tonemap_white = 7.0
+glow_enabled = true
+glow_intensity = 0.8
+glow_strength = 0.5
+glow_bloom = 0.2
+glow_blend_mode = 0
+glow_hdr_threshold = 1.5
 
 [node name="main" type="Node" unique_id=224165495 node_paths=PackedStringArray("minimap_border", "minimap_container", "minimap_viewport", "minimap_camera")]
 script = ExtResource("1_3wy1v")
@@ -49,6 +58,10 @@ brush_texture = ExtResource("3_bsumw")
 [node name="WeaponManager" type="WeaponManager" parent="." unique_id=1922983484]
 
 [node name="ProjectileManager" type="ProjectileManager" parent="." unique_id=1838151014]
+projectile_glow_shader = ExtResource("4_73k8k")
+ground_light_shader = ExtResource("5_5xyti")
+shadow_shader = ExtResource("4_fwcvl")
+common_light_tex = ExtResource("3_bsumw")
 
 [node name="EffectManager" type="EffectManager" parent="." unique_id=1499504171]
 
@@ -106,7 +119,6 @@ show_debug = false
 [node name="Camera3D" type="Camera3D" parent="." unique_id=217203825]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 2000, 0)
 cull_mask = 1048573
-environment = SubResource("Environment_bsumw")
 projection = 1
 script = ExtResource("5_3wy1v")
 
@@ -183,3 +195,6 @@ transform = Transform3D(1, 0, 0, 0, 0.5, 0.86602545, 0, -0.86602557, 0.49999997,
 light_angular_distance = 0.5
 light_cull_mask = 4294967293
 directional_shadow_mode = 0
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=95175138]
+environment = SubResource("Environment_bsumw")

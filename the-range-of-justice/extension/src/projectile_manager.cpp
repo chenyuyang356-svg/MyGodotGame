@@ -22,6 +22,22 @@ void ProjectileManager::_bind_methods() {
 
     ClassDB::bind_method(D_METHOD("setup", "p_um", "p_am"), &ProjectileManager::setup);
     ClassDB::bind_method(D_METHOD("set_building_manager", "p_bm"), &ProjectileManager::set_building_manager);
+
+    ClassDB::bind_method(D_METHOD("set_projectile_glow_shader", "shader"), &ProjectileManager::set_projectile_glow_shader);
+    ClassDB::bind_method(D_METHOD("get_projectile_glow_shader"), &ProjectileManager::get_projectile_glow_shader);
+    ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "projectile_glow_shader", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), "set_projectile_glow_shader", "get_projectile_glow_shader");
+
+    ClassDB::bind_method(D_METHOD("set_ground_light_shader", "shader"), &ProjectileManager::set_ground_light_shader);
+    ClassDB::bind_method(D_METHOD("get_ground_light_shader"), &ProjectileManager::get_ground_light_shader);
+    ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "ground_light_shader", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), "set_ground_light_shader", "get_ground_light_shader");
+
+    ClassDB::bind_method(D_METHOD("set_shadow_shader", "shader"), &ProjectileManager::set_shadow_shader);
+    ClassDB::bind_method(D_METHOD("get_shadow_shader"), &ProjectileManager::get_shadow_shader);
+    ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "shadow_shader", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), "set_shadow_shader", "get_shadow_shader");
+
+    ClassDB::bind_method(D_METHOD("set_common_light_tex", "texture"), &ProjectileManager::set_common_light_tex);
+    ClassDB::bind_method(D_METHOD("get_common_light_tex"), &ProjectileManager::get_common_light_tex);
+    ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "common_light_tex", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_common_light_tex", "get_common_light_tex");
 }
 
 void ProjectileManager::spawn_projectile(
@@ -109,49 +125,51 @@ void ProjectileManager::_internal_register_projectile(Ref<ProjectileStats> p_sta
 
     if (type_renderers.find(stats_ptr) != type_renderers.end()) return;
 
-    // ---  创建主渲染器 (MultiMeshInstance3D) ---
+    // 1. 创建主渲染器 (Glow)
     MultiMeshInstance3D* mmi = memnew(MultiMeshInstance3D);
     mmi->set_name(p_type_name + "_Renderer");
     add_child(mmi);
 
-    // 设置 MultiMesh
-    Ref<MultiMesh> mm;
-    mm.instantiate();
+    // 配置 MultiMesh 和 Mesh (逻辑同你之前的代码)
+    Ref<MultiMesh> mm; mm.instantiate();
     mm->set_transform_format(MultiMesh::TRANSFORM_3D);
-    mm->set_use_colors(true);
     mm->set_use_custom_data(true);
 
-    // 设置 Mesh 尺寸 (根据贴图和帧数计算单帧大小)
-    Ref<QuadMesh> qmesh;
-    qmesh.instantiate();
-
+    Ref<QuadMesh> qmesh; qmesh.instantiate();
     Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(p_stats->get_visual_path());
     if (tex.is_valid()) {
-        // 单帧宽度 = 总宽度 / 横向帧数
         Vector2 frame_size = tex->get_size() / Vector2(p_stats->get_h_frames(), p_stats->get_v_frames());
         qmesh->set_size(frame_size);
-    }
-    else {
-        qmesh->set_size(Vector2(8, 8)); // 回退默认值
     }
     mm->set_mesh(qmesh);
     mmi->set_multimesh(mm);
 
-    // 设置材质与 Shader
-    if (projectile_shader.is_null()) {
-        projectile_shader = ResourceLoader::get_singleton()->load("res://shader/unit_shader.gdshader");
-    }
-    Ref<ShaderMaterial> mat;
-    mat.instantiate();
-    mat->set_shader(projectile_shader);
+    Ref<ShaderMaterial> mat; mat.instantiate();
+    mat->set_shader(projectile_glow_shader); // 使用注册的 Glow Shader
     mat->set_shader_parameter("albedo_texture", tex);
     mat->set_shader_parameter("h_frames", p_stats->get_h_frames());
     mat->set_shader_parameter("v_frames", p_stats->get_v_frames());
-
     mmi->set_material_override(mat);
     type_renderers[stats_ptr] = mmi;
 
-    // ---  创建影子渲染器 (Shadows) ---
+    // 2. 创建地面假光渲染器
+    MultiMeshInstance3D* l_mmi = memnew(MultiMeshInstance3D);
+    l_mmi->set_name(p_type_name + "_GroundLight");
+    add_child(l_mmi);
+
+    Ref<MultiMesh> l_mm; l_mm.instantiate();
+    l_mm->set_transform_format(MultiMesh::TRANSFORM_3D);
+    l_mm->set_use_colors(true);
+    l_mm->set_mesh(qmesh); // 复用尺寸
+    l_mmi->set_multimesh(l_mm);
+
+    Ref<ShaderMaterial> l_mat; l_mat.instantiate();
+    l_mat->set_shader(ground_light_shader); // 使用地面假光 Shader
+    l_mat->set_shader_parameter("light_texture", common_light_tex); // 使用编辑器拖入的 tres
+    l_mmi->set_material_override(l_mat);
+    light_renderers[stats_ptr] = l_mmi;
+
+    // 3. 创建影子渲染器 (代码逻辑同你之前的，使用 shadow_shader)
     MultiMeshInstance3D* s_mmi = memnew(MultiMeshInstance3D);
     s_mmi->set_name(p_type_name + "_Shadows");
     add_child(s_mmi);
@@ -373,14 +391,15 @@ void ProjectileManager::update_render_buffer(double p_delta) {
         const std::vector<int>& indices = type_grouping_cache[s_ptr];
         int count = (int)indices.size();
 
-        Ref<MultiMesh> mm = mmi->get_multimesh();
-        mm->set_instance_count(count);
-
-        MultiMeshInstance3D* s_mmi = shadow_renderers[s_ptr];
-        Ref<MultiMesh> s_mm = s_mmi->get_multimesh();
-        s_mm->set_instance_count(count);
+        mmi->get_multimesh()->set_instance_count(count);
+        shadow_renderers[s_ptr]->get_multimesh()->set_instance_count(count);
+        light_renderers[s_ptr]->get_multimesh()->set_instance_count(count);
 
         if (count == 0) continue;
+
+        Ref<MultiMesh> mm = mmi->get_multimesh();
+        Ref<MultiMesh> s_mm = shadow_renderers[s_ptr]->get_multimesh();
+        Ref<MultiMesh> l_mm = light_renderers[s_ptr]->get_multimesh();
 
         for (int i = 0; i < count; ++i) {
             ProjectileData& p = projectiles[indices[i]]; // 注意：这里用引用，因为要更新 anim_time
@@ -407,33 +426,35 @@ void ProjectileManager::update_render_buffer(double p_delta) {
             Vector2 dir = p.target_pos - p.position;
             float angle = dir.angle();
 
+            // D. 更新投射物本体
             Transform3D xform;
-            xform.origin = pos_3d;
-            xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
-            xform.basis = xform.basis.rotated(Vector3(0, -1, 0), angle + Math_PI / 2.0f);
-
-            // --- D. 设置渲染数据 ---
+            xform.origin = Vector3(p.position.x, p.current_height, p.position.y);
+            xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0).rotated(Vector3(0, -1, 0), angle + Math_PI / 2.0f);
             mm->set_instance_transform(i, xform);
+            mm->set_instance_custom_data(i, Color((float)frame_idx, 0.0f, 1.0f, 0.0f));
 
-            // Custom Data: X=帧索引, Y=行索引, Z=亮度调制, W=自定义
-            mm->set_instance_custom_data(i, Color((float)frame_idx, (float)row, modulate, 0.0f));
+            // E. 更新影子
+            Transform3D s_xform;
+            s_xform.origin = Vector3(p.position.x + 1.0f, 0.05f, p.position.y + 1.0f);
+            s_xform.basis = xform.basis;
+            s_mm->set_instance_transform(i, s_xform);
+            s_mm->set_instance_custom_data(i, Color((float)frame_idx, 0.0f, 0.0f, 0.0f));
 
-            // 如果需要团队颜色，也可以在这里设置
-            // mm->set_instance_color(i, team_color);
+            // F. 更新地面假光
+            Transform3D l_xform;
+            // 离地高度固定在 0.08，略高于影子
+            l_xform.origin = Vector3(p.position.x, 0.08f, p.position.y);
+            l_xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
 
-            // --- E. 影子处理 ---
-            Transform3D shadow_xform;
-            float shadow_offset = 2.0f;
-            shadow_xform.origin = Vector3(p.position.x + shadow_offset, 0.1f + fake_depth_offset, p.position.y + shadow_offset);
-            shadow_xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
-            shadow_xform.basis = shadow_xform.basis.rotated(Vector3(0, -1, 0), angle + Math_PI / 2.0f);
+            // 假光随高度变淡
+            float h_ratio = UtilityFunctions::clamp(1.0f - (p.current_height / 15.0f), 0.3f, 1.0f);
+            l_xform.basis = l_xform.basis.scaled(Vector3(3.0, 3.0, 3.0) * (1.2f - h_ratio * 0.2f));
 
-            s_mm->set_instance_transform(i, shadow_xform);
+            l_mm->set_instance_transform(i, l_xform);
+            // 颜色可以根据投射物类型动态设置，这里示例用橙色
+            l_mm->set_instance_color(i, Color(1.0, 0.4, 0.1, 0.6 * h_ratio));
 
-            // 影子的动画帧必须和主体同步，否则形状对不上
-            s_mm->set_instance_custom_data(i, Color((float)frame_idx, (float)row, 0.0f, 0.0f));
-
-            // --- F. 生成粒子 ---
+            // --- G. 生成粒子 ---
             if (p.type == PROJECTILE_MISSILE) {
                 p.particle_update_timer += p_delta;
                 if (p.particle_update_timer > 0.05f) {

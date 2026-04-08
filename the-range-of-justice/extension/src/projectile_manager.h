@@ -71,13 +71,16 @@ namespace godot {
         // 渲染器映射：每个 ProjectileStats 对应一个 MultiMeshInstance3D
         std::unordered_map<ProjectileStats*, MultiMeshInstance3D*> type_renderers;
         std::unordered_map<ProjectileStats*, MultiMeshInstance3D*> shadow_renderers;
+        std::unordered_map<ProjectileStats*, MultiMeshInstance3D*> light_renderers; // 地面假光
 
         // 分组缓存：每一帧将投射物按类型分组更新
         std::unordered_map<ProjectileStats*, std::vector<int>> type_grouping_cache;
 
         // 着色器资源
-        Ref<Shader> projectile_shader;
+        Ref<Shader> projectile_glow_shader;
+        Ref<Shader> ground_light_shader;
         Ref<Shader> shadow_shader;
+        Ref<Texture2D> common_light_tex;
 
     protected:
         static void _bind_methods();
@@ -104,5 +107,17 @@ namespace godot {
         void _internal_register_projectile(Ref<ProjectileStats> p_stats);
         void register_projectile_type(String p_type_name, String p_config_path);
         void register_projectiles_from_dir(String p_dir_path);
+
+        void set_projectile_glow_shader(const Ref<Shader>& p_shader) { projectile_glow_shader = p_shader; }
+        Ref<Shader> get_projectile_glow_shader() const { return projectile_glow_shader; }
+
+        void set_ground_light_shader(const Ref<Shader>& p_shader) { ground_light_shader = p_shader; }
+        Ref<Shader> get_ground_light_shader() const { return ground_light_shader; }
+
+        void set_common_light_tex(const Ref<Texture2D>& p_tex) { common_light_tex = p_tex; }
+        Ref<Texture2D> get_common_light_tex() const { return common_light_tex; }
+
+        void set_shadow_shader(const Ref<Shader>& p_shader) { shadow_shader = p_shader; }
+        Ref<Shader> get_shadow_shader() const { return shadow_shader; }
     };
 }

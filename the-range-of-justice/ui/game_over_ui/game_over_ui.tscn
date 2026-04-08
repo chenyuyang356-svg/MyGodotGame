@@ -35,14 +35,14 @@ layout_mode = 2
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Button_Continue" type="Button" parent="PanelContainer/VBoxContainer" unique_id=1325742114]
+[node name="Button_Continue" type="Button" parent="PanelContainer/VBoxContainer" unique_id=1325742114 groups=["menu_button"]]
 layout_mode = 2
 text = "继续游戏"
 
-[node name="Button_BackToLobby" type="Button" parent="PanelContainer/VBoxContainer" unique_id=1747156408]
+[node name="Button_BackToLobby" type="Button" parent="PanelContainer/VBoxContainer" unique_id=1747156408 groups=["menu_button"]]
 layout_mode = 2
 text = "回到大厅"
 
-[node name="Button_Disconnect" type="Button" parent="PanelContainer/VBoxContainer" unique_id=314457579]
+[node name="Button_Disconnect" type="Button" parent="PanelContainer/VBoxContainer" unique_id=314457579 groups=["menu_button"]]
 layout_mode = 2
 text = "结束游戏"

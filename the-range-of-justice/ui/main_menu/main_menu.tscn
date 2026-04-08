@@ -2,6 +2,24 @@
 
 [ext_resource type="Script" uid="uid://kb26hr730nud" path="res://ui/main_menu/main_menu.gd" id="1_chnft"]
 [ext_resource type="Theme" uid="uid://cpyg1yehfm7ug" path="res://ui/theme/main_menu.theme" id="1_cngla"]
+[ext_resource type="Shader" uid="uid://cc0jv4p8pp5v" path="res://ui/main_menu/title.gdshader" id="3_omy8q"]
+
+[sub_resource type="FontVariation" id="FontVariation_mu8pm"]
+spacing_glyph = 5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_i5wg5"]
+shader = ExtResource("3_omy8q")
+shader_parameter/line_color = Color(0, 0.101960786, 0.2, 1)
+shader_parameter/line_width = 0.50000002375
+shader_parameter/frequency = 30.0
+shader_parameter/speed = 0.01
+
+[sub_resource type="Environment" id="Environment_omy8q"]
+background_mode = 3
+glow_enabled = true
+glow_intensity = 2.0
+glow_bloom = 0.2
+glow_blend_mode = 2
 
 [node name="MainMenu" type="Control" unique_id=1229322745]
 layout_mode = 3
@@ -35,15 +53,85 @@ theme_override_constants/margin_bottom = 50
 [node name="ContentVBox" type="VBoxContainer" parent="MainLayout" unique_id=414355949]
 layout_mode = 2
 
-[node name="Title" type="Label" parent="MainLayout/ContentVBox" unique_id=959528904]
+[node name="TitleContainer" type="Control" parent="MainLayout/ContentVBox" unique_id=2021676355]
 layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 6
+
+[node name="ColorRect" type="ColorRect" parent="MainLayout/ContentVBox/TitleContainer" unique_id=297206895]
+visible = false
+custom_minimum_size = Vector2(1200, 130)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -600.0
+offset_top = -50.0
+offset_right = 600.0
+offset_bottom = 50.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.3137255)
+
+[node name="Title_Glow" type="Label" parent="MainLayout/ContentVBox/TitleContainer" unique_id=735881134]
+self_modulate = Color(18.892157, 18.892157, 18.892157, 1)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -575.5
+offset_top = -66.0
+offset_right = 575.5
+offset_bottom = 66.0
+grow_horizontal = 2
+grow_vertical = 2
 size_flags_vertical = 6
 theme_override_constants/outline_size = 8
+theme_override_fonts/font = SubResource("FontVariation_mu8pm")
 theme_override_font_sizes/font_size = 96
 text = "The Range of Justice"
 horizontal_alignment = 1
 vertical_alignment = 1
 uppercase = true
+
+[node name="Title_Stripe" type="Label" parent="MainLayout/ContentVBox/TitleContainer" unique_id=1896995228]
+visible = false
+material = SubResource("ShaderMaterial_i5wg5")
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -569.5
+offset_top = -66.0
+offset_right = 569.5
+offset_bottom = 66.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_vertical = 6
+theme_override_colors/font_color = Color(1, 0.91764706, 0.8980392, 1)
+theme_override_fonts/font = SubResource("FontVariation_mu8pm")
+theme_override_font_sizes/font_size = 96
+text = "The Range of Justice"
+horizontal_alignment = 1
+vertical_alignment = 1
+uppercase = true
+
+[node name="Line2D" type="Line2D" parent="MainLayout/ContentVBox/TitleContainer" unique_id=1381999396]
+visible = false
+position = Vector2(8, -12.75)
+points = PackedVector2Array(-600, -48, 576, -48)
+default_color = Color(0, 2, 4, 1)
+
+[node name="Line2D2" type="Line2D" parent="MainLayout/ContentVBox/TitleContainer" unique_id=600148531]
+visible = false
+points = PackedVector2Array(-592, 75.25, 584, 75.25)
+default_color = Color(0, 2, 4, 1)
 
 [node name="MenuButtons" type="VBoxContainer" parent="MainLayout/ContentVBox" unique_id=41079230]
 custom_minimum_size = Vector2(200, 50)
@@ -83,6 +171,9 @@ custom_minimum_size = Vector2(100, 50)
 layout_mode = 2
 size_flags_vertical = 4
 text = "退出"
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=746256183]
+environment = SubResource("Environment_omy8q")
 
 [connection signal="pressed" from="MainLayout/ContentVBox/MenuButtons/SinglePlayerButtonayButton" to="." method="_on_single_player_pressed"]
 [connection signal="pressed" from="MainLayout/ContentVBox/MenuButtons/MultiplayerButton" to="." method="_on_multiplayer_pressed"]
