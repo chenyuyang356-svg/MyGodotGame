@@ -93,6 +93,11 @@ void ProjectileManager::spawn_projectile(
     p.arc_height = stats->get_arc_height();
 
     projectiles.push_back(p);
+
+    if (p.type == PROJECTILE_BULLET && !(stats->get_is_healing())) {
+        Vector3 pos = Vector3(p_start_pos.x, p_start_height, p_start_pos.y);
+        audio_manager->play_sfx_3d("GunShot", pos, -15.0f);
+    }
 }
 ProjectileManager::ProjectileManager() {}
 ProjectileManager::~ProjectileManager() {}
@@ -299,19 +304,24 @@ void ProjectileManager::_physics_process(double p_delta) {
             }
 
             // 爆炸特效
-            if (it->target_id != -1 && !(it->stats->get_is_healing())) {
+            if (it->target_id != -1) {
                 // 计算从发射点到现在的位移
                 float traveled_so_far = it->start_pos.distance_to(it->position);
 
                 // 只有当移动距离超过一定阈值（比如5.0像素），才产生爆炸效果
                 // 这样即使在非常极端的情况下目标死在发射者脚下，也不会有特效
                 if (traveled_so_far > 10.0f) {
-                    float scale = (it->type == PROJECTILE_BULLET) ? 0.5f : 1.5f;
                     Vector3 pos = Vector3((it->position).x, it->current_height + 0.1f, (it->position).y);
                     Vector3 vel = Vector3(0, 0, 0);
-                    effect_manager->emit_particle("Explosion", pos, vel, 2.0f, 0.2f);
-                    if (!(it->type == PROJECTILE_BULLET)) {
-                        audio_manager->play_sfx_3d("Explosion", pos, -5.0f);
+                    if (it->stats->get_is_healing()) {
+                        effect_manager->emit_particle("Healing", pos, vel, 2.0f, 1.0f);
+                    }
+                    else {
+                        float scale = (it->type == PROJECTILE_BULLET) ? 0.5f : 1.5f;
+                        effect_manager->emit_particle("Explosion", pos, vel, 2.0f, 0.2f);
+                        if (!(it->type == PROJECTILE_BULLET)) {
+                            audio_manager->play_sfx_3d("Explosion", pos, -5.0f);
+                        }
                     }
                 }
             }

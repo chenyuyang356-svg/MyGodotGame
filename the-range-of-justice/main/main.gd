@@ -152,6 +152,9 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	var explosion_tex: Texture2D = ResourceLoader.load("res://asset/particle/explosion.png")
 	effect_manager.register_effect_type("Explosion", explosion_tex, 1000, 0.0, 0.9, 1.0)
 	
+	var healing_tex: Texture2D = ResourceLoader.load("res://asset/particle/healing.png")
+	effect_manager.register_effect_type("Healing", healing_tex, 1000, 9.8, 0.1, 1.2)
+	
 	weapon_manager.register_weapons_from_dir("res://config/weapon/")
 	unit_manager.register_units_from_dir("res://config/unit/")
 	building_manager.register_buildings_from_dir("res://config/building/")
@@ -256,10 +259,10 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 func spawn_test_units():
 	for x in range(10):
 		for y in range(10):
-			#GlobalGameManager.rpc_server_request_spawn_unit("AttackHelicopter", -32 * Vector2(x, y), 1)
+			#GlobalGameManager.rpc_server_request_spawn_unit("Helicopter", -32 * Vector2(x, y), 1)
 			GlobalGameManager.rpc_server_request_spawn_unit("Builder", -32 * Vector2(x, y), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Battleship", -32 * Vector2(x, y) + Vector2(-7000, 0), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("TinyGunboat", -32 * Vector2(x, y) + Vector2(-7000, 0), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y) + Vector2(0, 1600), 2)
-			#GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(0, 1600), 2)
+			GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(0, 1600), 2)
 			continue

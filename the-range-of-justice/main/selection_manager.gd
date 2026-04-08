@@ -225,6 +225,7 @@ func _show_production_buttons(building_ids: Array, stats: BuildingStats):
 			
 		btn.custom_minimum_size = Vector2(100, 40)
 		btn.pressed.connect(func(): 
+			GlobalAudioManager.play_ui_sfx("InGameMenuClick")
 			for b_id in building_ids:
 				request_unit_production(b_id, unit_type)
 		)

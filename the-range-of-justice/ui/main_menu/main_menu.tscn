@@ -52,33 +52,33 @@ size_flags_horizontal = 4
 size_flags_vertical = 10
 alignment = 1
 
-[node name="SinglePlayerButtonayButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=967664777]
+[node name="SinglePlayerButtonayButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=967664777 groups=["menu_button"]]
 custom_minimum_size = Vector2(200, 50)
 layout_mode = 2
 localize_numeral_system = false
 text = "单人游戏"
 
-[node name="MultiplayerButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=1469595126]
+[node name="MultiplayerButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=1469595126 groups=["menu_button"]]
 custom_minimum_size = Vector2(200, 50)
 layout_mode = 2
 text = "多人游戏"
 
-[node name="OptionsButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=53033225]
+[node name="OptionsButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=53033225 groups=["menu_button"]]
 custom_minimum_size = Vector2(100, 50)
 layout_mode = 2
 text = "设置"
 
-[node name="HelpButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=1230442850]
+[node name="HelpButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=1230442850 groups=["menu_button"]]
 custom_minimum_size = Vector2(100, 50)
 layout_mode = 2
 text = "帮助"
 
-[node name="ModsButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=1441497434]
+[node name="ModsButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=1441497434 groups=["menu_button"]]
 custom_minimum_size = Vector2(100, 50)
 layout_mode = 2
 text = "模组"
 
-[node name="ExitButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=781588597]
+[node name="ExitButton" type="Button" parent="MainLayout/ContentVBox/MenuButtons" unique_id=781588597 groups=["menu_button"]]
 custom_minimum_size = Vector2(100, 50)
 layout_mode = 2
 size_flags_vertical = 4

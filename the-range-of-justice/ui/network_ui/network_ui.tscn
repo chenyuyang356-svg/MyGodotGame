@@ -86,15 +86,15 @@ custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Button_Host" type="Button" parent="Panel_Connection/VBoxContainer" unique_id=1218555685]
+[node name="Button_Host" type="Button" parent="Panel_Connection/VBoxContainer" unique_id=1218555685 groups=["menu_button"]]
 layout_mode = 2
 text = "主持房间"
 
-[node name="Button_Join" type="Button" parent="Panel_Connection/VBoxContainer" unique_id=1779476235]
+[node name="Button_Join" type="Button" parent="Panel_Connection/VBoxContainer" unique_id=1779476235 groups=["menu_button"]]
 layout_mode = 2
 text = "加入房间"
 
-[node name="Button_Back" type="Button" parent="Panel_Connection/VBoxContainer" unique_id=719287519]
+[node name="Button_Back" type="Button" parent="Panel_Connection/VBoxContainer" unique_id=719287519 groups=["menu_button"]]
 layout_mode = 2
 text = "返回"
 
@@ -123,7 +123,7 @@ layout_mode = 2
 layout_mode = 2
 text = "地图选择:"
 
-[node name="OptionButton_Map" type="OptionButton" parent="Panel_Lobby/VBoxContainer/HBoxContainer" unique_id=416202341]
+[node name="OptionButton_Map" type="OptionButton" parent="Panel_Lobby/VBoxContainer/HBoxContainer" unique_id=416202341 groups=["menu_button"]]
 layout_mode = 2
 
 [node name="MapPreviewContainer" type="CenterContainer" parent="Panel_Lobby/VBoxContainer" unique_id=433795785]
@@ -167,11 +167,11 @@ layout_mode = 2
 min_value = 1.0
 value = 1.0
 
-[node name="Button_StartGame" type="Button" parent="Panel_Lobby/VBoxContainer" unique_id=452154077]
+[node name="Button_StartGame" type="Button" parent="Panel_Lobby/VBoxContainer" unique_id=452154077 groups=["menu_button"]]
 layout_mode = 2
 text = "开始游戏"
 
-[node name="Button_Disconnect" type="Button" parent="Panel_Lobby/VBoxContainer" unique_id=2098324169]
+[node name="Button_Disconnect" type="Button" parent="Panel_Lobby/VBoxContainer" unique_id=2098324169 groups=["menu_button"]]
 layout_mode = 2
 text = "断开连接"
 

@@ -71,6 +71,7 @@ func _unhandled_input(event: InputEvent):
 
 
 func _on_build_button_pressed(type_name: String):
+	GlobalAudioManager.play_ui_sfx("InGameMenuClick")
 	current_type_name = type_name
 	current_stats = get_building_stats_by_type(type_name)
 	if current_stats:
@@ -107,6 +108,7 @@ func _open_dev_build_menu():
 
 # 开发者建造按钮按下
 func _on_dev_build_button_pressed(type_name: String):
+	GlobalAudioManager.play_ui_sfx("InGameMenuClick")
 	is_dev_placement = true # 标记为开发者模式
 	_on_build_button_pressed(type_name) # 复用原有的按钮按下逻辑
 
