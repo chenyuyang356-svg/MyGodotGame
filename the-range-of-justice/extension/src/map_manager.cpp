@@ -54,7 +54,7 @@ void MapManager::load_from_tilemap(Node* p_node) {
 
         Transform3D xform;
         // 注意：这里为了 RTS 视角，将 Y 坐标设为 0，Z 坐标设为 2D 的 Y
-        xform.origin = Vector3((coords.x + 0.5f) * tile_size.x, -100.0f, (coords.y + 0.5f) * tile_size.y);
+        xform.origin = Vector3((coords.x + 0.5f) * tile_size.x, -1.0f, (coords.y + 0.5f) * tile_size.y);
         xform.basis = Basis(Vector3(1, 0, 0), -Math_PI / 2.0); // 躺平
 
         mm->set_instance_transform(i, xform);

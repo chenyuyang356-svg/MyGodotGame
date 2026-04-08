@@ -218,7 +218,7 @@ func _show_production_buttons(building_ids: Array, stats: BuildingStats):
 		
 		# 如果操作多个建筑，增加数量显示，例如 "生产 坦克 (x3)"
 		if building_ids.size() > 1:
-			var count_text = tr("KEY_UI_MULTI_SELECT_COUNT") % building_ids.size()
+			var count_text = "(x%s)" % building_ids.size()
 			btn.text = base_text + count_text
 		else:
 			btn.text = base_text

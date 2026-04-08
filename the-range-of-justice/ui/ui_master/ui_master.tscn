@@ -3,11 +3,14 @@
 [ext_resource type="Script" uid="uid://cgvjoe1odvopd" path="res://ui/ui_master/ui_master.gd" id="1_aprmb"]
 [ext_resource type="PackedScene" uid="uid://ci28n324c5dh8" path="res://ui/menu_background.tscn" id="2_4yptq"]
 [ext_resource type="Script" uid="uid://cqe5x4sphoio2" path="res://ui/ui_master/ui_container.gd" id="3_4yptq"]
+[ext_resource type="PackedScene" uid="uid://svk71gg5b4na" path="res://ui/crt/crt.tscn" id="3_og182"]
 
 [node name="UI_Master" type="Node" unique_id=2042656861]
 script = ExtResource("1_aprmb")
 
 [node name="MenuBackground" parent="." unique_id=1336065516 instance=ExtResource("2_4yptq")]
+
+[node name="CanvasLayer_CRT" parent="." unique_id=544808705 instance=ExtResource("3_og182")]
 
 [node name="UI_Container" type="Control" parent="." unique_id=1020168985]
 layout_mode = 3

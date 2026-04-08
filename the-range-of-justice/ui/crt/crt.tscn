@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://svk71gg5b4na"]
+
+[ext_resource type="Script" uid="uid://coc5q6gsq7juv" path="res://ui/crt/crt.gd" id="1_f48mm"]
+[ext_resource type="Shader" uid="uid://day7cemhagia7" path="res://shader/crt.gdshader" id="1_otife"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sbmfo"]
+shader = ExtResource("1_otife")
+shader_parameter/scanline_count = 300.0
+
+[node name="CanvasLayer_CRT" type="CanvasLayer" unique_id=544808705]
+layer = -1
+script = ExtResource("1_f48mm")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=1981354226]
+material = SubResource("ShaderMaterial_sbmfo")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+metadata/_edit_use_anchors_ = true

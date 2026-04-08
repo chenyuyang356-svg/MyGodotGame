@@ -12,6 +12,11 @@
 [ext_resource type="PackedScene" uid="uid://bvv64f2ms7u2t" path="res://ui/game_over_ui/game_over_ui.tscn" id="9_grrlh"]
 [ext_resource type="PackedScene" uid="uid://b2vnbu81yx75" path="res://ui/pause_menu/pause_menu.tscn" id="10_0i4oc"]
 
+[sub_resource type="Environment" id="Environment_bsumw"]
+adjustment_enabled = true
+adjustment_contrast = 1.1
+adjustment_saturation = 0.9
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_grrlh"]
 bg_color = Color(0, 0, 0, 0.39215687)
 
@@ -21,6 +26,10 @@ border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
+
+[sub_resource type="Environment" id="Environment_fwcvl"]
+ambient_light_source = 2
+ambient_light_color = Color(1, 1, 1, 1)
 
 [node name="main" type="Node" unique_id=224165495 node_paths=PackedStringArray("minimap_border", "minimap_container", "minimap_viewport", "minimap_camera")]
 script = ExtResource("1_3wy1v")
@@ -97,6 +106,7 @@ show_debug = false
 [node name="Camera3D" type="Camera3D" parent="." unique_id=217203825]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 2000, 0)
 cull_mask = 1048573
+environment = SubResource("Environment_bsumw")
 projection = 1
 script = ExtResource("5_3wy1v")
 
@@ -142,6 +152,7 @@ render_target_update_mode = 4
 [node name="MinimapCamera3D" type="Camera3D" parent="GameHUB/RightSidePanel/RightSidebar/MinimapBorder/SubViewportContainer/SubViewport" unique_id=523048990]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 2000, 0)
 cull_mask = 1048574
+environment = SubResource("Environment_fwcvl")
 projection = 1
 
 [node name="InformationPanel" type="GridContainer" parent="GameHUB/RightSidePanel/RightSidebar" unique_id=477033690]
@@ -166,3 +177,9 @@ selection_manager = NodePath("../../SelectionManager")
 [node name="PauseMenu" parent="GameHUB" unique_id=1426329972 instance=ExtResource("10_0i4oc")]
 unique_name_in_owner = true
 visible = false
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2114030412]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0.86602545, 0, -0.86602557, 0.49999997, 0, 250, 0)
+light_angular_distance = 0.5
+light_cull_mask = 4294967293
+directional_shadow_mode = 0

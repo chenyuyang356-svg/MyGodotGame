@@ -377,6 +377,7 @@ void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints) {
             unit.target_id = -1;
             unit.stuck_timer = 0.0f;
             unit.last_stuck_check_pos = unit.position;
+            unit.is_in_critial_area = false;
         }
        
     }
@@ -418,6 +419,7 @@ void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_
         // 停止之前的移动
         u.use_direct_path = false;
         u.target_pos_offset = Vector2(0, 0);
+        u.is_in_critial_area = false;
     }
 }
 
@@ -687,18 +689,20 @@ Vector2 UnitManager::get_separation(UnitData& p_unit) {
     bool is_IDLE = (p_unit.state == IDLE);
     Vector2 separation = Vector2(0, 0);
 
-    if (p_unit.state == MOVING && p_unit.is_in_critial_area) {
-        return separation;
-    }
-
     float collision_radius = p_unit.stats->get_collision_radius();
     float search_radius = collision_radius * separation_radius_factor;
     // 关键改进：确保搜索半径足以发现附近的大型单位
-    search_radius = Math::max(search_radius, collision_radius + 60.0f);
+    search_radius = Math::max(search_radius, collision_radius + 100.0f);
 
     // 扫描附近的单位，产生一个相反的推力。IDLE 状态的推力系数通常更高，以保持阵型。
     for (int unit_idx : get_nearby_units(p_unit.position, search_radius)) {
         const UnitData& nearby_unit = units[unit_idx];
+
+        if (p_unit.state == MOVING && p_unit.is_in_critial_area) {
+            if (nearby_unit.target_grid == p_unit.target_grid) {
+                continue;
+            }
+        }
 
         if ((p_unit.stats->move_type == MOVE_AIR) && (nearby_unit.stats->move_type != MOVE_AIR) ||
             (p_unit.stats->move_type != MOVE_AIR) && (nearby_unit.stats->move_type == MOVE_AIR)) {
@@ -859,9 +863,17 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
             p_unit.path_recheck_timer = 0.0;
 
             // 调用新的探测函数
-            bool is_traversable = flow_field_manager->is_path_traversable(
-                p_unit.position, p_unit.target_pos, p_unit.get_nav_type(), density_limit, false
-            );
+            bool is_traversable = false;
+            if (p_unit.is_in_critial_area) {
+                is_traversable = flow_field_manager->is_path_traversable(
+                    p_unit.position, p_unit.target_pos, p_unit.get_nav_type(), density_limit, false
+                );
+            }
+            else {
+                is_traversable = flow_field_manager->is_path_traversable(
+                    p_unit.position, p_unit.target_pos, p_unit.get_nav_type(), density_limit, true
+                );
+            }
 
             if (is_traversable) {
                 // 路径畅通，可以走直线
@@ -1108,29 +1120,52 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
     float radius = (p_unit.stats)->get_collision_radius();
     Vector2i cell_size = flow_field_manager->get_cell_size();
      
-    if (1 || p_unit.state != IDLE || p_unit.temp_group_id == -1) {
-        std::vector<int> nearby = get_nearby_units(next_pos, radius * 2.0f);
-        for (int other_idx : nearby) {
-            UnitData& other = units[other_idx];
-            if (other.id == p_unit.id) continue;
-            if (0 && other.state == IDLE && p_unit.temp_group_id != -1) continue;
-            if ((p_unit.stats->move_type == MOVE_AIR) && (other.stats->move_type != MOVE_AIR) ||
-                (p_unit.stats->move_type != MOVE_AIR) && (other.stats->move_type == MOVE_AIR)) {
-                continue;
-            }
+    // --- 单位之间的平滑排斥 ---
+    std::vector<int> nearby = get_nearby_units(next_pos, radius * 2.5f);
 
-            Vector2 to_other = other.position - next_pos;
-            float dist_sq = to_other.length_squared();
-            float min_dist = radius + (other.stats)->get_collision_radius();
+    float mass_self = p_unit.stats->get_mass();
+    float resistance_self = (p_unit.state == IDLE || p_unit.state == ATTACKING) ? 4.0f : 1.0f;
+    float effective_mass_self = mass_self * resistance_self;
 
-            if (dist_sq < min_dist * min_dist && dist_sq > 0.001f) {
-                float dist = Math::sqrt(dist_sq);
-                float overlap = min_dist - dist;
-                Vector2 resolve_dir = to_other / dist;
-                float push_strength = 0.4f;
-                Vector2 push_vector = resolve_dir * (overlap * push_strength);
+    for (int other_idx : nearby) {
+        UnitData& other = units[other_idx];
+        if (other.id == p_unit.id || other.state == DYING) continue;
 
-                next_pos -= push_vector;    
+        // 过滤空军
+        if ((p_unit.stats->move_type == MOVE_AIR) != (other.stats->move_type == MOVE_AIR)) continue;
+
+        Vector2 to_other = other.position - next_pos;
+        float dist_sq = to_other.length_squared();
+        float min_dist = radius + (other.stats)->get_collision_radius();
+
+        if (dist_sq < min_dist * min_dist && dist_sq > 0.001f) {
+            float dist = Math::sqrt(dist_sq);
+            float overlap = min_dist - dist;
+            Vector2 resolve_dir = to_other / dist;
+
+            // 基于质量和状态的分配比例
+            float mass_other = other.stats->get_mass();
+            float resistance_other = (other.state == IDLE || other.state == ATTACKING) ? 4.0f : 1.0f;
+            float effective_mass_other = mass_other * resistance_other;
+
+            float total_res = effective_mass_self + effective_mass_other;
+            float my_push_share = effective_mass_other / total_res;
+
+            // --- 核心优化 A: 渐进式修正 (Relaxation) ---
+            // 不要在一帧内移走所有 overlap，每帧只移走 15%~20%
+            // 这样重叠会在 5-10 帧内平滑消除，看起来就像是由于“挤压”而滑开
+            float smoothing = 0.2f;
+            float correction_amount = overlap * my_push_share * smoothing;
+            next_pos -= resolve_dir * correction_amount;
+
+            // --- 核心优化 B: 速度反馈 (Velocity Projection) ---
+            // 如果我正在往对方身体里撞，消除那部分速度分量
+            // 否则，即便位置被修正了，下一帧我的速度还会把我带进对方身体，造成反复“瞬移”
+            float dot = p_unit.velocity.dot(resolve_dir);
+            if (dot > 0) {
+                // 减去朝向对方的速度分量，并增加一点摩擦力
+                // 乘上 my_push_share 是为了让轻单位撞重单位时，轻单位停得更快
+                p_unit.velocity -= resolve_dir * dot * my_push_share;
             }
         }
     }

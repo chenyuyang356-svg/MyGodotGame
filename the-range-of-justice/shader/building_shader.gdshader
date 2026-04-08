@@ -2,7 +2,7 @@ shader_type spatial;
 // unshaded: 不受 3D 灯光影响
 // cull_disabled: 双面可见
 // depth_draw_always: 强制写入深度，保证 Y-Sort 准确
-render_mode unshaded, cull_disabled, depth_draw_always;
+render_mode cull_disabled, depth_draw_always;
 
 uniform sampler2D albedo_texture : source_color, filter_nearest;
 uniform int h_frames = 1;

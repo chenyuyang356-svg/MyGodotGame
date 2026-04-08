@@ -3,7 +3,6 @@
 [ext_resource type="Texture2D" uid="uid://dveukhtfcbi8x" path="res://asset/misc/grid.png" id="1_e8ewl"]
 [ext_resource type="Shader" uid="uid://cj2uah65l8if" path="res://shader/flicker.gdshader" id="2_6yovq"]
 [ext_resource type="Texture2D" uid="uid://bb7bc1y7hwi3l" path="res://asset/misc/map.png" id="2_hr1kg"]
-[ext_resource type="Shader" uid="uid://day7cemhagia7" path="res://shader/crt.gdshader" id="4_putcd"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_hr1kg"]
 shader = ExtResource("2_6yovq")
@@ -46,10 +45,6 @@ _data = {
 &"move": SubResource("Animation_hr1kg")
 }
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_sbmfo"]
-shader = ExtResource("4_putcd")
-shader_parameter/scanline_count = 300.0
-
 [node name="MenuBackground" type="CanvasLayer" unique_id=1336065516]
 layer = -1
 
@@ -89,15 +84,3 @@ stretch_mode = 1
 [node name="AnimationPlayer" type="AnimationPlayer" parent="TextureRect_Grid" unique_id=400594259]
 libraries/ = SubResource("AnimationLibrary_6yovq")
 autoplay = &"move"
-
-[node name="CanvasLayer_CRT" type="CanvasLayer" parent="." unique_id=1720878796]
-layer = -1
-
-[node name="ColorRect" type="ColorRect" parent="CanvasLayer_CRT" unique_id=2000349422]
-material = SubResource("ShaderMaterial_sbmfo")
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2

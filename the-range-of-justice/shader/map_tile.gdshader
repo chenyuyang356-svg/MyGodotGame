@@ -2,7 +2,7 @@ shader_type spatial;
 
 // unshaded: 不受 3D 光照影响
 // blend_mix: 标准透明混合
-render_mode unshaded, blend_mix, depth_draw_opaque, cull_back;
+render_mode blend_mix, depth_draw_opaque, cull_back;
 
 uniform sampler2D albedo_texture : source_color, filter_nearest;
 uniform vec2 atlas_size; // Atlas 贴图的总格子数，例如 vec2(16.0, 16.0)

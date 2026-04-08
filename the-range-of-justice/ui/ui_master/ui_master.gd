@@ -2,6 +2,7 @@ extends Node
 
 @onready var ui_container = $UI_Container
 @onready var menu_background = $MenuBackground
+@onready var crt = $CanvasLayer_CRT
 
 func _ready():
 	# 初始加载主菜单
@@ -9,6 +10,7 @@ func _ready():
 
 func start_game():
 	menu_background.hide()
+	crt.hide()
 	# 清除旧 UI
 	for child in ui_container.get_children():
 		child.queue_free()
@@ -19,6 +21,7 @@ func start_game():
 
 func change_ui(scene_path: String):
 	menu_background.show()
+	crt.show()
 	# 清除旧 UI
 	for child in ui_container.get_children():
 		child.queue_free()

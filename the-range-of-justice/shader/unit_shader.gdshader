@@ -2,7 +2,7 @@ shader_type spatial;
 // 核心修改：使用 blend_mix (混合模式) 和 depth_prepass_alpha (深度预通过)
 // depth_prepass_alpha 会先跑一遍深度测试，只保留不透明的部分写入深度，
 // 然后在颜色阶段进行半透明混合。
-render_mode unshaded, cull_disabled, blend_mix, depth_prepass_alpha;
+render_mode cull_disabled, blend_mix, depth_prepass_alpha;
 
 uniform sampler2D albedo_texture : source_color, filter_nearest;
 uniform int h_frames = 1;

@@ -138,13 +138,13 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	
 	# 注册配置（这部分建议放在 GlobalGameManager 的 init 里只运行一次）
 	var dust_tex: Texture2D = ResourceLoader.load("res://asset/particle/dust.png")
-	effect_manager.register_effect_type("Dust", dust_tex, 2000, -1.8, 0.9, 0.2)
+	effect_manager.register_effect_type("Dust", dust_tex, 2000, -0.1, 0.9, 0.2)
 	
 	var water_foam_tex: Texture2D = ResourceLoader.load("res://asset/particle/water_effect/water_foam.png")
 	effect_manager.register_effect_type("WaterFoam", water_foam_tex, 2000, 0.0, 0.85, 1.0)
 	
 	var water_splash_tex: Texture2D = ResourceLoader.load("res://asset/particle/water_effect/water_splash.png")
-	effect_manager.register_effect_type("WaterSplash", water_splash_tex, 2000, -9.8, 0.98, 1.1)
+	effect_manager.register_effect_type("WaterSplash", water_splash_tex, 2000, -0.1, 0.98, 1.1)
 	
 	var water_ripple_tex: Texture2D = ResourceLoader.load("res://asset/particle/water_effect/water_ripple.png")
 	effect_manager.register_effect_type("WaterRipple", water_ripple_tex, 2000, 0.0, 1.0, 0.3)
@@ -254,11 +254,12 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 
 
 func spawn_test_units():
-	for x in range(5):
-		for y in range(5):
+	for x in range(10):
+		for y in range(10):
 			#GlobalGameManager.rpc_server_request_spawn_unit("AttackHelicopter", -32 * Vector2(x, y), 1)
-			#GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y), 1)
+			GlobalGameManager.rpc_server_request_spawn_unit("Builder", -32 * Vector2(x, y), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Battleship", -32 * Vector2(x, y) + Vector2(-7000, 0), 1)
+			#GlobalGameManager.rpc_server_request_spawn_unit("TinyGunboat", -32 * Vector2(x, y) + Vector2(-7000, 0), 1)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Tank", -32 * Vector2(x, y) + Vector2(0, 1600), 2)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Fighter", -32 * Vector2(x, y) + Vector2(0, 1600), 2)
 			continue
