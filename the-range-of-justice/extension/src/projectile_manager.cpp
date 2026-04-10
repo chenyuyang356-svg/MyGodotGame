@@ -428,7 +428,7 @@ void ProjectileManager::update_render_buffer(double p_delta) {
 
             // D. 更新投射物本体
             Transform3D xform;
-            xform.origin = Vector3(p.position.x, p.current_height, p.position.y);
+            xform.origin = Vector3(p.position.x, p.current_height, p.position.y - p.current_height);
             xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0).rotated(Vector3(0, -1, 0), angle + Math_PI / 2.0f);
             mm->set_instance_transform(i, xform);
             mm->set_instance_custom_data(i, Color((float)frame_idx, 0.0f, 1.0f, 0.0f));
@@ -443,7 +443,7 @@ void ProjectileManager::update_render_buffer(double p_delta) {
             // F. 更新地面假光
             Transform3D l_xform;
             // 离地高度固定在 0.08，略高于影子
-            l_xform.origin = Vector3(p.position.x, 0.08f, p.position.y);
+            l_xform.origin = Vector3(p.position.x, 0.08f, p.position.y - p.current_height);
             l_xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
 
             // 假光随高度变淡
@@ -452,7 +452,8 @@ void ProjectileManager::update_render_buffer(double p_delta) {
 
             l_mm->set_instance_transform(i, l_xform);
             // 颜色可以根据投射物类型动态设置，这里示例用橙色
-            l_mm->set_instance_color(i, Color(1.0, 0.4, 0.1, 0.6 * h_ratio));
+            Vector3 color = (p.stats->get_is_healing()) ? Vector3(0.2, 1.0, 0.4) : Vector3(1.0, 0.4, 0.1);
+            l_mm->set_instance_color(i, Color(color.x, color.y, color.z, 0.6 * h_ratio));
 
             // --- G. 生成粒子 ---
             if (p.type == PROJECTILE_MISSILE) {

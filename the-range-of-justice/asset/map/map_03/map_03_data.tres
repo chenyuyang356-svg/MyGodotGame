@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MapResource" format=3 uid="uid://c3h6g1ypuex6a"]
+
+[ext_resource type="PackedScene" uid="uid://b56f45q8otxei" path="res://asset/map/map_03/map_03.tscn" id="1_kn30v"]
+[ext_resource type="Script" uid="uid://dr1j7u4rpupdv" path="res://asset/map/map_resource.gd" id="1_owub4"]
+
+[resource]
+script = ExtResource("1_owub4")
+map_name = "地图03"
+map_scene = ExtResource("1_kn30v")
+max_player_count = 2
+metadata/_custom_type_script = "uid://dr1j7u4rpupdv"

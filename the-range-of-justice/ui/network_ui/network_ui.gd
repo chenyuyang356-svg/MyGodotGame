@@ -9,6 +9,7 @@ extends Control
 @onready var btn_join = $Panel_Connection/VBoxContainer/Button_Join
 
 @onready var map_option = $Panel_Lobby/VBoxContainer/HBoxContainer/OptionButton_Map
+@onready var fog_mode_option = %OptionButton_FogMode
 @onready var btn_start = $Panel_Lobby/VBoxContainer/Button_StartGame
 @onready var btn_disconnect = $Panel_Lobby/VBoxContainer/Button_Disconnect
 @onready var players_container = $Panel_Lobby/VBoxContainer/VBoxContainer_Players
@@ -51,6 +52,7 @@ func _ready():
 		
 		# 强制触发一次同步，确保 UI 刷新
 		_on_lobby_updated()
+		_on_fog_mode_selected(2)
 	else:
 		# 初始状态：显示连接面板
 		panel_connection.show()
@@ -122,6 +124,8 @@ func enter_lobby(is_host: bool):
 	# 权限控制
 	map_option.disabled = not is_host
 	btn_start.visible = is_host
+	%Label_FogMode.visible = is_host
+	%OptionButton_FogMode.visible = is_host
 	_on_lobby_updated()
 
 # ================= 2. 大厅同步阶段 =================
@@ -131,6 +135,14 @@ func _on_OptionButton_Map_item_selected(index: int):
 	if multiplayer.is_server():
 		# 调用 C++ 方法更新地图并广播
 		GlobalGameManager.rpc_server_set_map(index)
+
+func _on_fog_mode_selected(index: int):
+	if multiplayer.is_server():
+		rpc_fog_mode_changed.rpc(index)
+
+@rpc("authority", "call_local", "reliable")
+func rpc_fog_mode_changed(index: int):
+	GlobalGameManager.fog_mode = index
 
 # 玩家修改自己的队伍或出生点
 func _on_local_settings_changed(_val):
@@ -201,6 +213,7 @@ func populate_map_options():
 func _on_Button_StartGame_pressed():
 	if multiplayer.is_server():
 		# C++ 中已封装好：整理数据并发送加载场景的 RPC
+		rpc_fog_mode_changed.rpc(GlobalGameManager.fog_mode)
 		GlobalGameManager.host_start_game()
 
 # ================= 地图预览生成 =================

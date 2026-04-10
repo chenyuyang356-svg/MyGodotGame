@@ -1,6 +1,7 @@
 extends Control
 
 @onready var map_option = %OptionButton_Map
+@onready var fog_mode_option = %OptionButton_FogMode
 @onready var spin_team = %SpinBox_Team
 @onready var spin_spawn = %SpinBox_Spawn
 @onready var preview_viewport = %SubViewport
@@ -19,6 +20,7 @@ func _ready():
 	# 默认选择第一张地图
 	if map_option.item_count > 0:
 		_on_map_selected(0)
+	_on_fog_mdoe_selected(2)
 
 func _populate_map_options():
 	map_option.clear()
@@ -34,6 +36,9 @@ func _on_map_selected(index: int):
 	# 更新 C++ 中的全局地图索引（虽然是单人，但保持一致性）
 	GlobalGameManager.set_selected_map_index(index)
 	_update_map_preview(index)
+
+func _on_fog_mdoe_selected(index: int):
+	GlobalGameManager.fog_mode = index
 
 func _on_btn_back_pressed():
 	get_parent().change_ui("res://ui/single_player_menu/single_player_menu.tscn")

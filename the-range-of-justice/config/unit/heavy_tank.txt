@@ -23,7 +23,7 @@ splash_radius    = 0.0
 # 枚举可选: Closest, Lowest_hp, Highest_value
 target_priority  = Closest
 weapon = MarineBullet, 10.0, 300.0, 0.3, 1200.0, 1.0
-weapon = Missile, 20.0, 500.0, 0.5, 500.0, 4.0
+weapon = Shell, 20.0, 500.0, 0.5, 30.0, 4.0
 
 # --- Movement (移动与碰撞) ---
 mass             = 1.5
