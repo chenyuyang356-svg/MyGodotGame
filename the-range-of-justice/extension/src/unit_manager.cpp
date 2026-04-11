@@ -605,8 +605,6 @@ void UnitManager::update(double p_delta) {
 }
 
 void UnitManager::physics_update(double p_delta) {
-    
-
     if (attack_manager) {
         attack_manager->update_units(p_delta);
     }
@@ -1081,6 +1079,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     // --- F. 旋转逻辑 ---
     if (p_unit.state != IDLE) {
         float target_angle = desired_dir.angle();
+        if (p_unit.state == ATTACKING) { target_angle = p_unit.target_rotation; }
         float angle_diff = UtilityFunctions::angle_difference(p_unit.rotation, target_angle);
 
         float turn_speed = p_unit.stats->get_turn_speed();
@@ -1154,7 +1153,7 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
             // --- 核心优化 A: 渐进式修正 (Relaxation) ---
             // 不要在一帧内移走所有 overlap，每帧只移走 15%~20%
             // 这样重叠会在 5-10 帧内平滑消除，看起来就像是由于“挤压”而滑开
-            float smoothing = 0.2f;
+            float smoothing = 0.4f;
             float correction_amount = overlap * my_push_share * smoothing;
             next_pos -= resolve_dir * correction_amount;
 
@@ -1720,12 +1719,18 @@ float UnitManager::get_unit_attack_range(int p_unit_id) const {
         const UnitData& unit = units[it->second];
 
         // 确保单位 stats 有效，并且该单位拥有至少一把武器
-        if (unit.stats.is_valid() && !unit.stats->weapons.empty()) {
+        if (unit.stats.is_valid() && (!unit.stats->weapons.empty() || !unit.weapons.empty())) {
             float max_range = 0.0f;
             // 遍历单位挂载的所有武器，找出最大射程
             for (const auto& weapon : unit.stats->weapons) {
                 if (weapon.attack_range > max_range) {
                     max_range = weapon.attack_range;
+                }
+            }
+            for (const auto& weapon : unit.weapons) {
+                float attack_range = weapon.stats->get_attack_range();
+                if (attack_range > max_range) {
+                    max_range = attack_range;
                 }
             }
             return max_range;

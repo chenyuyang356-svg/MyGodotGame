@@ -336,7 +336,7 @@ void ProjectileManager::_physics_process(double p_delta) {
                     }
                     else {
                         float scale = (it->type == PROJECTILE_BULLET) ? 0.5f : 1.5f;
-                        effect_manager->emit_particle("Explosion", pos, vel, 2.0f, 0.2f);
+                        effect_manager->emit_particle("Explosion", pos, vel, scale, 0.2f);
                         if (!(it->type == PROJECTILE_BULLET)) {
                             audio_manager->play_sfx_3d("Explosion", pos, -5.0f);
                         }

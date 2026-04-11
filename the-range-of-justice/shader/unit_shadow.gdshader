@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
+render_mode unshaded, blend_mix, depth_prepass_alpha, cull_disabled;
 
 uniform sampler2D albedo_texture : source_color, filter_nearest;
 uniform int h_frames = 1;
@@ -36,6 +36,7 @@ void fragment() {
     atlas_uv.y = (atlas_uv.y + row) * frame_size.y;
 	
     vec4 tex = texture(albedo_texture, atlas_uv);
+	if (tex.a < 0.98) {discard;}
     // 影子的颜色由纹理的透明度决定
     ALBEDO = shadow_color.rgb;
     ALPHA = tex.a * shadow_color.a;

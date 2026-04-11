@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
+render_mode unshaded, blend_mix, depth_prepass_alpha, cull_disabled;
 
 uniform sampler2D albedo_texture : source_color, filter_nearest;
 uniform int h_frames = 1;

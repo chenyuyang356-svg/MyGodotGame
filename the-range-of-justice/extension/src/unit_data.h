@@ -26,6 +26,7 @@ namespace godot {
         Vector2i target_grid;   // 目标的网格坐标（与流场坐标一致，不同于unit_grid中的坐标）
         bool is_manual_target = false;
         bool target_is_building = false;    // 标记当前目标是否为建筑
+        float target_rotation = 0.0;
 
         Vector2 prev_position;
         Vector2 next_position;

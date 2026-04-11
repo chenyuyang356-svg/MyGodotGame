@@ -24,7 +24,7 @@ splash_radius    = 0.0
 # 枚举可选: Closest, Lowest_hp, Highest_value
 target_priority  = Closest
 can_fire_on_move = true
-weapon = MarineBullet, 6.0, 250.0, 0.15, 800.0, 0.0
+weapon = MarineBullet, 6.0, 250.0, 0.15, 800.0, 0.0, 0.0, 0.0, 0.0
 
 # --- Movement (移动与碰撞) ---
 mass             = 1.0
@@ -40,7 +40,7 @@ move_type        = Air
 
 # --- Vision (视野) ---
 sight_range      = 700.0
-aggro_range      = 3000.0
+aggro_range      = 700.0
 
 # --- Economy (经济) ---
 cost             = 500

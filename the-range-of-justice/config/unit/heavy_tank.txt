@@ -22,8 +22,10 @@ projectile_speed = 800.0
 splash_radius    = 0.0
 # 枚举可选: Closest, Lowest_hp, Highest_value
 target_priority  = Closest
-weapon = MarineBullet, 10.0, 300.0, 0.3, 1200.0, 1.0
-weapon = Shell, 20.0, 500.0, 0.5, 30.0, 4.0
+can_fire_on_move = true
+#weapon = MarineBullet, 10.0, 300.0, 0.3, 1200.0, 1.0
+#weapon = Shell, 20.0, 500.0, 0.5, 30.0, 4.0
+weapon_mount = HeavyTankTurret, -10.0, 0.0
 
 # --- Movement (移动与碰撞) ---
 mass             = 1.5
@@ -38,8 +40,8 @@ base_height = 0.0
 move_type        = Ground
 
 # --- Vision (视野) ---
-sight_range      = 350.0
-aggro_range      = 3000.0
+sight_range      = 500.0
+aggro_range      = 500.0
 
 # --- Economy (经济) ---
 cost             = 1000
@@ -51,14 +53,14 @@ unit_tags        = Biological
 
 # 渲染基础
 texture_path = res://asset/unit/地面单位03.png
-h_frames = 8
+h_frames = 2
 v_frames = 3
 
 # 状态机动画定义
 idle_row = 0
 idle_frames = 1
 move_row = 1
-move_frames = 1
+move_frames = 2
 anim_fps = 10
 
 # 粒子

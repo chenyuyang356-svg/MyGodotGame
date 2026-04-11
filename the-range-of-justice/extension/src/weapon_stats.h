@@ -20,6 +20,9 @@ namespace godot {
         // --- 独立旋转系统属性 ---
         bool is_turret = false;         // 是否为独立旋转的武器
         float turn_speed = 3.0f;        // 武器旋转速度（弧度/秒）
+        Vector2 rotation_center = Vector2(0, 0);
+        Vector3 muzzle_offset = Vector3(0, 0, 0); // x,y 为水平偏移, z 为高度偏移
+        float firing_tolerance = 15.0f;
 
         // --- 渲染与动画属性 ---
         String texture_path = "";
@@ -65,6 +68,15 @@ namespace godot {
 
         void set_turn_speed(float p_val) { turn_speed = p_val; }
         float get_turn_speed() const { return turn_speed; }
+
+        void set_rotation_center(Vector2 p_val) { rotation_center = p_val; }
+        Vector2 get_rotation_center() const { return rotation_center; }
+
+        void set_muzzle_offset(Vector3 p_val) { muzzle_offset = p_val; }
+        Vector3 get_muzzle_offset() const { return muzzle_offset; }
+
+        void set_firing_tolerance(float p_val) { firing_tolerance = p_val; }
+        float get_firing_tolerance() const { return firing_tolerance; }
 
         void set_texture_path(const String& p_val) { texture_path = p_val; }
         String get_texture_path() const { return texture_path; }

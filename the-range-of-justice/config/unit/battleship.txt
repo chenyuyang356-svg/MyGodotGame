@@ -23,7 +23,10 @@ projectile_speed = 800.0
 splash_radius    = 0.0
 # 枚举可选: Closest, Lowest_hp, Highest_value
 target_priority  = Closest
-weapon = MarineBullet, 10.0, 400.0, 0.25, 1200.0, 2.0
+can_fire_on_move = true
+weapon_mount = BattleshipTurret, 20.0, 0.0
+weapon_mount = BattleshipTurret, 55.0, 0.0
+weapon_mount = BattleshipTurret, -60.0, 0.0
 
 # --- Movement (移动与碰撞) ---
 mass             = 10.0
@@ -38,8 +41,8 @@ base_height = 0.0
 move_type        = Sea
 
 # --- Vision (视野) ---
-sight_range      = 350.0
-aggro_range      = 3000.0
+sight_range      = 550.0
+aggro_range      = 550.0
 
 # --- Economy (经济) ---
 cost             = 50
@@ -50,8 +53,8 @@ build_time       = 12.5
 unit_tags        = Biological
 
 # 渲染基础
-texture_path = res://asset/unit/海上单位03 (3).png
-h_frames = 2
+texture_path = res://asset/unit/海上单位03.png
+h_frames = 1
 v_frames = 3
 
 # 状态机动画定义

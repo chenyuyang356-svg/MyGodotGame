@@ -42,6 +42,17 @@ void WeaponStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_turn_speed"), &WeaponStats::get_turn_speed);
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "turn_speed"), "set_turn_speed", "get_turn_speed");
 
+    ClassDB::bind_method(D_METHOD("set_rotation_center", "p_val"), &WeaponStats::set_rotation_center);
+    ClassDB::bind_method(D_METHOD("get_rotation_center"), &WeaponStats::get_rotation_center);
+    ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "rotation_center"), "set_rotation_center", "get_rotation_center");
+
+    ClassDB::bind_method(D_METHOD("set_muzzle_offset", "p_val"), &WeaponStats::set_muzzle_offset);
+    ClassDB::bind_method(D_METHOD("get_muzzle_offset"), &WeaponStats::get_muzzle_offset);
+    ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "muzzle_offset"), "set_muzzle_offset", "get_muzzle_offset");
+
+    ClassDB::bind_method(D_METHOD("set_firing_tolerance", "p_val"), &WeaponStats::set_firing_tolerance);
+    ClassDB::bind_method(D_METHOD("get_firing_tolerance"), &WeaponStats::get_firing_tolerance);
+
     // 渲染与动画属性
     ClassDB::bind_method(D_METHOD("set_texture_path", "val"), &WeaponStats::set_texture_path);
     ClassDB::bind_method(D_METHOD("get_texture_path"), &WeaponStats::get_texture_path);

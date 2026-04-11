@@ -320,6 +320,7 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 	unit_manager->set_weapon_manager(weapon_manager);
 	unit_manager->set_effect_manager(effect_manager);
 
+	building_manager->set_attack_manager(attack_manager);
 	building_manager->set_flow_field_manager(flow_field_manager);
 	building_manager->set_unit_manager(unit_manager);
 	building_manager->set_economy_manager(economy_manager);

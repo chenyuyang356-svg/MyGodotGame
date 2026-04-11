@@ -38,6 +38,7 @@ namespace godot {
         friend class ProjectileManager;
 
     private:
+        AttackManager* attack_manager = nullptr;
         FlowFieldManager* flow_field_manager = nullptr;
         UnitManager* unit_manager = nullptr;
         EconomyManager* economy_manager = nullptr;
@@ -88,6 +89,7 @@ namespace godot {
         BuildingManager();
         ~BuildingManager();
 
+        void set_attack_manager(Node* p_node);
         void set_flow_field_manager(Node* p_node);
         void set_unit_manager(Node* p_node);
         void set_economy_manager(Node* p_node);

@@ -1,20 +1,15 @@
-# ==========================================================
-# 建筑配置文件模板
-# 适用类: BuildingStats (GDExtension)
-# ==========================================================
-
-building_name_key = KEY_BUILDING_HUMAN_BARRACK
+building_name_key = KEY_BUILDING_FORTRESS
 [Identity]
 # 建筑名称
-building_name=HumanBarrack
+building_name=Fortress
 # 建筑类型: Generic, Barracks, Turret, Collector, Storage (对应枚举 BuildingType)
-building_type=Barracks
+building_type=Turret
 # land, water, on_resource
 placement = land
 
 [Economy]
 # 建造消耗资源
-cost=500
+cost=1000
 # 建造所需时间 (单位: 秒)
 build_time=10.0
 
@@ -30,7 +25,7 @@ clearance=3,3
 
 [Visuals]
 # 纹理文件路径
-texture_path=res://asset/building/兵营.png
+texture_path=res://asset/building/堡垒.png
 # 图集分栏 (整个贴图有多少列和多少行)
 h_frames=1
 # 图集分栏
@@ -62,9 +57,11 @@ production_speed=1.0
 # 攻击力
 attack_damage=40.0
 # 攻击范围 (单位: 世界坐标像素)
-attack_range=400.0
+attack_range=800.0
 # 攻击间隔 (单位: 秒)
 attack_interval=1.0
+# 格式: weapon_mount = [武器名称],[相对建筑中心的本地偏移X], [本地偏移Y]
+weapon_mount = FortressTurret, 2.0, -15.0
 
 [Collector]
 # 采集资源类型: Gold, Wood, Energy 等

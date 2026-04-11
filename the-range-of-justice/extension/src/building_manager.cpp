@@ -1,5 +1,6 @@
 #pragma once
 
+#include "attack_manager.h"
 #include "building_manager.h"
 #include "selection_manager.h"
 #include <godot_cpp/core/class_db.hpp>
@@ -10,6 +11,10 @@ using namespace godot;
 
 BuildingManager::BuildingManager() {}
 BuildingManager::~BuildingManager() {}
+
+void BuildingManager::set_attack_manager(Node* p_node) {
+    attack_manager = Object::cast_to<AttackManager>(p_node);
+}
 
 void BuildingManager::set_flow_field_manager(Node* p_node) {
     flow_field_manager = Object::cast_to<FlowFieldManager>(p_node);
@@ -140,6 +145,10 @@ void BuildingManager::_gather_resource_positions() {
 }
 
 void BuildingManager::physics_update(double p_delta) {
+    if (attack_manager) {
+        attack_manager->update_buildings(p_delta);
+    }
+
     for (auto& pair : buildings) {
         BuildingData& b = pair.second;
 

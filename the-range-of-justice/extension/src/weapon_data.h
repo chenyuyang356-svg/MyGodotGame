@@ -30,24 +30,20 @@ namespace godot {
             if (stats.is_null()) return;
             
             // 1. 旋转更新逻辑
-            if (stats->get_is_turret()) {
-                if (target_direction.length_squared() > 0.001f) {
-                    float target_angle = target_direction.angle();
-                    float angle_diff = UtilityFunctions::angle_difference(rotation, target_angle);
-                    float step = stats->get_turn_speed() * p_delta;
+            // 自动寻找目标逻辑增强：如果没有 target_id，则缓慢回归 parent_rotation
+            float final_target_angle = parent_rotation;
+            if (target_id != -1 && target_direction.length_squared() > 0.001f) {
+                final_target_angle = target_direction.angle();
+            }
 
-                    if (Math::abs(angle_diff) <= step) {
-                        rotation = target_angle;
-                    }
-                    else {
-                        rotation += Math::sign(angle_diff) * step;
-                    }
-                }
+            if (stats->get_is_turret()) {
+                float angle_diff = UtilityFunctions::angle_difference(rotation, final_target_angle);
+                float step = stats->get_turn_speed() * p_delta;
+                if (Math::abs(angle_diff) <= step) rotation = final_target_angle;
+                else rotation += Math::sign(angle_diff) * step;
             }
             else {
-                // 非独立武器，朝向锁死为主体朝向
                 rotation = parent_rotation;
-                target_direction = Vector2(Math::cos(parent_rotation), Math::sin(parent_rotation));
             }
             
             // 2. 冷却更新逻辑

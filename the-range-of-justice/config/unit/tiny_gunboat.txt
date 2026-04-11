@@ -34,7 +34,7 @@ move_type        = Sea
 
 # --- Vision (视野) ---
 sight_range      = 350.0
-aggro_range      = 3000.0
+aggro_range      = 350.0
 
 # --- Economy (经济) ---
 cost             = 100

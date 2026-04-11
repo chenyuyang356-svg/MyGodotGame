@@ -123,6 +123,10 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, WeaponManager* p_w
                 // 可选参数
                 if (parts.size() >= 5) w.projectile_speed = parts[4].to_float();
                 if (parts.size() >= 6) w.splash_radius = parts[5].to_float();
+                if (parts.size() >= 9) {
+                    w.spawn_offset = Vector3(parts[6].to_float(), parts[7].to_float(), parts[8].to_float());
+                }
+                if (parts.size() >= 10) w.firing_tolerance = parts[9].to_float();
 
                 stats->weapons.push_back(w);
                 UtilityFunctions::print("[UnitLoader] 成功为单位挂载武器: ", w.projectile_type_name, " 伤害: ", w.damage);

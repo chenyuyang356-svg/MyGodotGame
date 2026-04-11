@@ -136,11 +136,27 @@ void WeaponManager::update_multimesh_buffer(double p_delta, float p_alpha, UnitM
             float w_rot = UtilityFunctions::lerp_angle(weapon.prev_rotation, weapon.next_rotation, p_alpha);
 
             Vector2 w_pos = u_pos + weapon.local_position.rotated(u_rot);
-            float fd = w_pos.y * 0.0001f;
 
+            // 1. 获取旋转中心偏移 (从像素空间转为世界空间，注意QuadMesh是1:1像素大小)
+            Vector2 rot_offset = weapon.stats->get_rotation_center();
+
+            // 2. 修改 Transform 计算逻辑：
+            // 我们需要先将 QuadMesh 移动，使得旋转中心对齐坐标原点，旋转后再移动回来
             Transform3D xform;
-            xform.origin = Vector3(w_pos.x, u_h + fd + 0.1f, w_pos.y - u_h);
-            xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0).rotated(Vector3(0, -1, 0), w_rot + Math_PI / 2.0f);
+            // 基础高度和深度排序偏移
+            float fd = u_pos.y * 0.0001f;
+            Vector3 final_origin = Vector3(w_pos.x, u_h + fd + 0.0004f, w_pos.y - u_h);
+
+            xform.origin = final_origin;
+            // 旋转矩阵
+            Basis rot_basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0).rotated(Vector3(0, -1, 0), w_rot + Math_PI / 2.0f);
+            xform.basis = rot_basis;
+
+            // 关键：应用旋转中心偏移。偏移量需要跟随旋转矩阵旋转。
+            // rot_offset.x 对应模型右方，rot_offset.y 对应模型下方（在3D平面中对应Z轴）
+            Vector3 offset_3d = rot_basis.xform(Vector3(-rot_offset.x, rot_offset.y, 0.0));
+            xform.origin += offset_3d;
+
             mm->set_instance_transform(i, xform);
 
             int fr = (weapon.state == WEAPON_ATTACKING) ? w_ptr->get_attacking_frames() : w_ptr->get_idle_frames();
@@ -163,7 +179,7 @@ void WeaponManager::update_multimesh_buffer(double p_delta, float p_alpha, UnitM
             mm->set_instance_color(i, get_team_color(unit.team_id));
 
             Transform3D s_xform = xform;
-            s_xform.origin = Vector3(w_pos.x + 4.0f, u_h + fd - 0.05f, w_pos.y + 4.0f);
+            s_xform.origin = xform.origin + Vector3(4.0f, - 0.0002f, 4.0f);
             s_mm->set_instance_transform(i, s_xform);
             s_mm->set_instance_custom_data(i, Color(f_idx, row, 0, 0));
         }
@@ -184,12 +200,27 @@ void WeaponManager::update_multimesh_buffer(double p_delta, float p_alpha, UnitM
 
             float w_rot = UtilityFunctions::lerp_angle(weapon.prev_rotation, weapon.next_rotation, p_alpha);
             Vector2 w_pos = center + weapon.local_position; // 建筑不旋转，直接偏移
-            float fd = center.y * 0.0001f;
 
-            // 为了和建筑Shader兼容（不利用Z轴拔高），我们仅在Y轴拔高
+            // 1. 获取旋转中心偏移 (从像素空间转为世界空间，注意QuadMesh是1:1像素大小)
+            Vector2 rot_offset = weapon.stats->get_rotation_center();
+
+            // 2. 修改 Transform 计算逻辑：
+            // 我们需要先将 QuadMesh 移动，使得旋转中心对齐坐标原点，旋转后再移动回来
             Transform3D xform;
-            xform.origin = Vector3(w_pos.x, b.stats->get_base_height() + fd + 0.1f, w_pos.y);
-            xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0).rotated(Vector3(0, -1, 0), w_rot + Math_PI / 2.0f);
+            // 基础高度和深度排序偏移
+            float fd = center.y * 0.0001f;
+            Vector3 final_origin = Vector3(w_pos.x, fd + 0.0004f, w_pos.y);
+
+            xform.origin = final_origin;
+            // 旋转矩阵
+            Basis rot_basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0).rotated(Vector3(0, -1, 0), w_rot + Math_PI / 2.0f);
+            xform.basis = rot_basis;
+
+            // 关键：应用旋转中心偏移。偏移量需要跟随旋转矩阵旋转。
+            // rot_offset.x 对应模型右方，rot_offset.y 对应模型下方（在3D平面中对应Z轴）
+            Vector3 offset_3d = rot_basis.xform(Vector3(-rot_offset.x, rot_offset.y, 0.0));
+            xform.origin += offset_3d;
+
             mm->set_instance_transform(mm_idx, xform);
 
             int fr = (weapon.state == WEAPON_ATTACKING) ? w_ptr->get_attacking_frames() : w_ptr->get_idle_frames();
@@ -212,7 +243,7 @@ void WeaponManager::update_multimesh_buffer(double p_delta, float p_alpha, UnitM
             mm->set_instance_color(mm_idx, get_team_color(b.team_id));
 
             Transform3D s_xform = xform;
-            s_xform.origin = Vector3(w_pos.x + 4.0f, b.stats->get_base_height() + fd - 0.05f, w_pos.y + 4.0f);
+            s_xform.origin = xform.origin + Vector3(4.0f, - 0.0002f, 4.0f);
             s_mm->set_instance_transform(mm_idx, s_xform);
             s_mm->set_instance_custom_data(mm_idx, Color(f_idx, row, 0, 0));
         }
@@ -238,11 +269,26 @@ void WeaponManager::update_multimesh_buffer(double p_delta, float p_alpha, UnitM
             Vector2 center = Vector2(g.grid_pos) * cell_sz + fp_size * 0.5f;
 
             Vector2 w_pos = center + weapon.local_position;
-            float fd = center.y * 0.0001f - 0.01f;
 
+            // 1. 获取旋转中心偏移 (从像素空间转为世界空间，注意QuadMesh是1:1像素大小)
+            Vector2 rot_offset = weapon.stats->get_rotation_center();
+
+            // 2. 修改 Transform 计算逻辑：
+            // 我们需要先将 QuadMesh 移动，使得旋转中心对齐坐标原点，旋转后再移动回来
             Transform3D xform;
-            xform.origin = Vector3(w_pos.x, g.stats->get_base_height() + fd, w_pos.y);
-            xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
+            // 基础高度和深度排序偏移
+            float fd = center.y * 0.0001f;
+            Vector3 final_origin = Vector3(w_pos.x, fd + 0.0001f, w_pos.y);
+
+            xform.origin = final_origin;
+            // 旋转矩阵
+            Basis rot_basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0).rotated(Vector3(0, -1, 0), Math_PI / 2.0f);
+            xform.basis = rot_basis;
+
+            // 关键：应用旋转中心偏移。偏移量需要跟随旋转矩阵旋转。
+            // rot_offset.x 对应模型右方，rot_offset.y 对应模型下方（在3D平面中对应Z轴）
+            Vector3 offset_3d = rot_basis.xform(Vector3(-rot_offset.x, rot_offset.y, 0.0));
+            xform.origin += offset_3d;
 
             g_mm->set_instance_transform(i, xform);
             g_mm->set_instance_color(i, get_team_color(g.team_id));

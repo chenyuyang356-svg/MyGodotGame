@@ -14,6 +14,8 @@ namespace godot {
         float attack_interval = 1.0f;// 攻击间隔（冷却时间）
         float projectile_speed = 500.0f; // 子弹飞行速度
         float splash_radius = 0.0f;  // 范围溅射半径 (AOE)
+        Vector3 spawn_offset = Vector3(0, 0, 0);
+        float firing_tolerance = 15.0f; // 非独立武器的对准误差
     };
 
     struct EffectPoint {

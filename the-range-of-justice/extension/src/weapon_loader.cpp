@@ -36,6 +36,19 @@ Ref<WeaponStats> WeaponLoader::load_stats_from_txt(String p_path, Ref<WeaponStat
             String val_str = value_str.to_lower();
             stats->set(key, val_str.contains("true") || val_str.contains("1"));
         }
+        // Vector2
+        else if (key == "rotation_center") {
+            PackedStringArray parts = value_str.split(",");
+            if (parts.size() >= 2) {
+                stats->set_rotation_center(Vector2(parts[0].to_float(), parts[1].to_float()));
+            }
+        }
+        else if (key == "muzzle_offset") {
+            PackedStringArray parts = value_str.split(",");
+            if (parts.size() >= 3) {
+                stats->set_muzzle_offset(Vector3(parts[0].to_float(), parts[1].to_float(), parts[2].to_float()));
+            }
+        }
         // 数值类型自动转换
         else {
             if (value_str.is_valid_float()) {

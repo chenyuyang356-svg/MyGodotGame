@@ -38,7 +38,7 @@ move_type        = Ground
 
 # --- Vision (视野) ---
 sight_range      = 650.0
-aggro_range      = 3000.0
+aggro_range      = 650.0
 
 # --- Economy (经济) ---
 cost             = 400
