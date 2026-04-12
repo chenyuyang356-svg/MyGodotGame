@@ -4,7 +4,7 @@
 [ext_resource type="Shader" uid="uid://cj2uah65l8if" path="res://shader/flicker.gdshader" id="2_6yovq"]
 [ext_resource type="Texture2D" uid="uid://bb7bc1y7hwi3l" path="res://asset/misc/map.png" id="2_hr1kg"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_hr1kg"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_6yovq"]
 shader = ExtResource("2_6yovq")
 
 [sub_resource type="Animation" id="Animation_e8ewl"]
@@ -58,7 +58,7 @@ mouse_filter = 2
 color = Color(0.1764706, 0.29411766, 0.43137255, 1)
 
 [node name="TextureRect_Map" type="TextureRect" parent="." unique_id=1454709340]
-material = SubResource("ShaderMaterial_hr1kg")
+material = SubResource("ShaderMaterial_6yovq")
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

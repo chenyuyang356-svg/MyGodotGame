@@ -3,16 +3,16 @@
 [ext_resource type="Script" uid="uid://coc5q6gsq7juv" path="res://ui/crt/crt.gd" id="1_f48mm"]
 [ext_resource type="Shader" uid="uid://day7cemhagia7" path="res://shader/crt.gdshader" id="1_otife"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_sbmfo"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_f48mm"]
 shader = ExtResource("1_otife")
-shader_parameter/scanline_count = 300.0
+shader_parameter/scanline_count = 2.0
 
 [node name="CanvasLayer_CRT" type="CanvasLayer" unique_id=544808705]
 layer = -1
 script = ExtResource("1_f48mm")
 
 [node name="ColorRect" type="ColorRect" parent="." unique_id=1981354226]
-material = SubResource("ShaderMaterial_sbmfo")
+material = SubResource("ShaderMaterial_f48mm")
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

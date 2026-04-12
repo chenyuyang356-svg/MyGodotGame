@@ -9,10 +9,13 @@
 script = ExtResource("1_aprmb")
 
 [node name="MenuBackground" parent="." unique_id=1336065516 instance=ExtResource("2_4yptq")]
+unique_name_in_owner = true
 
 [node name="CanvasLayer_CRT" parent="." unique_id=544808705 instance=ExtResource("3_og182")]
+unique_name_in_owner = true
 
 [node name="UI_Container" type="Control" parent="." unique_id=1020168985]
+unique_name_in_owner = true
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
