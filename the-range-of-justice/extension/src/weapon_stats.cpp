@@ -33,6 +33,14 @@ void WeaponStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_splash_radius"), &WeaponStats::get_splash_radius);
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "splash_radius"), "set_splash_radius", "get_splash_radius");
 
+    ClassDB::bind_method(D_METHOD("set_can_attack_ground", "p_val"), &WeaponStats::set_can_attack_ground);
+    ClassDB::bind_method(D_METHOD("get_can_attack_ground"), &WeaponStats::get_can_attack_ground);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "can_attack_ground"), "set_can_attack_ground", "get_can_attack_ground");
+
+    ClassDB::bind_method(D_METHOD("set_can_attack_air", "p_val"), &WeaponStats::set_can_attack_air);
+    ClassDB::bind_method(D_METHOD("get_can_attack_air"), &WeaponStats::get_can_attack_air);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "can_attack_air"), "set_can_attack_air", "get_can_attack_air");
+
     // 旋转系统属性
     ClassDB::bind_method(D_METHOD("set_is_turret", "val"), &WeaponStats::set_is_turret);
     ClassDB::bind_method(D_METHOD("get_is_turret"), &WeaponStats::get_is_turret);

@@ -16,6 +16,8 @@ namespace godot {
         float splash_radius = 0.0f;  // 范围溅射半径 (AOE)
         Vector3 spawn_offset = Vector3(0, 0, 0);
         float firing_tolerance = 15.0f; // 非独立武器的对准误差
+        bool can_attack_ground = true;
+        bool can_attack_air = false;
     };
 
     struct EffectPoint {

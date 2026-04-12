@@ -384,14 +384,23 @@ void UnitManager::command_units_to_patrol(Array p_unit_ids, Array p_waypoints) {
 }
 
 void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_id, bool p_target_is_building, BuildingManager* p_building_manager) {
-    // 1. 获取目标所属队伍
+    // 1. 获取目标所属队伍及高度属性
     int target_team = -1;
+    bool target_is_air = false;
+
     if (p_target_is_building) {
         target_team = p_building_manager->get_building_team_id(p_target_id);
+        target_is_air = false; // 建筑通常视为地面
     }
     else {
         int t_idx = get_unit_index_by_id(p_target_id);
-        if (t_idx != -1) target_team = units[t_idx].team_id;
+        if (t_idx != -1) {
+            target_team = units[t_idx].team_id;
+            target_is_air = (units[t_idx].height > AIR_HEIGHT_THRESHOLD);
+        }
+        else {
+            return; // 目标已消失
+        }
     }
 
     for (int i = 0; i < p_unit_ids.size(); ++i) {
@@ -402,11 +411,37 @@ void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_
         bool is_builder = (u.stats->get_unit_tags() & TAG_BUILDER);
         bool target_is_ally = (target_team == u.team_id);
 
-        // A. 指令目标是【敌方】：建造者直接跳过，不执行任何操作
-        if (!target_is_ally && is_builder) continue;
+        // A. 基础逻辑过滤（同原有逻辑）
+        if (!target_is_ally && is_builder) continue; // 建造者不打敌军
+        if (target_is_ally && !is_builder) continue; // 非建造者不“攻击”友军
 
-        // B. 指令目标是【己方】：非建造者单位跳过（只有建造者能“攻击”己方执行修复/建造）
-        if (target_is_ally && !is_builder) continue;
+        // B. 新增：攻击能力检测（仅对非建造者执行敌对攻击指令时有效）
+        if (!target_is_ally) {
+            bool can_hit_altitude = false;
+
+            // 1. 检查固定武器 (Body Weapons)
+            for (const auto& w : u.stats->weapons) {
+                if (target_is_air ? w.can_attack_air : w.can_attack_ground) {
+                    can_hit_altitude = true;
+                    break;
+                }
+            }
+
+            // 2. 如果固定武器打不到，检查独立武器 (Turrets/WeaponData)
+            if (!can_hit_altitude) {
+                for (const auto& wd : u.weapons) {
+                    if (wd.stats.is_valid()) {
+                        if (target_is_air ? wd.stats->get_can_attack_air() : wd.stats->get_can_attack_ground()) {
+                            can_hit_altitude = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 如果该单位没有任何武器能打到目标的高度，则不响应指令
+            if (!can_hit_altitude) continue;
+        }
 
         // 执行追击/建造指令
         u.target_id = p_target_id;

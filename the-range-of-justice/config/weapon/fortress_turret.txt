@@ -7,7 +7,7 @@ projectile_type_name = Shell
 # 伤害值
 damage = 50.0
 # 最大射程
-attack_range = 2000.0
+attack_range = 1000.0
 # 开火间隔（冷却时间/秒）
 attack_interval = 1.0
 # 子弹飞行速度

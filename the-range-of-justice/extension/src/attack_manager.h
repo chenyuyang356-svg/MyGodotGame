@@ -57,12 +57,17 @@ namespace godot {
             int p_target_id, bool p_target_is_b, WeaponData& wd);
         void _execute_building_attack(BuildingData& attacker, int target_id, bool target_is_building);
 
+        bool _process_weapons_logic(int p_attacker_id, bool p_attacker_is_b, Vector2 p_pos, float p_h, float p_rot,
+            int p_target_id, bool p_target_is_b, std::vector<WeaponData>& p_weapons,
+            const std::vector<Weapon>* p_body_weapons = nullptr, std::vector<float>* p_cooldowns = nullptr);
+
         // 获取目标的位置和碰撞半径
         bool _get_target_info(int p_target_id, bool p_is_building, Vector2& out_pos, float& out_radius);
-
         bool _is_target_full_health(int p_target_id, bool p_is_building);
-
         float _get_unit_max_attack_range(const UnitData& p_unit);
+
+        bool _is_air_target(int p_target_id, bool p_is_building);
+        bool _can_weapon_hit_altitude(bool p_can_ground, bool p_can_air, bool p_is_air);
 
         void _reset_unit_targets(UnitData& p_unit);
         void _reset_building_targets(BuildingData& p_building);

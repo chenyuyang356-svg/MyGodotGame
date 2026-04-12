@@ -20,7 +20,7 @@ splash_radius    = 0.0
 # 枚举可选: Closest, Lowest_hp, Highest_value
 target_priority  = Closest
 can_fire_on_move = true
-weapon = MarineBullet, 5.0, 300.0, 0.3, 1200.0, 0.0
+weapon = MarineBullet, 5.0, 300.0, 0.3, 1200.0, 0.0, 0.0, 0.0, -1.0, 15.0, true, true
 
 # --- Movement (移动与碰撞) ---
 mass             = 1.0

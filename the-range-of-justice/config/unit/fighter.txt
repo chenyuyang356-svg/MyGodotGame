@@ -24,7 +24,11 @@ splash_radius    = 0.0
 # 枚举可选: Closest, Lowest_hp, Highest_value
 target_priority  = Closest
 can_fire_on_move = true
-weapon = MarineBullet, 6.0, 250.0, 0.15, 800.0, 0.0, 0.0, 0.0, 0.0
+# 挂载武器 (投射物名字，伤害，射程，冷却时间，
+# 弹速(可选)，溅射范围(可选),投射物生成位置偏移(水平位移(两个参数)+垂直位移(一个参数))(可选),
+# 开火容许偏差的角度(默认为15°),可以攻击地面单位(默认为true)， 可以攻击空中单位(默认为否))
+weapon = MarineBullet, 6.0, 250.0, 0.15, 800.0, 0.0, 10.0, -20.0, -1.0, 15.0, false,true
+weapon = MarineBullet, 6.0, 250.0, 0.15, 800.0, 0.0, 10.0, 20.0, -1.0, 15.0, false,true
 
 # --- Movement (移动与碰撞) ---
 mass             = 1.0

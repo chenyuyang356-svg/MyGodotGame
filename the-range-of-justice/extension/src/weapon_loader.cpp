@@ -36,6 +36,12 @@ Ref<WeaponStats> WeaponLoader::load_stats_from_txt(String p_path, Ref<WeaponStat
             String val_str = value_str.to_lower();
             stats->set(key, val_str.contains("true") || val_str.contains("1"));
         }
+        else if (key == "can_attack_ground") {
+            stats->set_can_attack_ground(value_str.to_lower().contains("true") || value_str == "1");
+        }
+        else if (key == "can_attack_air") {
+            stats->set_can_attack_air(value_str.to_lower().contains("true") || value_str == "1");
+        }
         // Vector2
         else if (key == "rotation_center") {
             PackedStringArray parts = value_str.split(",");

@@ -16,6 +16,8 @@ namespace godot {
         float attack_interval = 1.0f;
         float projectile_speed = 500.0f;
         float splash_radius = 0.0f;
+        bool can_attack_ground = true;
+        bool can_attack_air = false;
 
         // --- 独立旋转系统属性 ---
         bool is_turret = false;         // 是否为独立旋转的武器
@@ -63,6 +65,13 @@ namespace godot {
         void set_splash_radius(float p_val) { splash_radius = p_val; }
         float get_splash_radius() const { return splash_radius; }
 
+        void set_can_attack_ground(bool p_val) { can_attack_ground = p_val; }
+        bool get_can_attack_ground() const { return can_attack_ground; }
+
+        void set_can_attack_air(bool p_val) { can_attack_air = p_val; }
+        bool get_can_attack_air() const { return can_attack_air; }
+
+
         void set_is_turret(bool p_val) { is_turret = p_val; }
         bool get_is_turret() const { return is_turret; }
 
@@ -77,6 +86,7 @@ namespace godot {
 
         void set_firing_tolerance(float p_val) { firing_tolerance = p_val; }
         float get_firing_tolerance() const { return firing_tolerance; }
+
 
         void set_texture_path(const String& p_val) { texture_path = p_val; }
         String get_texture_path() const { return texture_path; }

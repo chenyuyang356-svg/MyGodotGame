@@ -130,7 +130,7 @@ void AttackManager::update_buildings(double p_delta) {
 
     for (auto& pair : building_manager->buildings) {
         BuildingData& b = pair.second;
-        if (b.state == BuildingState::BUILDING || b.current_health <= 0) continue;
+        if (b.state == BuildingState::BUILDING || b.state == BuildingState::DYING || b.current_health <= 0) continue;
 
         // 建筑现在遍历自己的武器列表
         if (b.target_id != -1) {
@@ -140,14 +140,19 @@ void AttackManager::update_buildings(double p_delta) {
             else {
                 Vector2 t_pos; float t_rad;
                 _get_target_info(b.target_id, b.target_is_building, t_pos, t_rad);
+                // 确定目标是否为飞行单位
+                bool target_is_air = _is_air_target(b.target_id, b.target_is_building);
 
-                // 计算建筑中心
                 Vector2 cell_sz = Vector2(building_manager->get_cell_size());
                 Vector2 b_center = Vector2(b.grid_pos) * cell_sz + (Vector2(b.stats->get_footprint()) * cell_sz * 0.5f);
                 float dist = b_center.distance_to(t_pos);
 
                 for (WeaponData& wd : b.weapons) {
                     if (wd.stats.is_null()) continue;
+
+                    // 新增判断：武器是否能攻击该高度的目标
+                    bool can_hit = target_is_air ? wd.stats->get_can_attack_air() : wd.stats->get_can_attack_ground();
+                    if (!can_hit) continue;
 
                     wd.target_direction = (t_pos - b_center).normalized();
                     float real_range = wd.stats->get_attack_range() + t_rad + (std::max(b.stats->get_footprint().x, b.stats->get_footprint().y) * cell_sz.x * 0.5f);
@@ -225,6 +230,7 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
 
     Vector2 target_pos; float target_radius;
     _get_target_info(p_unit.target_id, p_unit.target_is_building, target_pos, target_radius);
+    bool target_is_air = _is_air_target(p_unit.target_id, p_unit.target_is_building);
 
     p_unit.target_pos = target_pos;
     float dist_sq = p_unit.position.distance_squared_to(target_pos);
@@ -240,27 +246,33 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
     else if (dist_sq <= atk_range * atk_range) {
         // 在边缘射程：如果能移动射击，就边走边打；如果不能，立即停下开火
         if (p_unit.stats->get_can_fire_on_move()) {
-            // A. 判定固定武器 (Body Weapons)
+            // A. 固定武器
             for (size_t i = 0; i < p_unit.stats->weapons.size(); ++i) {
                 const Weapon& weapon = p_unit.stats->weapons[i];
+                // 新增高度判断
+                bool can_hit = target_is_air ? weapon.can_attack_air : weapon.can_attack_ground;
+                if (!can_hit) continue;
+
                 float real_range = weapon.attack_range + p_unit.stats->get_collision_radius() + target_radius;
                 if (dist_sq <= real_range * real_range && p_unit.weapon_cooldowns[i] <= 0.0f) {
-                    // 内部会处理朝向检查
                     _execute_attack(p_unit, p_unit.target_id, p_unit.target_is_building, weapon);
                     p_unit.weapon_cooldowns[i] = weapon.attack_interval;
                 }
             }
 
-            // B. 判定独立武器 (Turrets/WeaponData)
+            // B. 独立武器
             for (auto& wd : p_unit.weapons) {
                 if (wd.stats.is_null()) continue;
+                // 新增高度判断
+                bool can_hit = target_is_air ? wd.stats->get_can_attack_air() : wd.stats->get_can_attack_ground();
+                if (!can_hit) continue;
+
                 float real_range = wd.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target_radius;
                 if (dist_sq <= real_range * real_range) {
-                    // 内部会处理 target_id 设置、旋转追踪和开火
                     _execute_weapon_data_attack(p_unit.position, p_unit.height, p_unit.rotation, p_unit.id, false, p_unit.target_id, p_unit.target_is_building, wd);
                 }
                 else {
-                    wd.target_id = -1; // 超出该武器射程，清除锁定
+                    wd.target_id = -1;
                 }
             }
         }
@@ -299,6 +311,7 @@ void AttackManager::_handle_attacking(UnitData& p_unit, double p_delta) {
 
     Vector2 target_pos; float target_radius;
     if (!_get_target_info(p_unit.target_id, p_unit.target_is_building, target_pos, target_radius)) return;
+    bool target_is_air = _is_air_target(p_unit.target_id, p_unit.target_is_building);
 
     float dist = p_unit.position.distance_to(target_pos);
     Vector2 dir_to_target = (target_pos - p_unit.position).normalized();
@@ -307,9 +320,12 @@ void AttackManager::_handle_attacking(UnitData& p_unit, double p_delta) {
     bool is_in_any_range = false;
     bool needs_body_rotation = false;
 
-    // --- A. 处理独立武器 (WeaponData) ---
+    // --- A. 处理独立武器 ---
     for (auto& wd : p_unit.weapons) {
         if (wd.stats.is_null()) continue;
+        // 新增高度判断
+        bool can_hit = target_is_air ? wd.stats->get_can_attack_air() : wd.stats->get_can_attack_ground();
+        if (!can_hit) continue;
 
         float real_range = wd.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target_radius;
         if (dist <= real_range) {
@@ -318,20 +334,21 @@ void AttackManager::_handle_attacking(UnitData& p_unit, double p_delta) {
                 false, p_unit.target_id, p_unit.target_is_building, wd);
         }
         else {
-            wd.target_id = -1; // 够不着，清除武器目标锁定
+            wd.target_id = -1;
         }
     }
 
-    // --- B. 处理非独立武器 (Weapon) ---
+    // --- B. 处理非独立武器 ---
     for (size_t i = 0; i < p_unit.stats->weapons.size(); ++i) {
         const auto& w = p_unit.stats->weapons[i];
-        float real_range = w.attack_range + p_unit.stats->get_collision_radius() + target_radius;
+        // 新增高度判断
+        bool can_hit = target_is_air ? w.can_attack_air : w.can_attack_ground;
+        if (!can_hit) continue;
 
+        float real_range = w.attack_range + p_unit.stats->get_collision_radius() + target_radius;
         if (dist <= real_range) {
             is_in_any_range = true;
-            needs_body_rotation = true; // 非独立武器需要身体转向
-
-            // 检查身体对准误差
+            needs_body_rotation = true;
             float angle_diff = Math::abs(UtilityFunctions::angle_difference(p_unit.rotation, angle_to_target));
             if (angle_diff <= Math::deg_to_rad(w.firing_tolerance)) {
                 if (p_unit.weapon_cooldowns[i] <= 0.0f) {
@@ -395,29 +412,37 @@ void AttackManager::_handle_moving(UnitData& p_unit) {
         if (p_unit.target_id != -1) {
             Vector2 target_pos; float target_radius;
             if (_get_target_info(p_unit.target_id, p_unit.target_is_building, target_pos, target_radius)) {
+                bool target_is_air = _is_air_target(p_unit.target_id, p_unit.target_is_building);
                 float dist = p_unit.position.distance_to(target_pos);
 
-                // A. 判定固定武器 (Body Weapons)
+                // A. 固定武器
                 for (size_t i = 0; i < p_unit.stats->weapons.size(); ++i) {
                     const Weapon& weapon = p_unit.stats->weapons[i];
+                    // 新增高度判断
+                    bool can_hit = target_is_air ? weapon.can_attack_air : weapon.can_attack_ground;
+                    if (!can_hit) continue;
+
                     float real_range = weapon.attack_range + p_unit.stats->get_collision_radius() + target_radius;
                     if (dist <= real_range && p_unit.weapon_cooldowns[i] <= 0.0f) {
-                        // 内部会处理朝向检查
                         _execute_attack(p_unit, p_unit.target_id, p_unit.target_is_building, weapon);
                         p_unit.weapon_cooldowns[i] = weapon.attack_interval;
                     }
                 }
 
-                // B. 判定独立武器 (Turrets/WeaponData)
+                // B. 独立武器
                 for (auto& wd : p_unit.weapons) {
                     if (wd.stats.is_null()) continue;
+                    // 新增高度判断
+                    bool can_hit = target_is_air ? wd.stats->get_can_attack_air() : wd.stats->get_can_attack_ground();
+                    if (!can_hit) continue;
+
                     float real_range = wd.stats->get_attack_range() + p_unit.stats->get_collision_radius() + target_radius;
                     if (dist <= real_range) {
-                        // 内部会处理 target_id 设置、旋转追踪和开火
-                        _execute_weapon_data_attack(p_unit.position, p_unit.height, p_unit.rotation, p_unit.id, false, p_unit.target_id, p_unit.target_is_building, wd);
+                        _execute_weapon_data_attack(p_unit.position, p_unit.height, p_unit.rotation, p_unit.id,
+                            false, p_unit.target_id, p_unit.target_is_building, wd);
                     }
                     else {
-                        wd.target_id = -1; // 超出该武器射程，清除锁定
+                        wd.target_id = -1;
                     }
                 }
             }
@@ -428,39 +453,39 @@ void AttackManager::_handle_moving(UnitData& p_unit) {
 // 索敌逻辑：使用 UnitManager 的网格查询
 bool AttackManager::_try_find_target(UnitData& p_unit) {
     if (!p_unit.stats.is_valid()) return false;
-
     // 建造者不会主动寻找敌人
     if (p_unit.stats->get_unit_tags() & TAG_BUILDER) return false;
 
-    // 修复：使用综合函数获取最大武器射程
-    float max_weapon_range = _get_unit_max_attack_range(p_unit);
-
-    // 如果单位没有任何武器（固定或独立），则无法索敌
-    if (max_weapon_range <= 0.0f) return false;
-
-    // 索敌范围取 警戒范围 和 武器射程 的最大值
-    float range = std::max(p_unit.stats->get_aggro_range(), max_weapon_range);
+    float range = std::max(p_unit.stats->get_aggro_range(), _get_unit_max_attack_range(p_unit));
     float min_dist_sq = range * range;
+    int best_id = -1; bool best_is_b = false;
 
-    int best_target_id = -1;
-    bool best_is_building = false;
+    // 检查是否有任何武器可以打该高度
+    auto can_unit_attack_altitude = [&](bool is_air) {
+        for (const auto& w : p_unit.stats->weapons)
+            if (is_air ? w.can_attack_air : w.can_attack_ground) return true;
+        for (const auto& wd : p_unit.weapons)
+            if (wd.stats.is_valid() && (is_air ? wd.stats->get_can_attack_air() : wd.stats->get_can_attack_ground())) return true;
+        return false;
+        };
 
-    // 1. 查找敌方单位
-    std::vector<int> nearby_units = unit_manager->get_nearby_units(p_unit.position, range);
-    for (int idx : nearby_units) {
+    bool has_anti_ground = can_unit_attack_altitude(false);
+    bool has_anti_air = can_unit_attack_altitude(true);
+
+    // 1. 单位
+    std::vector<int> nearby = unit_manager->get_nearby_units(p_unit.position, range);
+    for (int idx : nearby) {
         UnitData& other = unit_manager->units[idx];
         if (other.id == p_unit.id || other.team_id == p_unit.team_id || other.current_health <= 0) continue;
 
-        float d = p_unit.position.distance_squared_to(other.position);
-        if (d < min_dist_sq) {
-            min_dist_sq = d;
-            best_target_id = other.id;
-            best_is_building = false;
-        }
-    }
+        bool target_is_air = other.height > 20.0f;
+        if (target_is_air ? !has_anti_air : !has_anti_ground) continue;
 
-    // 2. 查找敌方建筑 
-    if (best_target_id == -1 && building_manager) {
+        float d = p_unit.position.distance_squared_to(other.position);
+        if (d < min_dist_sq) { min_dist_sq = d; best_id = other.id; best_is_b = false; }
+    }
+    // 2. 建筑 (通常为地面)
+    if (best_id == -1 && has_anti_ground && building_manager) {
         Vector2 cell_sz = Vector2(building_manager->get_cell_size());
 
         for (auto& pair : building_manager->buildings) {
@@ -480,44 +505,64 @@ bool AttackManager::_try_find_target(UnitData& p_unit) {
                 float d_sq = dist_to_edge * dist_to_edge;
                 if (d_sq < min_dist_sq) {
                     min_dist_sq = d_sq;
-                    best_target_id = b.id;
-                    best_is_building = true;
+                    best_id = b.id;
+                    best_is_b = true;
                 }
             }
         }
     }
 
-    if (best_target_id != -1) {
-        p_unit.target_id = best_target_id;
-        p_unit.target_is_building = best_is_building;
-        p_unit.is_manual_target = false;
-        p_unit.target_pos_offset = Vector2(0, 0);
+    if (best_id != -1) {
+        p_unit.target_id = best_id; p_unit.target_is_building = best_is_b;
         return true;
     }
-
     return false;
 }
 
 bool AttackManager::_try_find_target_for_building(BuildingData& p_building) {
     if (!building_manager) return false;
 
-    float range = p_building.stats->get_attack_range();
+    // --- 1. 预检查：获取建筑所有独立武器的综合攻击能力和最大射程 ---
+    bool has_anti_ground = false;
+    bool has_anti_air = false;
+    float max_weapon_range = 0.0f;
+
+    for (const auto& wd : p_building.weapons) {
+        if (wd.stats.is_null()) continue;
+
+        if (wd.stats->get_can_attack_ground()) has_anti_ground = true;
+        if (wd.stats->get_can_attack_air()) has_anti_air = true;
+
+        max_weapon_range = std::max(max_weapon_range, wd.stats->get_attack_range());
+    }
+
+    // 如果没有任何武器或者武器都不具备攻击能力，直接返回
+    if (!has_anti_ground && !has_anti_air) return false;
+
+    // 使用武器中的最大射程作为索敌范围
+    float range = max_weapon_range;
     int best_target_id = -1;
     bool best_is_building = false;
     float min_dist_sq = range * range;
 
-    // 1. 计算攻击建筑的中心和等效半径
+    // 计算攻击建筑的中心和等效半径
     Vector2 cell_sz = Vector2(building_manager->get_cell_size());
     Vector2 fp_size = Vector2(p_building.stats->get_footprint()) * cell_sz;
     Vector2 b_center = Vector2(p_building.grid_pos) * cell_sz + fp_size * 0.5f;
     float b_radius = std::max(fp_size.x, fp_size.y) * 0.5f;
 
-    // --- 第一阶段：索敌单位 (优先) ---
+    // --- 2. 第一阶段：索敌单位 (需判断空中/地面) ---
     // 搜索半径需要加上建筑自身的半径，以防大型建筑漏掉近处的单位
     std::vector<int> nearby_units = unit_manager->get_nearby_units(b_center, range + b_radius);
     for (int idx : nearby_units) {
         UnitData& other = unit_manager->units[idx];
         if (other.team_id == p_building.team_id || other.current_health <= 0) continue;
+
+        // 判定目标是否为空中单位 (参考 _try_find_target 的逻辑)
+        bool target_is_air = other.height > 20.0f;
+
+        // 核心过滤：如果目标在空中但建筑没防空武器，或目标在地面但建筑没对地武器，则跳过
+        if (target_is_air ? !has_anti_air : !has_anti_ground) continue;
 
         float dist = b_center.distance_to(other.position);
         float dist_to_edge = std::max(0.0f, dist - b_radius - other.stats->get_collision_radius());
@@ -532,8 +577,8 @@ bool AttackManager::_try_find_target_for_building(BuildingData& p_building) {
         }
     }
 
-    // --- 第二阶段：索敌建筑 (如果射程内没单位) ---
-    if (best_target_id == -1) {
+    // --- 3. 第二阶段：索敌建筑 (建筑通常视为地面目标) ---
+    if (best_target_id == -1 && has_anti_ground) {
         for (auto& pair : building_manager->buildings) {
             BuildingData& other_b = pair.second;
             // 排除自己、队友、已摧毁或正在建造中的建筑
@@ -785,6 +830,69 @@ void AttackManager::_execute_building_attack(BuildingData& attacker, int target_
             UtilityFunctions::print("Building fire! target:", target_id, " dmg:", dmg);
         }
     }
+}
+
+bool AttackManager::_process_weapons_logic(int p_id, bool p_is_b, Vector2 p_pos, float p_h, float p_rot,
+    int p_tid, bool p_tis_b, std::vector<WeaponData>& p_independent_weapons,
+    const std::vector<Weapon>* p_body_weapons, std::vector<float>* p_cooldowns) {
+
+    Vector2 t_pos; float t_rad;
+    if (!_get_target_info(p_tid, p_tis_b, t_pos, t_rad)) return false;
+
+    bool target_is_air = _is_air_target(p_tid, p_tis_b);
+    float dist = p_pos.distance_to(t_pos);
+    bool is_any_weapon_in_range = false;
+
+    // 1. 处理独立武器 (Turrets/WeaponData)
+    for (auto& wd : p_independent_weapons) {
+        if (wd.stats.is_null()) continue;
+
+        bool can_hit_altitude = target_is_air ? wd.stats->get_can_attack_air() : wd.stats->get_can_attack_ground();
+        float real_range = wd.stats->get_attack_range() + t_rad;
+
+        if (can_hit_altitude && dist <= real_range) {
+            is_any_weapon_in_range = true;
+            _execute_weapon_data_attack(p_pos, p_h, p_rot, p_id, p_is_b, p_tid, p_tis_b, wd);
+        }
+        else {
+            wd.target_id = -1; // 该武器够不着或无法攻击此高度
+        }
+    }
+
+    // 2. 处理固定武器 (Body Weapons) - 仅单位
+    if (p_body_weapons && p_cooldowns) {
+        int u_idx = unit_manager->get_unit_index_by_id(p_id);
+        if (u_idx != -1) {
+            UnitData& unit = unit_manager->units[u_idx];
+            for (size_t i = 0; i < p_body_weapons->size(); ++i) {
+                const Weapon& w = (*p_body_weapons)[i];
+                bool can_hit_altitude = target_is_air ? w.can_attack_air : w.can_attack_ground;
+                float real_range = w.attack_range + t_rad + unit.stats->get_collision_radius();
+
+                if (can_hit_altitude && dist <= real_range) {
+                    is_any_weapon_in_range = true;
+                    // 身体对准检查在 _execute_attack 内部
+                    if ((*p_cooldowns)[i] <= 0.0f) {
+                        _execute_attack(unit, p_tid, p_tis_b, w);
+                        (*p_cooldowns)[i] = w.attack_interval;
+                    }
+                }
+            }
+        }
+    }
+
+    return is_any_weapon_in_range;
+}
+
+bool AttackManager::_is_air_target(int p_target_id, bool p_is_building) {
+    if (p_is_building) return false;
+    int idx = unit_manager->get_unit_index_by_id(p_target_id);
+    if (idx == -1) return false;
+    return unit_manager->units[idx].height > 20.0f;
+}
+
+bool AttackManager::_can_weapon_hit_altitude(bool p_can_ground, bool p_can_air, bool p_is_air) {
+    return p_is_air ? p_can_air : p_can_ground;
 }
 
 void AttackManager::_reset_unit_targets(UnitData& p_unit) {

@@ -5,13 +5,13 @@ weapon_name = HeavyTankTurret
 # 发射的子弹/炮弹的视觉模型名称，交由 ProjectileManager 识别
 projectile_type_name = Shell
 # 伤害值
-damage = 50.0
+damage = 65.0
 # 最大射程
-attack_range = 500.0
+attack_range = 550.0
 # 开火间隔（冷却时间/秒）
 attack_interval = 2.0
 # 子弹飞行速度
-projectile_speed = 800.0
+projectile_speed = 100.0
 # 爆炸溅射半径 (0表示单体伤害)
 splash_radius = 25.0
 

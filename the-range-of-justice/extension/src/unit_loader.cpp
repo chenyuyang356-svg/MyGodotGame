@@ -127,6 +127,8 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, WeaponManager* p_w
                     w.spawn_offset = Vector3(parts[6].to_float(), parts[7].to_float(), parts[8].to_float());
                 }
                 if (parts.size() >= 10) w.firing_tolerance = parts[9].to_float();
+                if (parts.size() >= 11) w.can_attack_ground = (parts[10].strip_edges().to_lower() == "true");
+                if (parts.size() >= 12) w.can_attack_air = (parts[11].strip_edges().to_lower() == "true");
 
                 stats->weapons.push_back(w);
                 UtilityFunctions::print("[UnitLoader] 成功为单位挂载武器: ", w.projectile_type_name, " 伤害: ", w.damage);
