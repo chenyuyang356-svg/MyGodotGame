@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "fog_manager.h"
+#include "game_definitions.h"
 
 namespace godot {
 

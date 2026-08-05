@@ -1,0 +1,25 @@
+import os
+import sys
+
+# Load godot-cpp build script
+env = SConscript("godot-cpp/SConstruct")
+
+# Add include paths
+env.Append(CPPPATH=["src/"])
+
+# Collect all C++ source files in src/
+sources = Glob("src/*.cpp")
+
+# Build shared library into bin/libgdextension
+library = env.SharedLibrary(
+    "bin/libgdextension",
+    source=sources,
+)
+
+copy_target = env.Command(
+    "bin/libgdextension.windows.template_debug.x86_64.dll",
+    library,
+    Copy("$TARGET", "$SOURCE"),
+)
+
+Default(library, copy_target)

@@ -1,6 +1,7 @@
 #include "register_types.h"
 #include "flow_field_manager.h"
 #include "selection_manager.h"
+#include "group_manager.h"
 #include "unit_manager.h"
 #include "building_manager.h"
 #include "unit_stats.h"

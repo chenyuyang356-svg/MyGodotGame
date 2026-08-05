@@ -1,6 +1,7 @@
 #pragma once
 
 #include <godot_cpp/classes/node3d.hpp>
+#include "game_definitions.h"
 #include <godot_cpp/classes/tile_map_layer.hpp>
 #include <godot_cpp/classes/tile_set.hpp>
 #include <godot_cpp/classes/tile_set_atlas_source.hpp>

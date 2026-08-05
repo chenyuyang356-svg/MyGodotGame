@@ -1,5 +1,7 @@
 #pragma once
 
+#include <set>
+#include <unordered_set>
 #include <godot_cpp/classes/node2d.hpp>
 #include <godot_cpp/classes/multiplayer_api.hpp>
 #include <godot_cpp/classes/multiplayer_peer.hpp>

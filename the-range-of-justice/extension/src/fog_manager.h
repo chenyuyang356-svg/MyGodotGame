@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include "game_definitions.h"
 
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/sub_viewport.hpp>

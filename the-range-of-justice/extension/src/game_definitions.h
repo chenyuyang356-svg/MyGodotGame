@@ -1,6 +1,14 @@
-﻿#pragma once
+#pragma once
 
 #include <godot_cpp/core/binder_common.hpp>
+
+#ifndef Math_PI
+#define Math_PI 3.14159265358979323846f
+#endif
+
+#ifndef Math_TAU
+#define Math_TAU 6.28318530717958647692f
+#endif
 
 namespace godot {
 
