@@ -1,7 +1,7 @@
-#pragma once
-
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/classes/dir_access.hpp>
+#include <godot_cpp/classes/ip.hpp>
+#include <godot_cpp/classes/time.hpp>
 
 #include "game_manager.h"
 
@@ -95,14 +95,38 @@ GameManager::GameManager() {
 	game_over_config["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
 	game_over_config["call_local"] = true; // 主机本地也要弹出结束界面
 	rpc_config("rpc_client_notify_game_over", game_over_config);
+
+	// --- 主机迁移 RPC ---
+	Dictionary mig_req; // 任意 peer 可调用（旧主机/继任者/回归客户端）
+	mig_req["rpc_mode"] = MultiplayerAPI::RPC_MODE_ANY_PEER;
+	mig_req["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
+	mig_req["call_local"] = false;
+	rpc_config("rpc_begin_migration", mig_req);
+	rpc_config("rpc_report_address", mig_req);
+	rpc_config("rpc_server_rejoin", mig_req);
+
+	Dictionary mig_broadcast; // 旧主机广播新主机信息
+	mig_broadcast["rpc_mode"] = MultiplayerAPI::RPC_MODE_AUTHORITY;
+	mig_broadcast["transfer_mode"] = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
+	mig_broadcast["call_local"] = false;
+	rpc_config("rpc_handover", mig_broadcast);
 }
 
 GameManager::~GameManager() {}
 
 // 游戏主循环
 void GameManager::_physics_process(double p_delta) {
-	if (!unit_manager || !building_manager || !flow_field_manager || !selection_manager || !group_manager || !is_setup) { return; }
-	if (!is_setup) return;
+	// 新主机在迁移完成前不跑任何游戏逻辑，只等待玩家回归
+	if (migration_pending && i_am_new_host) {
+		if (rejoined_count >= expected_rejoin_count || Time::get_singleton()->get_ticks_msec() > migration_deadline) {
+			finalize_migration();
+		}
+		else {
+			return;
+		}
+	}
+
+	if (!is_setup || !unit_manager || !building_manager || !flow_field_manager || !selection_manager || !group_manager) { return; }
 
 	if (is_server_authority()) {
 		tick_accumulator += p_delta;
@@ -141,8 +165,23 @@ void GameManager::_physics_process(double p_delta) {
 
 // 渲染主循环
 void GameManager::_process(double p_delta) {
-	if (!unit_manager || !building_manager || !flow_field_manager || !selection_manager || !group_manager || !is_setup) { return; }
-	if (!is_setup) return;
+	// 客户端重连超时：放弃并退回
+	if (reconnecting && Time::get_singleton()->get_ticks_msec() > reconnect_deadline) {
+		reconnecting = false;
+		leave_game();
+		return;
+	}
+
+	if (migration_pending && i_am_new_host) {
+		if (rejoined_count >= expected_rejoin_count || Time::get_singleton()->get_ticks_msec() > migration_deadline) {
+			finalize_migration();
+		}
+		else {
+			return;
+		}
+	}
+
+	if (!is_setup || !unit_manager || !building_manager || !flow_field_manager || !selection_manager || !group_manager) { return; }
 
 	unit_manager->update(p_delta);
 	building_manager->update(p_delta);
@@ -368,6 +407,7 @@ void GameManager::host_game(int p_port) {
 	get_multiplayer()->set_multiplayer_peer(peer);
 
 	//主机自己永远占据 Pear ID 1 和 Team 1
+	local_peer_id = 1;
 	register_player(1, 1, local_player_name);
 	UtilityFunctions::print("Server started on port: ", p_port);
 }
@@ -379,6 +419,10 @@ void GameManager::join_game(String p_address, int p_port) {
 	}
 	game_in_progress = false;
 	players_settings.clear();
+
+	// 记录目标地址/端口，供断线后自动重连使用
+	server_address = p_address;
+	server_port = p_port;
 
 	Ref<ENetMultiplayerPeer> peer;
 	peer.instantiate();
@@ -453,6 +497,14 @@ void GameManager::load_available_maps() {
 
 void GameManager::rpc_server_set_map(int p_index) {
 	if (!get_multiplayer()->is_server()) return;
+
+	// 安全校验：未注册的远端 peer 无权修改地图
+	int sender_id = get_multiplayer()->get_remote_sender_id();
+	if (sender_id > 1 && !players_settings.has(sender_id)) {
+		UtilityFunctions::print("[Security] 拒绝未注册 peer ", sender_id, " 修改地图");
+		return;
+	}
+
 	selected_map_index = p_index;
 
 	// 广播当前状态
@@ -470,6 +522,12 @@ void GameManager::rpc_server_set_map(int p_index) {
 
 void GameManager::rpc_server_update_player_settings(int p_team, int p_spawn) {
 	int sender_id = get_multiplayer()->get_remote_sender_id();
+
+	// 安全校验：远端必须已注册（主机本地调用 sender_id <= 1，天然信任）
+	if (sender_id > 1 && !players_settings.has(sender_id)) {
+		UtilityFunctions::print("[Security] 拒绝未注册 peer ", sender_id, " 修改设置");
+		return;
+	}
 
 	PlayerSettings& s = players_settings[sender_id];
 	s.team_id = p_team;
@@ -541,8 +599,30 @@ void GameManager::rpc_client_on_player_registered(int p_peer_id, int p_team_id) 
 
 // --- 服务器接收到 RPC 后的处理 ---
 
+// 安全校验辅助：单位 ID 数组是否全部归属指定队伍
+bool GameManager::_units_owned_by_team(PackedInt32Array p_ids, int p_team) {
+	if (!unit_manager) return false;
+	if (p_team < 0) return false;
+	for (int i = 0; i < p_ids.size(); ++i) {
+		int idx = unit_manager->get_unit_index_by_id(p_ids[i]);
+		if (idx == -1) return false;                     // 单位不存在
+		if (unit_manager->units[idx].team_id != p_team) return false; // 非本队单位
+	}
+	return true;
+}
+
 void GameManager::rpc_server_receive_move(PackedInt32Array p_ids, Vector2 p_pos) {
 	if (!get_multiplayer()->is_server()) return;
+
+	// 安全校验：远端必须已注册，且所有被指挥单位归属其队伍
+	int sender_id = get_multiplayer()->get_remote_sender_id();
+	if (sender_id > 1) {
+		if (!players_settings.has(sender_id)) { return; }
+		if (!_units_owned_by_team(p_ids, players_settings[sender_id].team_id)) {
+			UtilityFunctions::print("[Security] 拒绝 peer ", sender_id, " 越权移动指令");
+			return;
+		}
+	}
 
 	if (unit_manager) {
 		unit_manager->command_units_to_move(p_ids, p_pos);
@@ -551,6 +631,17 @@ void GameManager::rpc_server_receive_move(PackedInt32Array p_ids, Vector2 p_pos)
 
 void GameManager::rpc_server_receive_attack_unit(PackedInt32Array p_ids, int p_target_id, bool p_target_is_building) {
 	if (!get_multiplayer()->is_server()) return;
+
+	// 安全校验：同上，禁止指挥他人单位
+	int sender_id = get_multiplayer()->get_remote_sender_id();
+	if (sender_id > 1) {
+		if (!players_settings.has(sender_id)) { return; }
+		if (!_units_owned_by_team(p_ids, players_settings[sender_id].team_id)) {
+			UtilityFunctions::print("[Security] 拒绝 peer ", sender_id, " 越权攻击指令");
+			return;
+		}
+	}
+
 	if (unit_manager) {
 		unit_manager->command_units_to_attack_target(p_ids, p_target_id, p_target_is_building, building_manager);
 	}
@@ -749,6 +840,17 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 // 1. 单位生成与销毁
 void GameManager::rpc_server_request_spawn_unit(String p_type, Vector2 p_pos, int p_team) {
 	if (!is_server_authority()) return;
+
+	// 安全校验：远端只能为自己队伍生成单位（主机本地调用不受限）
+	int sender_id = get_multiplayer()->get_remote_sender_id();
+	if (sender_id > 1) {
+		if (!players_settings.has(sender_id)) { return; }
+		if (players_settings[sender_id].team_id != p_team) {
+			UtilityFunctions::print("[Security] 拒绝 peer ", sender_id, " 为其他队伍生成单位");
+			return;
+		}
+	}
+
 	// 服务器生成单位，获取 ID
 	int new_id = unit_manager->spawn_unit_by_type(p_type, p_pos, p_team);
 	if (new_id != -1) {
@@ -764,6 +866,20 @@ void GameManager::rpc_client_spawn_unit(int p_id, String p_type, Vector2 p_pos, 
 void GameManager::rpc_server_request_place_building(
 	String p_type, Vector2i p_grid_pos, int p_team, int p_force_id, bool p_is_pre_placed, PackedInt32Array p_builder_ids) {
 	if (!is_server_authority()) return;
+
+	// 安全校验：远端只能为自己队伍放置建筑，且建造者单位必须归属自己
+	int sender_id = get_multiplayer()->get_remote_sender_id();
+	if (sender_id > 1) {
+		if (!players_settings.has(sender_id)) { return; }
+		if (players_settings[sender_id].team_id != p_team) {
+			UtilityFunctions::print("[Security] 拒绝 peer ", sender_id, " 为其他队伍放置建筑");
+			return;
+		}
+		if (!_units_owned_by_team(p_builder_ids, players_settings[sender_id].team_id)) {
+			UtilityFunctions::print("[Security] 拒绝 peer ", sender_id, " 越权指挥建造单位");
+			return;
+		}
+	}
 
 	Ref<BuildingStats> stats = building_manager->get_building_stats_by_type(p_type);
 	if (stats.is_null()) return;
@@ -801,7 +917,9 @@ void GameManager::rpc_client_spawn_building(int p_id, String p_type, Vector2i p_
 }
 
 void GameManager::rpc_client_despawn_unit(int p_id) {
-	selection_manager->on_unit_despawned(p_id);
+	if (unit_manager) {
+		unit_manager->despawn_unit(p_id, selection_manager); // 真正删除本地实体（含选择清理）
+	}
 }
 
 void GameManager::rpc_client_remove_building(int p_id) {
@@ -940,10 +1058,17 @@ void godot::GameManager::_on_spawn_unit_requested(String p_type_name, Vector2 p_
 
 void godot::GameManager::_on_despawn_unit_requested(int p_unit_id) {
 	unit_manager->despawn_unit(p_unit_id, selection_manager);
+	// 广播删除，保证客户端本地实体同步移除（服务器权威）
+	if (get_multiplayer()->is_server()) {
+		rpc("rpc_client_despawn_unit", p_unit_id);
+	}
 }
 
 void GameManager::_on_despawn_building_requested(int p_bid) {
 	building_manager->remove_building(p_bid, selection_manager);
+	if (get_multiplayer()->is_server()) {
+		rpc("rpc_client_remove_building", p_bid);
+	}
 }
 
 void GameManager::_on_spawn_projectile_requested(const String& p_type_name, Vector2 p_start_pos, float p_start_height, int p_target_id, bool p_target_is_building, float p_target_height, int p_source_id, bool p_source_is_building, float p_weapon_damage) {
@@ -983,6 +1108,14 @@ void GameManager::_on_peer_connected(int p_id) {
 void GameManager::_on_connected_to_server() {
 	int my_id = get_multiplayer()->get_unique_id();
 	UtilityFunctions::print("Client: Connected to server. My ID: ", my_id);
+	local_peer_id = my_id;
+
+	// 重连（普通掉线 或 迁移后）统一走 rejoin 自报旧身份
+	if (reconnecting || migration_pending) {
+		reconnecting = false;
+		rpc_id(1, "rpc_server_rejoin", my_old_peer_id);
+		return;
+	}
 
 	int desired_team = 0;
 	rpc_id(1, "rpc_server_request_registration", desired_team, local_player_name);
@@ -1011,11 +1144,18 @@ void GameManager::reset_game_state() {
 void GameManager::_on_peer_disconnected(int p_id) {
 	if (get_multiplayer()->is_server()) {
 		UtilityFunctions::print("Server: Peer disconnected: ", p_id);
-		players_settings.erase(p_id);
 
-		// 如果还没开始游戏，则刷新大厅信息广播给其它玩家
+		// 大厅：直接移除并刷新
 		if (!game_in_progress) {
+			players_settings.erase(p_id);
 			rpc_server_set_map(selected_map_index);
+		}
+		else {
+			// 局内掉线：保留该玩家全部实体与身份，暂存其队伍信息，直到其重连
+			if (players_settings.has(p_id)) {
+				disconnected_players[p_id] = players_settings[p_id];
+				players_settings.erase(p_id);
+			}
 		}
 	}
 	else {
@@ -1024,15 +1164,400 @@ void GameManager::_on_peer_disconnected(int p_id) {
 }
 
 void GameManager::_on_server_disconnected() {
-	UtilityFunctions::print("Client: Server disconnected. Leaving game...");
-	// 房主断线，客户端自动退出清理
+	UtilityFunctions::print("Client: Server disconnected.");
+
+	if (migration_pending) {
+		// 主机迁移中：继任者接管为服务器，普通客户端重连
+		if (i_am_new_host) {
+			_become_new_host();
+		}
+		else {
+			_reconnect_to_new_host();
+		}
+		return;
+	}
+
+	if (game_in_progress && !is_server_authority()) {
+		// 普通掉线：保留场上行为，自动重连同一主机
+		_reconnect_to_host();
+		return;
+	}
+
+	// 大厅或非游戏场景断线，按原逻辑退出
 	leave_game();
 }
 
 void GameManager::_on_connection_failed() {
-	UtilityFunctions::print("Client: Connection failed or rejected (Game already in progress).");
-	// 如果连接由于在游戏中被拒绝（或超时），则清理退出
+	UtilityFunctions::print("Client: Connection failed.");
+
+	// 重连流程中：失败则重试，超过次数或超时则退出
+	if (reconnecting) {
+		if (reconnect_attempts < MAX_RECONNECT_ATTEMPTS) {
+			_reconnect_to_host();
+			return;
+		}
+		reconnecting = false;
+	}
 	leave_game();
+}
+
+// ========== 主机迁移（阶段1：优雅交接） ==========
+
+// 旧主机发起迁移：序列化状态发给继任者，收到继任者地址后广播交接信息，随后旧主机自动退出
+// 返回 true 表示已发起（旧主机稍后会自动 leave_game）；false 表示无法交接，调用方应直接退出
+bool GameManager::migrate_host() {
+	if (!is_server_authority()) { return false; }
+	if (!game_in_progress) { return false; } // 大厅阶段暂不做迁移
+
+	elected_successor = pick_successor();
+	if (elected_successor == -1) {
+		UtilityFunctions::print("没有可交接的玩家，直接退出。");
+		return false;
+	}
+
+	Dictionary state = serialize_game_state();
+	Dictionary mapping = get_all_player_settings();
+	UtilityFunctions::print("开始迁移：向继任者 peer ", elected_successor, " 发送状态 (units=",
+		((Array)state["units"]).size(), ")");
+	rpc_id(elected_successor, "rpc_begin_migration", state, mapping, server_port);
+
+	// 旧主机不再参与游戏逻辑：立即退出本地模拟，避免切场景后 manager 悬垂
+	reset_game_state();
+	return true;
+}
+
+void GameManager::rpc_begin_migration(Dictionary p_state, Dictionary p_mapping, int p_port) {
+	// 仅继任者接收
+	migration_pending = true;
+	i_am_new_host = true;
+	my_old_peer_id = get_multiplayer()->get_unique_id();
+	pending_game_state = p_state;
+	migration_mapping = p_mapping;
+	migration_port = p_port;
+	UtilityFunctions::print("收到迁移状态，我是新主机（旧 peer ", my_old_peer_id, "）。上报地址...");
+	rpc_id(1, "rpc_report_address", _get_local_ip(), migration_port);
+}
+
+void GameManager::rpc_report_address(String p_addr, int p_port) {
+	if (!is_server_authority()) { return; }
+	successor_address = p_addr;
+	successor_port = p_port;
+	UtilityFunctions::print("继任者地址: ", p_addr, ":", p_port, "。广播交接信息。");
+	rpc("rpc_handover", elected_successor, successor_address, successor_port);
+	// 广播完成后旧主机退出，触发客户端 server_disconnected 走迁移流程
+	leave_game();
+}
+
+void GameManager::rpc_handover(int p_successor, String p_addr, int p_port) {
+	// 继任者已在 rpc_begin_migration 中就绪，忽略这条广播
+	if (i_am_new_host) { return; }
+	// 所有普通客户端记录新主机信息
+	migration_pending = true;
+	my_old_peer_id = get_multiplayer()->get_unique_id();
+	successor_address = p_addr;
+	successor_port = p_port;
+	UtilityFunctions::print("收到交接信息：新主机 peer ", p_successor, " @ ", p_addr, ":", p_port);
+}
+
+void GameManager::rpc_server_rejoin(int p_old_peer_id) {
+	if (!get_multiplayer()->is_server()) { return; }
+	int new_id = get_multiplayer()->get_remote_sender_id();
+
+	// 优先从"掉线暂存"恢复（普通重连），其次从迁移映射恢复
+	PlayerSettings restored;
+	bool found = false;
+	if (disconnected_players.has(p_old_peer_id)) {
+		restored = disconnected_players[p_old_peer_id];
+		disconnected_players.erase(p_old_peer_id);
+		found = true;
+	}
+	else if (migration_mapping.has(p_old_peer_id)) {
+		Dictionary info = migration_mapping[p_old_peer_id];
+		restored.team_id = info["team"];
+		restored.spawn_id = info["spawn"];
+		restored.name = info["name"];
+		found = true;
+	}
+
+	if (!found) {
+		UtilityFunctions::print("忽略未知的回归玩家 old=", p_old_peer_id);
+		return;
+	}
+
+	PlayerSettings& s = players_settings[new_id];
+	s = restored;
+	if (migration_pending && i_am_new_host) {
+		rejoined_count++;
+	}
+	UtilityFunctions::print("玩家回归 old=", p_old_peer_id, " -> new=", new_id, " (team ", s.team_id, ")");
+}
+
+// 新主机：断掉旧连接后创建服务器，自己成为 peer 1
+void GameManager::_become_new_host() {
+	if (get_multiplayer()->has_multiplayer_peer()) {
+		get_multiplayer()->set_multiplayer_peer(Ref<MultiplayerPeer>());
+	}
+	Ref<ENetMultiplayerPeer> peer;
+	peer.instantiate();
+	Error err = peer->create_server(migration_port);
+	if (err != OK) {
+		UtilityFunctions::printerr("迁移失败：无法创建服务器 (port ", migration_port, ")");
+		leave_game();
+		return;
+	}
+	get_multiplayer()->set_multiplayer_peer(peer);
+
+	players_settings.clear();
+	// 新主机自己：new_id = 1，用旧映射找回自己的队伍
+	if (migration_mapping.has(my_old_peer_id)) {
+		Dictionary info = migration_mapping[my_old_peer_id];
+		PlayerSettings& s = players_settings[1];
+		s.team_id = info["team"];
+		s.spawn_id = info["spawn"];
+		s.name = info["name"];
+	}
+	rejoined_count = 1;
+	expected_rejoin_count = migration_mapping.size() - 1; // 除旧主机外的所有玩家
+	migration_deadline = Time::get_singleton()->get_ticks_msec() + 5000;
+	UtilityFunctions::print("迁移：新主机上线 (peer 1)，等待其余玩家回归 (", expected_rejoin_count - 1, " 个)。");
+}
+
+// 普通客户端：重连到新主机
+void GameManager::_reconnect_to_new_host() {
+	if (get_multiplayer()->has_multiplayer_peer()) {
+		get_multiplayer()->set_multiplayer_peer(Ref<MultiplayerPeer>());
+	}
+	Ref<ENetMultiplayerPeer> peer;
+	peer.instantiate();
+	Error err = peer->create_client(successor_address, successor_port);
+	if (err != OK) {
+		UtilityFunctions::printerr("迁移重连失败：无法连接 ", successor_address, ":", successor_port);
+		leave_game();
+		return;
+	}
+	get_multiplayer()->set_multiplayer_peer(peer);
+	UtilityFunctions::print("迁移：重连新主机 ", successor_address, ":", successor_port, " ...");
+}
+
+// 新主机：所有玩家回归（或超时）后恢复完整游戏状态
+void GameManager::finalize_migration() {
+	if (!migration_pending || !i_am_new_host) { return; }
+
+	migration_pending = false;
+	restore_game_state(pending_game_state);
+	pending_game_state = Dictionary();
+	migration_mapping = Dictionary();
+
+	game_in_progress = true;
+	game_over = false;
+	tick_accumulator = 0.0;
+	UtilityFunctions::print("主机迁移完成，游戏继续。");
+}
+
+// 普通客户端：断线后自动重连同一主机（玩家实体/行为保留在场上）
+void GameManager::_reconnect_to_host() {
+	my_old_peer_id = local_peer_id;
+	reconnecting = true;
+	reconnect_attempts++;
+	reconnect_deadline = Time::get_singleton()->get_ticks_msec() + RECONNECT_TIMEOUT_MS;
+
+	if (get_multiplayer()->has_multiplayer_peer()) {
+		get_multiplayer()->set_multiplayer_peer(Ref<MultiplayerPeer>());
+	}
+	Ref<ENetMultiplayerPeer> peer;
+	peer.instantiate();
+	Error err = peer->create_client(server_address, server_port);
+	if (err != OK) {
+		UtilityFunctions::printerr("重连失败：无法连接 ", server_address, ":", server_port);
+		reconnecting = false;
+		leave_game();
+		return;
+	}
+	get_multiplayer()->set_multiplayer_peer(peer);
+	UtilityFunctions::print("重连中... ", server_address, ":", server_port, " (第 ", reconnect_attempts, " 次)");
+}
+
+int GameManager::pick_successor() {
+	int best = -1;
+	for (const auto& E : players_settings) {
+		if (E.key == 1) continue; // 自己
+		if (best == -1 || E.key < best) best = E.key;
+	}
+	return best;
+}
+
+String GameManager::_get_local_ip() {
+	PackedStringArray addrs = IP::get_singleton()->get_local_addresses();
+	for (int i = 0; i < addrs.size(); ++i) {
+		if (addrs[i].begins_with("127.")) continue; // 跳过回环
+		if (addrs[i].contains(":")) continue;       // 跳过 IPv6
+		return addrs[i];
+	}
+	return "127.0.0.1";
+}
+
+// 序列化完整游戏状态（单位/建筑/经济），供主机迁移使用
+Dictionary GameManager::serialize_game_state() {
+	Dictionary state;
+
+	Array units;
+	for (const auto& u : unit_manager->units) {
+		Dictionary d;
+		d["id"] = u.id;
+		d["type"] = u.stats->get_unit_name();
+		d["pos"] = u.position;
+		d["vel"] = u.velocity;
+		d["rot"] = u.rotation;
+		d["ang_vel"] = u.angular_velocity;
+		d["target_pos"] = u.target_pos;
+		d["target_off"] = u.target_pos_offset;
+		d["target_grid"] = u.target_grid;
+		d["target_id"] = u.target_id;
+		d["target_is_b"] = u.target_is_building;
+		d["manual"] = u.is_manual_target;
+		d["state"] = (int)u.state;
+		d["health"] = u.current_health;
+		d["height"] = u.height;
+		d["team"] = u.team_id;
+		Array cd;
+		for (float c : u.weapon_cooldowns) cd.append(c);
+		d["weapon_cd"] = cd;
+		Array ws;
+		for (const auto& w : u.weapons) {
+			Dictionary wd;
+			wd["name"] = w.stats->get_weapon_name();
+			wd["rot"] = w.rotation;
+			wd["cd"] = w.current_cooldown;
+			wd["target"] = w.target_id;
+			wd["state"] = (int)w.state;
+			ws.append(wd);
+		}
+		d["weapons"] = ws;
+		units.append(d);
+	}
+	state["units"] = units;
+
+	Array blds;
+	for (const auto& pair : building_manager->buildings) {
+		const BuildingData& b = pair.second;
+		Dictionary d;
+		d["id"] = b.id;
+		d["grid"] = b.grid_pos;
+		d["type"] = b.stats->get_building_name();
+		d["team"] = b.team_id;
+		d["health"] = b.current_health;
+		d["state"] = (int)b.state;
+		d["build_timer"] = b.build_timer;
+		d["prod_timer"] = b.unit_production_timer;
+		Array pq;
+		for (const String& s : b.production_queue) pq.append(s);
+		d["prod_queue"] = pq;
+		Array ws;
+		for (const auto& w : b.weapons) {
+			Dictionary wd;
+			wd["name"] = w.stats->get_weapon_name();
+			wd["rot"] = w.rotation;
+			wd["cd"] = w.current_cooldown;
+			wd["target"] = w.target_id;
+			wd["state"] = (int)w.state;
+			ws.append(wd);
+		}
+		d["weapons"] = ws;
+		blds.append(d);
+	}
+	state["buildings"] = blds;
+
+	Dictionary econ;
+	for (int team = 1; team < 10; ++team) {
+		if (economy_manager->has_team(team)) {
+			econ[String::num(team)] = economy_manager->get_balance(team);
+		}
+	}
+	state["economy"] = econ;
+
+	return state;
+}
+
+// 新主机恢复状态（在清空本地实体后调用）
+void GameManager::restore_game_state(const Dictionary& p_state) {
+	unit_manager->clear_all_units();
+	building_manager->clear_all_buildings();
+	group_manager->temp_groups.clear();
+
+	// --- 单位 ---
+	Array units = p_state["units"];
+	for (int i = 0; i < units.size(); ++i) {
+		Dictionary d = units[i];
+		int new_id = unit_manager->spawn_unit_by_type(d["type"], d["pos"], d["team"], d["id"]);
+		if (new_id == -1) continue;
+		int idx = unit_manager->get_unit_index_by_id(new_id);
+		if (idx == -1) continue;
+		UnitData& u = unit_manager->units[idx];
+		u.velocity = d["vel"];
+		u.rotation = d["rot"];
+		u.angular_velocity = d["ang_vel"];
+		u.target_pos = d["target_pos"];
+		u.target_pos_offset = d["target_off"];
+		u.target_grid = d["target_grid"];
+		u.target_id = d["target_id"];
+		u.target_is_building = d["target_is_b"];
+		u.is_manual_target = d["manual"];
+		u.state = (UnitState)(int)d["state"];
+		u.current_health = d["health"];
+		u.height = d["height"];
+		Array cd = d["weapon_cd"];
+		u.weapon_cooldowns.resize(cd.size());
+		for (int k = 0; k < cd.size(); ++k) u.weapon_cooldowns[k] = cd[k];
+		Array ws = d["weapons"];
+		for (int k = 0; k < ws.size() && k < (int)u.weapons.size(); ++k) {
+			Dictionary wd = ws[k];
+			u.weapons[k].rotation = wd["rot"];
+			u.weapons[k].current_cooldown = wd["cd"];
+			u.weapons[k].target_id = wd["target"];
+			u.weapons[k].state = (WeaponStateEnum)(int)wd["state"];
+		}
+		// 重置瞬态字段（编队/粒子/卡死检测等跨进程无意义的状态）
+		u.temp_group_id = -1;
+		u.prev_position = u.position; u.next_position = u.position;
+		u.prev_rotation = u.rotation; u.next_rotation = u.rotation;
+		u.prev_height = u.height; u.next_height = u.height;
+		u.last_visual_pos = u.position;
+		u.anim_time = 0.0f;
+		u.stuck_timer = 0.0f;
+	}
+
+	// --- 建筑 ---
+	Array blds = p_state["buildings"];
+	for (int i = 0; i < blds.size(); ++i) {
+		Dictionary d = blds[i];
+		int id = building_manager->place_building_by_type(d["type"], d["grid"], d["team"], d["id"], true, true); // force
+		if (id == -1) continue;
+		BuildingData& b = building_manager->buildings[id];
+		b.current_health = d["health"];
+		b.state = (BuildingState)(int)d["state"];
+		b.build_timer = d["build_timer"];
+		b.unit_production_timer = d["prod_timer"];
+		b.production_queue.clear();
+		Array pq = d["prod_queue"];
+		for (int k = 0; k < pq.size(); ++k) b.production_queue.push_back(pq[k]);
+		Array ws = d["weapons"];
+		for (int k = 0; k < ws.size() && k < (int)b.weapons.size(); ++k) {
+			Dictionary wd = ws[k];
+			b.weapons[k].rotation = wd["rot"];
+			b.weapons[k].current_cooldown = wd["cd"];
+			b.weapons[k].target_id = wd["target"];
+			b.weapons[k].state = (WeaponStateEnum)(int)wd["state"];
+		}
+	}
+
+	// --- 经济 ---
+	Dictionary econ = p_state["economy"];
+	Array ekeys = econ.keys();
+	for (int i = 0; i < ekeys.size(); ++i) {
+		economy_manager->set_balance((int)ekeys[i], econ[ekeys[i]]);
+	}
+
+	flow_field_manager->make_all_dirty();
 }
 
 void GameManager::check_victory_conditions() {
@@ -1132,6 +1657,16 @@ void GameManager::_bind_methods() {
 		&GameManager::rpc_client_sync_resources);
 
 	ClassDB::bind_method(D_METHOD("rpc_client_notify_game_over", "winner_team"), &GameManager::rpc_client_notify_game_over);
+
+	// --- 主机迁移绑定 ---
+	ClassDB::bind_method(D_METHOD("migrate_host"), &GameManager::migrate_host);
+	ClassDB::bind_method(D_METHOD("rpc_begin_migration", "state", "mapping", "port"), &GameManager::rpc_begin_migration);
+	ClassDB::bind_method(D_METHOD("rpc_report_address", "addr", "port"), &GameManager::rpc_report_address);
+	ClassDB::bind_method(D_METHOD("rpc_handover", "successor", "addr", "port"), &GameManager::rpc_handover);
+	ClassDB::bind_method(D_METHOD("rpc_server_rejoin", "old_peer_id"), &GameManager::rpc_server_rejoin);
+	ClassDB::bind_method(D_METHOD("serialize_game_state"), &GameManager::serialize_game_state);
+	ClassDB::bind_method(D_METHOD("restore_game_state", "state"), &GameManager::restore_game_state);
+	ClassDB::bind_method(D_METHOD("finalize_migration"), &GameManager::finalize_migration);
 
 	ClassDB::bind_method(D_METHOD("_on_move_requested", "ids", "pos"), &GameManager::_on_move_requested);
 	ClassDB::bind_method(D_METHOD("_on_attack_unit_requested", "ids", "target_id"), &GameManager::_on_attack_unit_requested);

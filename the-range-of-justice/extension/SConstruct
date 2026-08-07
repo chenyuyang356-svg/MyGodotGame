@@ -16,8 +16,17 @@ library = env.SharedLibrary(
     source=sources,
 )
 
+# 按 Godot 期望的命名复制，支持 debug / release 双目标：
+#   scons                      -> template_debug
+#   scons target=template_release -> template_release
+# 产出形如 libgdextension.windows.template_debug.x86_64.dll
+target_name = "libgdextension.{}.{}.{}.dll".format(
+    env.get("platform", "windows"),
+    env.get("target", "template_debug"),
+    env.get("arch", "x86_64"),
+)
 copy_target = env.Command(
-    "bin/libgdextension.windows.template_debug.x86_64.dll",
+    "bin/" + target_name,
     library,
     Copy("$TARGET", "$SOURCE"),
 )

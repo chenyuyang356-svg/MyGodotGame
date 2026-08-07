@@ -10,3 +10,25 @@ export_presets.cfg
 .mono/
 *.csproj
 *.sln
+
+# GDExtension 构建产物（勿提交，均可在本地由 scons 重新生成）
+the-range-of-justice/extension/bin/
+the-range-of-justice/extension/src/*.obj
+the-range-of-justice/extension/src/*.obj.import
+the-range-of-justice/extension/src/*.lib
+the-range-of-justice/extension/src/*.exp
+the-range-of-justice/extension/.sconsign*
+the-range-of-justice/extension/.vs/
+the-range-of-justice/extension/src/.vs/
+
+# godot-cpp 为独立仓库/子模块，不作为主仓库内容提交
+the-range-of-justice/extension/godot-cpp/
+
+# 打包发布产物
+release/
+
+# 早期原型工程（保留在工作区，但不再入库）
+/extension/
+/flow_field_manager_gdextension/
+/vector-field-pathfinding/
+

@@ -1,4 +1,3 @@
-#pragma once
 #include "unit_manager.h"
 #include "attack_manager.h"
 #include "selection_manager.h"
@@ -122,6 +121,11 @@ void UnitManager::_setup_minimap_renderer(int p_width, int p_height, Vector2i p_
     minimap_dot_renderer->set_material_override(mat);
 }
 
+void UnitManager::clear_all_units() {
+	units.clear();
+	id_to_index.clear();
+}
+
 // 2.单位生命周期（生成，死亡判定，内存回收）
 int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id, int p_forced_id) {
     if (p_stats.is_null()) return -1;
@@ -178,13 +182,13 @@ void UnitManager::despawn_unit(int p_unit_id, SelectionManager* p_selection_mana
     group_manager->handle_unit_death(unit_to_remove);
 
     if (index_to_remove != last_unit_idx) {
-        // 1.   ȡ   һ    λ      
+        // 1. 取最后一个单位的引用（swap-pop 前临时保存）
         UnitData& last_unit = units.back();
 
-        // 2.      һ    λ ƶ   Ҫɾ    λ  
+        // 2. 把最后一个单位移动到被删除单位的位置（swap-pop）
         units[index_to_remove] = last_unit;
 
-        // 3.    ±  ƶ   λ ڹ ϣ   е     
+        // 3. 更新被移动单位的索引映射
         id_to_index[last_unit.id] = index_to_remove;
     }
 
@@ -1643,7 +1647,7 @@ void UnitManager::_internal_register_stats(Ref<UnitStats> p_stats) {
 
 
 void UnitManager::register_unit_type(String p_name, String p_path) {
-    Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(p_path, weapon_manager);
+    Ref<UnitStats> stats = UnitLoader::load_stats_from_cfg(p_path, weapon_manager);
     if (stats.is_null()) return;
 
     // 如果文件中没写名字，则使用手动输入的 p_name
@@ -1665,10 +1669,10 @@ void UnitManager::register_units_from_dir(String p_dir_path) {
     String file_name = dir->get_next();
 
     while (file_name != "") {
-        // 只处理 .txt 配置文件
-        if (!dir->current_is_dir() && file_name.ends_with(".txt")) {
+        // 只处理 .cfg 配置文件
+        if (!dir->current_is_dir() && file_name.ends_with(".cfg")) {
             String full_path = p_dir_path.path_join(file_name);
-            Ref<UnitStats> stats = UnitLoader::load_stats_from_txt(full_path, weapon_manager);
+            Ref<UnitStats> stats = UnitLoader::load_stats_from_cfg(full_path, weapon_manager);
 
             if (stats.is_valid() && !stats->unit_name.is_empty()) {
                 _internal_register_stats(stats);
@@ -1698,6 +1702,7 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
         if (it != id_to_index.end()) {
             index = it->second;
         }
+        if (index == -1) continue;
 
         UnitData& data = units[index]; 
         for (int i = 0; i < data.control_group_count; ++i) {
@@ -1717,6 +1722,7 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
         if (it != id_to_index.end()) {
             index = it->second;
         }
+        if (index == -1) continue;
 
         UnitData& data = units[index];
         if (data.control_group_count < 3) { 

@@ -1,5 +1,3 @@
-#pragma once
-
 #include "audio_manager.h"
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>

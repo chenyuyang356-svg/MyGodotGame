@@ -127,6 +127,7 @@ namespace godot {
 		int spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_team_id = 0, int p_forced_id = -1);
 		void despawn_unit(int p_unit_id, SelectionManager* p_selection_manager);
 		void handle_dead_unit(double p_delta);
+		void clear_all_units(); // 主机迁移用：清空全部单位
 
 		// --- 单位攻击逻辑 ---
 		void command_units_to_move(Array p_unit_ids, Vector2 p_target_world_pos);

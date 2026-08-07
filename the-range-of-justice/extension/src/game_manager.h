@@ -75,13 +75,36 @@ namespace godot {
 		// 使用 Godot 的 HashMap 方便存储 peer_id -> settings
 		HashMap<int, PlayerSettings> players_settings;
 
+		// --- 主机迁移状态 ---
+		bool migration_pending = false;        // 是否处于迁移流程中
+		bool i_am_new_host = false;            // 我是否是迁移后的新主机
+		int my_old_peer_id = -1;               // 迁移前自己的旧 peer id
+		int elected_successor = -1;            // 旧主机选出的继任者
+		int rejoined_count = 0;                // 已回归玩家数（含新主机自己）
+		int expected_rejoin_count = 0;         // 需要回归的玩家总数
+		int migration_port = 7777;             // 迁移后新主机监听的端口
+		uint64_t migration_deadline = 0;       // 等待回归的超时时间戳(ms)
+		String successor_address = "127.0.0.1";
+		int successor_port = 7777;
+		Dictionary migration_mapping;          // 旧 peer_id -> {team, spawn, name}
+		Dictionary pending_game_state;         // 待恢复的完整游戏状态
+
+		// --- 局内掉线保留与重连 ---
+		HashMap<int, PlayerSettings> disconnected_players; // 掉线玩家暂存（保留实体与身份，直到重连）
+		bool reconnecting = false;            // 客户端是否正在自动重连
+		int reconnect_attempts = 0;
+		uint64_t reconnect_deadline = 0;
+		int local_peer_id = -1;               // 客户端当前连接时的自身 peer id
+		const int MAX_RECONNECT_ATTEMPTS = 3;
+		const uint64_t RECONNECT_TIMEOUT_MS = 15000;
+
 		bool game_over = true;
 		float game_over_check_timer = 0.0f;
 		const float CHECK_INTERVAL = 1.0f; // 每秒检查一次胜负
 		void check_victory_conditions();
 
 		float fog_update_timer = 0.0f;
-		const float FOG_UPDATE_INTERVAL = 0.0f;
+		const float FOG_UPDATE_INTERVAL = 0.05f; // 20Hz 更新视野，降低每帧全量重绘开销
 
 	protected:
 		static void _bind_methods();
@@ -211,6 +234,16 @@ namespace godot {
 		void _on_server_disconnected(); // 新增：服务端关闭回调
 		void _on_connection_failed(); // 新增：连接被拒绝/失败回调
 
+		// --- 主机迁移 ---
+		bool migrate_host();             // 旧主机：发起迁移（成功返回 true，随后自动交接退出）
+		void rpc_begin_migration(Dictionary p_state, Dictionary p_mapping, int p_port); // 继任者接收
+		void rpc_report_address(String p_addr, int p_port); // 继任者上报地址给旧主机
+		void rpc_handover(int p_successor, String p_addr, int p_port); // 旧主机广播新主机信息
+		void rpc_server_rejoin(int p_old_peer_id); // 客户端重连后向新主机自报旧身份
+		Dictionary serialize_game_state();   // 序列化 单位/建筑/经济
+		void restore_game_state(const Dictionary& p_state); // 新主机恢复状态
+		void finalize_migration();           // 全部回归后恢复并继续
+
 		double get_logic_tick_rate() { return logic_tick_rate; }
 		void set_logic_tick_rate(double p_value) { logic_tick_rate = p_value; }
 
@@ -224,6 +257,14 @@ namespace godot {
 		void set_local_player_name(const String& p_name) { local_player_name = p_name; }
 
 		void start_game() { game_over = false; }
+
+	private:
+		int pick_successor();
+		String _get_local_ip();
+		void _become_new_host();             // 继任者：创建服务器接管
+		void _reconnect_to_new_host();       // 普通客户端：重连新主机
+		void _reconnect_to_host();           // 普通客户端：重连同一主机（掉线后保留行为）
+		bool _units_owned_by_team(PackedInt32Array p_ids, int p_team); // RPC 校验：单位是否全部归属指定队伍
 	};
 
 }

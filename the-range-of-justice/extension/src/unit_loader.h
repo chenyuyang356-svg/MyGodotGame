@@ -18,8 +18,8 @@ namespace godot {
         static int _parse_bitfield(String p_value);
 
     public:
-        // 输入 txt 文件路径，返回一个填充好数据的 UnitStats 资源
-        static Ref<UnitStats> load_stats_from_txt(String p_path, WeaponManager* p_weapon_manager, Ref<UnitStats> p_target = nullptr);
+        // 输入 .cfg 文件路径，返回一个填充好数据的 UnitStats 资源
+        static Ref<UnitStats> load_stats_from_cfg(String p_path, WeaponManager* p_weapon_manager, Ref<UnitStats> p_target = nullptr);
     };
 
 }

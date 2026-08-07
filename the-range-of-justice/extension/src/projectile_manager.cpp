@@ -85,7 +85,6 @@ void ProjectileManager::spawn_projectile(
         return;
     }
 
-    UtilityFunctions::print(">>> [ProjectileManager] Spawning projectile! Target ID: ", p_target_id);
     ProjectileData p;
     p.position = p_start_pos;
     p.target_pos = p_start_pos;
@@ -198,7 +197,7 @@ void ProjectileManager::_internal_register_projectile(Ref<ProjectileStats> p_sta
 }
 
 void ProjectileManager::register_projectile_type(String p_type_name, String p_config_path) {
-    Ref<ProjectileStats> stats = ProjectileLoader::load_stats_from_txt(p_config_path);
+    Ref<ProjectileStats> stats = ProjectileLoader::load_stats_from_cfg(p_config_path);
     if (stats.is_null()) return;
     if (stats->get_projectile_name().is_empty()) stats->set_projectile_name(p_type_name);
     _internal_register_projectile(stats);
@@ -211,9 +210,9 @@ void ProjectileManager::register_projectiles_from_dir(String p_dir_path) {
     dir->list_dir_begin();
     String file_name = dir->get_next();
     while (file_name != "") {
-        if (!dir->current_is_dir() && file_name.ends_with(".txt")) {
+        if (!dir->current_is_dir() && file_name.ends_with(".cfg")) {
             String full_path = p_dir_path.path_join(file_name);
-            Ref<ProjectileStats> stats = ProjectileLoader::load_stats_from_txt(full_path);
+            Ref<ProjectileStats> stats = ProjectileLoader::load_stats_from_cfg(full_path);
             if (stats.is_valid() && !stats->get_projectile_name().is_empty()) {
                 _internal_register_projectile(stats);
             }

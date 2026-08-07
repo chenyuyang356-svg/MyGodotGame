@@ -8,8 +8,8 @@ reloadable = true
 
 windows.editor.x86_64 = "res://extension/bin/libgdextension.windows.template_debug.x86_64.dll"
 windows.template_debug.x86_64 = "res://extension/bin/libgdextension.windows.template_debug.x86_64.dll"
-windows.template_release.x86_64 = "res://extension/bin/libgdextension.windows.template_debug.x86_64.dll"
+windows.template_release.x86_64 = "res://extension/bin/libgdextension.windows.template_release.x86_64.dll"
 windows.debug.x86_64 = "res://extension/bin/libgdextension.windows.template_debug.x86_64.dll"
-windows.release.x86_64 = "res://extension/bin/libgdextension.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://extension/bin/libgdextension.windows.template_release.x86_64.dll"
 windows.x86_64 = "res://extension/bin/libgdextension.windows.template_debug.x86_64.dll"
 windows = "res://extension/bin/libgdextension.windows.template_debug.x86_64.dll"

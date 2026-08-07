@@ -1,5 +1,6 @@
 // src/unit_loader.cpp
 #include "unit_loader.h"
+#include <godot_cpp/classes/config_file.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 using namespace godot;
@@ -35,7 +36,7 @@ int UnitLoader::_parse_enum(String p_key, String p_value) {
         if (p_value.is_valid_int()) return p_value.to_int();
     }
 
-    // --- TargetPriority --- 
+    // --- TargetPriority ---
     else if (p_key == "target_priority") {
         if (p_value == "Closest") return PRIORITY_CLOSEST;
         if (p_value == "Lowest_hp") return PRIORITY_LOWEST_HP;
@@ -43,8 +44,7 @@ int UnitLoader::_parse_enum(String p_key, String p_value) {
         if (p_value.is_valid_int()) return p_value.to_int();
     }
 
-    // 默认情况：返回一个标
-    // 记值（如 -999）或者尝试直接转 int
+    // 默认情况：尝试直接转 int
     if (p_value.is_valid_int()) return p_value.to_int();
     return 0; // 默认 fallback
 }
@@ -69,7 +69,12 @@ int UnitLoader::_parse_bitfield(String p_value) {
     return result;
 }
 
-Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, WeaponManager* p_weapon_manager, Ref<UnitStats> p_target) {
+// 未知字段告警：杜绝"配置写了等于没写"的静默失败
+static void _warn_unknown_key(const String& p_path, const String& p_section, const String& p_key) {
+    UtilityFunctions::printerr("[UnitLoader] 未知字段 '", p_key, "'（section '", p_section, "'）in ", p_path, "，已忽略");
+}
+
+Ref<UnitStats> UnitLoader::load_stats_from_cfg(String p_path, WeaponManager* p_weapon_manager, Ref<UnitStats> p_target) {
     Ref<UnitStats> stats = p_target;
     if (stats.is_null()) {
         stats.instantiate();
@@ -80,147 +85,145 @@ Ref<UnitStats> UnitLoader::load_stats_from_txt(String p_path, WeaponManager* p_w
         return stats;
     }
 
-    Ref<FileAccess> file = FileAccess::open(p_path, FileAccess::READ);
-    if (file.is_null()) return stats;
+    Ref<ConfigFile> cf;
+    cf.instantiate();
+    Error err = cf->load(p_path);
+    if (err != OK) {
+        UtilityFunctions::printerr("[UnitLoader] Error: 无法解析配置文件: ", p_path);
+        return stats;
+    }
 
-    while (file->get_position() < file->get_length()) {
-        String line = file->get_line().strip_edges();
-        if (line.is_empty() || line.begins_with("#")) continue;
+    PackedStringArray sections = cf->get_sections();
+    for (int s = 0; s < sections.size(); ++s) {
+        String section = sections[s];
+        PackedStringArray keys = cf->get_section_keys(section);
 
-        int split_index = line.find("=");
-        if (split_index == -1) continue;
+        for (int k = 0; k < keys.size(); ++k) {
+            String key = keys[k];
+            String value = cf->get_value(section, key);
 
-        String key = line.substr(0, split_index).strip_edges();
-        String value_str = line.substr(split_index + 1).strip_edges();
+            // --- 字符串 ---
+            if (key == "unit_name") stats->set_unit_name(value);
+            else if (key == "unit_name_key") stats->set_unit_name_key(value);
+            else if (key == "unit_description_key") stats->set_unit_description_key(value);
+            else if (key == "texture_path") stats->set_texture_path(value);
 
-        // 1. 处理特定的位掩码和枚举 (保持不变)
-        if (key == "unit_tags") {
-            stats->set(key, _parse_bitfield(value_str));
-        }
+            // --- 生存 ---
+            else if (key == "health_max") stats->set_health_max(value.to_float());
+            else if (key == "health_regen") stats->set_health_regen(value.to_float());
+            else if (key == "shield_max") stats->set_shield_max(value.to_float());
+            else if (key == "shield_regen") stats->set_shield_regen(value.to_float());
+            else if (key == "armor_type") stats->set_armor_type((ArmorType)_parse_enum(key, value));
 
-        else if (key == "armor_type" || key == "attack_type" ||
-            key == "move_type" || key == "target_priority") {
-            stats->set(key, _parse_enum(key, value_str));
-        }
+            // --- 攻击 ---
+            else if (key == "target_priority") stats->set_target_priority((TargetPriority)_parse_enum(key, value));
+            else if (key == "can_fire_on_move") stats->set_can_fire_on_move(value.to_lower().contains("true") || value.to_lower().contains("1"));
 
-        else if (key == "can_fire_on_move") {
-            String val_str = value_str.strip_edges().to_lower();
-            bool can_fire = val_str.contains("true") || val_str.contains("1");
-            UtilityFunctions::print("[UnitLoader] 修复后，读到字符串: '", val_str, "'，最终判定结果为: ", can_fire);
-            stats->set_can_fire_on_move(can_fire);
-        }
+            // --- 移动 ---
+            else if (key == "mass") stats->set_mass(value.to_float());
+            else if (key == "move_speed") stats->set_move_speed(value.to_float());
+            else if (key == "acceleration") stats->set_acceleration(value.to_float());
+            else if (key == "turn_speed") stats->set_turn_speed(value.to_float());
+            else if (key == "turn_acceleration") stats->set_turn_acceleration(value.to_float());
+            else if (key == "collision_radius") stats->set_collision_radius(value.to_float());
+            else if (key == "base_height") stats->set_base_height(value.to_float());
+            else if (key == "move_type") stats->set_move_type((MoveType)_parse_enum(key, value));
 
-        else if (key == "weapon") {
-            // 解析由逗号分隔的武器字符串，例如: "Bullet, 15.0, 200.0, 0.5, 500.0, 0.0"
-            PackedStringArray parts = value_str.split(",");
-            if (parts.size() >= 4) {
-                Weapon w;
-                w.projectile_type_name = parts[0].strip_edges();
-                w.damage = parts[1].to_float();
-                w.attack_range = parts[2].to_float();
-                w.attack_interval = parts[3].to_float();
+            // --- 视野/经济 ---
+            else if (key == "sight_range") stats->set_sight_range(value.to_float());
+            else if (key == "aggro_range") stats->set_aggro_range(value.to_float());
+            else if (key == "cost") stats->set_cost(value.to_int());
+            else if (key == "build_time") stats->set_build_time(value.to_float());
 
-                // 可选参数
-                if (parts.size() >= 5) w.projectile_speed = parts[4].to_float();
-                if (parts.size() >= 6) w.splash_radius = parts[5].to_float();
-                if (parts.size() >= 9) {
-                    w.spawn_offset = Vector3(parts[6].to_float(), parts[7].to_float(), parts[8].to_float());
-                }
-                if (parts.size() >= 10) w.firing_tolerance = parts[9].to_float();
-                if (parts.size() >= 11) w.can_attack_ground = (parts[10].strip_edges().to_lower() == "true");
-                if (parts.size() >= 12) w.can_attack_air = (parts[11].strip_edges().to_lower() == "true");
-
-                stats->weapons.push_back(w);
-                UtilityFunctions::print("[UnitLoader] 成功为单位挂载武器: ", w.projectile_type_name, " 伤害: ", w.damage);
+            // --- 标签与可生产 ---
+            else if (key == "unit_tags") stats->set("unit_tags", _parse_bitfield(value));
+            else if (key == "producible_buildings") {
+                PackedStringArray list = value.split(",");
+                for (int i = 0; i < list.size(); ++i) list[i] = list[i].strip_edges();
+                stats->set_producible_buildings(list);
             }
-        }
-        
-        else if (key == "weapon_mount") {
-            // 解析格式修改为: "武器名称, 本地偏移X, 本地偏移Y"
-            // 例如: "HeavyCannon, 10.0, 0.0"
-            PackedStringArray parts = value_str.split(",");
-            if (parts.size() >= 1) {
-                String w_name = parts[0].strip_edges();
-                Ref<WeaponStats> w_stats = p_weapon_manager->get_weapon(w_name);
 
-                if (w_stats.is_valid()) {
-                    WeaponMount mount;
-                    mount.weapon_resource = w_stats;
+            // --- 渲染与动画 ---
+            else if (key == "h_frames") stats->set_h_frames(value.to_int());
+            else if (key == "v_frames") stats->set_v_frames(value.to_int());
+            else if (key == "move_frames") stats->set_move_frames(value.to_int());
+            else if (key == "idle_frames") stats->set_idle_frames(value.to_int());
+            else if (key == "move_row") stats->set_move_row(value.to_int());
+            else if (key == "idle_row") stats->set_idle_row(value.to_int());
+            else if (key == "anim_fps") stats->set_anim_fps(value.to_int());
+            else if (key == "dying_time") stats->set_dying_time(value.to_float());
 
-                    // 解析局部位移 (可选参数，默认为 0,0)
-                    if (parts.size() >= 3) {
-                        mount.local_position = Vector2(parts[1].to_float(), parts[2].to_float());
+            // --- 粒子 ---
+            else if (key == "emit_threshold") stats->set_emit_threshold_override(value.to_float());
+            else if (key == "particle_scale") stats->set_particle_scale_override(value.to_float());
+            else if (key == "effect_point") {
+                // 格式: "特效名, X, Y, 缩放, 寿命, 是否波纹"
+                PackedStringArray parts = value.split(",");
+                if (parts.size() >= 3) {
+                    EffectPoint ep;
+                    ep.effect_type = parts[0].strip_edges();
+                    ep.local_position = Vector2(parts[1].to_float(), parts[2].to_float());
+                    if (parts.size() >= 4) ep.scale_override = parts[3].to_float();
+                    if (parts.size() >= 5) ep.life_override = parts[4].to_float();
+                    if (parts.size() >= 6) ep.is_ripple = (parts[5].strip_edges().to_lower() == "true");
+                    stats->effect_points.push_back(ep);
+                }
+            }
+
+            // --- 内联武器 (非独立) ---
+            else if (key == "weapon") {
+                PackedStringArray parts = value.split(",");
+                if (parts.size() >= 4) {
+                    Weapon w;
+                    w.projectile_type_name = parts[0].strip_edges();
+                    w.damage = parts[1].to_float();
+                    w.attack_range = parts[2].to_float();
+                    w.attack_interval = parts[3].to_float();
+
+                    if (parts.size() >= 5) w.projectile_speed = parts[4].to_float();
+                    if (parts.size() >= 6) w.splash_radius = parts[5].to_float();
+                    if (parts.size() >= 9) w.spawn_offset = Vector3(parts[6].to_float(), parts[7].to_float(), parts[8].to_float());
+                    if (parts.size() >= 10) w.firing_tolerance = parts[9].to_float();
+                    if (parts.size() >= 11) w.can_attack_ground = (parts[10].strip_edges().to_lower() == "true");
+                    if (parts.size() >= 12) w.can_attack_air = (parts[11].strip_edges().to_lower() == "true");
+
+                    stats->weapons.push_back(w);
+                }
+            }
+            // --- 独立武器挂载 (引用 WeaponManager 已注册武器) ---
+            else if (key == "weapon_mount") {
+                PackedStringArray parts = value.split(",");
+                if (parts.size() >= 1) {
+                    String w_name = parts[0].strip_edges();
+                    if (p_weapon_manager) {
+                        Ref<WeaponStats> w_stats = p_weapon_manager->get_weapon(w_name);
+                        if (w_stats.is_valid()) {
+                            WeaponMount mount;
+                            mount.weapon_resource = w_stats;
+
+                            if (parts.size() >= 3) mount.local_position = Vector2(parts[1].to_float(), parts[2].to_float());
+                            else mount.local_position = Vector2(0, 0);
+
+                            stats->weapon_mounts.push_back(mount);
+                        }
+                        else {
+                            UtilityFunctions::printerr("[UnitLoader] Error: 未找到武器资源 '", w_name, "' in ", p_path, "（请确认该武器已在单位之前注册）");
+                        }
                     }
-                    else {
-                        mount.local_position = Vector2(0, 0);
-                    }
-
-                    stats->weapon_mounts.push_back(mount);
-                    UtilityFunctions::print("[UnitLoader] 成功为单位挂载武器: ", w_name, " 偏移: ", mount.local_position);
-                }
-                else {
-                    UtilityFunctions::print("[UnitLoader] Error: 未找到武器资源 '", w_name, "' (请确保该武器名称存在并在单位前完成加载)");
                 }
             }
-        }
 
-        else if (key == "producible_buildings") {
-            PackedStringArray buildings = value_str.split(",");
-            for (int i = 0; i < buildings.size(); ++i) {
-                buildings[i] = buildings[i].strip_edges();
-            }
-            stats->set_producible_buildings(buildings);
-        }
-
-        else if (key == "emit_threshold") {
-            stats->set_emit_threshold_override(value_str.to_float());
-        }
-
-        else if (key == "particle_scale") {
-            stats->set_particle_scale_override(value_str.to_float());
-        }
-
-        else if (key == "effect_point") {
-            // 格式: "特效名, X, Y, 缩放, 寿命, 是否波纹"
-            // 例如: "WaterRipple, 0, 20, 2.5, 1.2, true"
-            PackedStringArray parts = value_str.split(",");
-            if (parts.size() >= 3) {
-                EffectPoint ep;
-                ep.effect_type = parts[0].strip_edges();
-                ep.local_position = Vector2(parts[1].to_float(), parts[2].to_float());
-                if (parts.size() >= 4) ep.scale_override = parts[3].to_float();
-                if (parts.size() >= 5) ep.life_override = parts[4].to_float();
-                if (parts.size() >= 6) ep.is_ripple = (parts[5].strip_edges().to_lower() == "true");
-
-                stats->effect_points.push_back(ep);
-            }
-        }
-
-        // 2. [新增/修改]：显式处理字符串类型的 key
-        else if (key == "texture_path") {
-            stats->set(key, value_str);
-        }
-        else if (key == "unit_name" || key == "unit_name_key" || key == "unit_description_key") {
-            stats->set(key, value_str);
-        }
-
-        // 3. [修改]：更严谨地处理数值转换 (保持不变)
-        else {
-            if (value_str.is_valid_float()) {
-                if (value_str.contains(".")) {
-                    stats->set(key, value_str.to_float());
-                }
-                else {
-                    stats->set(key, value_str.to_int());
-                }
-            }
+            // --- 未知字段告警 ---
             else {
-                stats->set(key, value_str);
+                _warn_unknown_key(p_path, section, key);
             }
         }
     }
 
-    UtilityFunctions::print("[UnitLoader] Successfully loaded: ", p_path);
+    if (stats->unit_name.is_empty()) {
+        UtilityFunctions::printerr("[UnitLoader] 单位配置缺少 unit_name: ", p_path);
+    }
+
     return stats;
 }
 

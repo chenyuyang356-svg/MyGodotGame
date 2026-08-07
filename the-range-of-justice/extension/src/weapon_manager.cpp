@@ -297,7 +297,7 @@ void WeaponManager::update_multimesh_buffer(double p_delta, float p_alpha, UnitM
 }
 
 void WeaponManager::register_weapon(String p_name, String p_path) {
-    Ref<WeaponStats> stats = WeaponLoader::load_stats_from_txt(p_path);
+    Ref<WeaponStats> stats = WeaponLoader::load_stats_from_cfg(p_path);
     if (stats.is_valid()) {
         if (stats->get_weapon_name() == "new_weapon" && !p_name.is_empty()) {
             stats->set_weapon_name(p_name);
@@ -426,8 +426,8 @@ void WeaponManager::register_weapons_from_dir(String p_dir_path) {
     String file_name = dir->get_next();
 
     while (file_name != "") {
-        // 遍历指定文件夹下所有的 txt 文件
-        if (!dir->current_is_dir() && file_name.ends_with(".txt")) {
+        // 遍历指定文件夹下所有的 cfg 文件
+        if (!dir->current_is_dir() && file_name.ends_with(".cfg")) {
             register_weapon("", p_dir_path.path_join(file_name));
         }
         file_name = dir->get_next();

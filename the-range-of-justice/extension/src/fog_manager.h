@@ -74,8 +74,8 @@ namespace godot {
         void set_fog_mode(FogMode p_mode);
         FogMode get_fog_mode() const;
 
-        void FogManager::set_brush_texture(Ref<Texture2D> p_tex) { brush_texture = p_tex; }
-        Ref<Texture2D> FogManager::get_brush_texture() const { return brush_texture; }
+        void set_brush_texture(Ref<Texture2D> p_tex) { brush_texture = p_tex; }
+        Ref<Texture2D> get_brush_texture() const { return brush_texture; }
     };
 
 }

@@ -11,7 +11,7 @@ namespace godot {
         static void _bind_methods();
 
     public:
-        // 解析 txt 文件生成 WeaponStats 资源
-        static Ref<WeaponStats> load_stats_from_txt(String p_path, Ref<WeaponStats> p_target = nullptr);
+        // 解析 .cfg 文件生成 WeaponStats 资源
+        static Ref<WeaponStats> load_stats_from_cfg(String p_path, Ref<WeaponStats> p_target = nullptr);
     };
 }

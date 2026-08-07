@@ -119,10 +119,12 @@ namespace godot {
         std::vector<int> get_buildings_of_type_in_area(Ref<BuildingStats> p_stats, Rect2 p_rect, int p_team_id);
         std::vector<int> get_buildings_in_box(Rect2 p_box, int p_team_id);
 
-        // 通过类型名称放置建筑
-        int place_building_by_type(String p_type_name, Vector2i p_grid_pos, int p_team_id, int p_forced_id = -1, bool is_pre_placed = false);
+		// 通过类型名称放置建筑
+		// p_force 为 true 时跳过 is_area_clear 检查（用于主机迁移状态恢复）
+		int place_building_by_type(String p_type_name, Vector2i p_grid_pos, int p_team_id, int p_forced_id = -1, bool is_pre_placed = false, bool p_force = false);
 
-        void remove_building(int p_building_id, SelectionManager* p_selection_manager);
+		void remove_building(int p_building_id, SelectionManager* p_selection_manager);
+		void clear_all_buildings(); // 主机迁移用：清空全部建筑与残影
 
         void add_unit_to_production_queue(int p_building_id, String p_unit_type);
 

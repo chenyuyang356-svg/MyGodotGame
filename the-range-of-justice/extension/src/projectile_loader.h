@@ -14,8 +14,8 @@ namespace godot {
         static int _parse_enum(String p_key, String p_value);
 
     public:
-        // 输入 txt 文件路径，返回一个填充好数据的 ProjectileStats 资源
-        static Ref<ProjectileStats> load_stats_from_txt(String p_path, Ref<ProjectileStats> p_target = nullptr);
+        // 输入 .cfg 文件路径，返回一个填充好数据的 ProjectileStats 资源
+        static Ref<ProjectileStats> load_stats_from_cfg(String p_path, Ref<ProjectileStats> p_target = nullptr);
     };
 
 }

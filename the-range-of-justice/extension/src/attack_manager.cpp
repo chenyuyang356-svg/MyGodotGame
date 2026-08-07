@@ -1,4 +1,3 @@
-#pragma once
 #include "attack_manager.h"
 #include "unit_stats.h" 
 #include "projectile_manager.h"
@@ -681,8 +680,6 @@ void AttackManager::_execute_attack(UnitData& attacker, int target_id, bool targ
                 false,                      
                 dmg                         
             );
-
-            UtilityFunctions::print("fire! target:", target_id, " dmg:", dmg);
         }
     }
 }
@@ -826,8 +823,6 @@ void AttackManager::_execute_building_attack(BuildingData& attacker, int target_
                 true,                     
                 dmg                      
             );
-
-            UtilityFunctions::print("Building fire! target:", target_id, " dmg:", dmg);
         }
     }
 }
@@ -912,48 +907,34 @@ void AttackManager::_reset_building_targets(BuildingData& p_building) {
 }
 
 void AttackManager::apply_damage(int target_id, bool is_building, float damage, int attacker_id, bool attacker_is_building) {
-    // 检查函数是否被成功调用
-    godot::UtilityFunctions::print(">>> [Apply Damage] Triggered! Attacker ID: ", attacker_id, " Target ID: ", target_id, " Damage: ", damage, " Is Building: ", is_building);
-
     if (is_building) {
         // 1. 当目标为建筑
         if (!building_manager) {
-            godot::UtilityFunctions::printerr(">>> [Apply Damage Failed] FATAL: building_manager is null! (Check setup/bind_methods)");
             return;
         }
 
         auto it = building_manager->buildings.find(target_id);
         if (it != building_manager->buildings.end()) {
-            float old_health = it->second.current_health;
             it->second.current_health -= damage;
-            godot::UtilityFunctions::print(">>> [Apply Damage Success] Building hit! ID: ", target_id, " Health: ", old_health, " -> ", it->second.current_health);
-        }
-        else {
-            godot::UtilityFunctions::printerr(">>> [Apply Damage Failed] Cannot find building ID: ", target_id);
         }
     }
     else {
         // 2. 当目标为单位
         if (!unit_manager) {
-            godot::UtilityFunctions::printerr(">>> [Apply Damage Failed] FATAL: unit_manager is null! (Check setup/bind_methods)");
             return;
         }
 
         int target_idx = unit_manager->get_unit_index_by_id(target_id);
         if (target_idx == -1) {
-            godot::UtilityFunctions::printerr(">>> [Apply Damage Failed] Cannot find unit ID: ", target_id, " (Might be dead and cleared)");
             return;
         }
 
         UnitData& defender = unit_manager->units[target_idx];
         if (defender.current_health <= 0) {
-            godot::UtilityFunctions::print(">>> [Apply Damage Invalid] Target unit is already dead. ID: ", target_id);
             return;
         }
 
-        float old_health = defender.current_health;
         defender.current_health -= damage;
-        godot::UtilityFunctions::print(">>> [Apply Damage Success] Unit hit! ID: ", target_id, " Health: ", old_health, " -> ", defender.current_health);
     }
 }
 

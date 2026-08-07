@@ -1,5 +1,3 @@
-#pragma once
-
 #include "attack_manager.h"
 #include "building_manager.h"
 #include "selection_manager.h"
@@ -746,7 +744,7 @@ void BuildingManager::_internal_register_building(Ref<BuildingStats> p_stats) {
 }
 
 void BuildingManager::register_building_type(String p_name, String p_path) {
-    Ref<BuildingStats> stats = BuildingLoader::load_from_txt(p_path, weapon_manager);
+    Ref<BuildingStats> stats = BuildingLoader::load_from_cfg(p_path, weapon_manager);
     if (stats.is_null()) return;
     if (stats->get_building_name().is_empty()) stats->set_building_name(p_name);
     _internal_register_building(stats);
@@ -759,9 +757,9 @@ void BuildingManager::register_buildings_from_dir(String p_dir_path) {
     dir->list_dir_begin();
     String file_name = dir->get_next();
     while (file_name != "") {
-        if (!dir->current_is_dir() && file_name.ends_with(".txt")) {
+        if (!dir->current_is_dir() && file_name.ends_with(".cfg")) {
             String full_path = p_dir_path.path_join(file_name);
-            Ref<BuildingStats> stats = BuildingLoader::load_from_txt(full_path, weapon_manager);
+            Ref<BuildingStats> stats = BuildingLoader::load_from_cfg(full_path, weapon_manager);
             if (stats.is_valid() && !stats->get_building_name().is_empty()) {
                 _internal_register_building(stats);
             }
@@ -883,13 +881,13 @@ std::vector<int> BuildingManager::get_buildings_in_box(Rect2 p_box, int p_team_i
     return result;
 }
 
-int BuildingManager::place_building_by_type(String p_type_name, Vector2i p_grid_pos, int p_team_id, int p_forced_id, bool is_pre_placed) {
-    if (!building_types_cache.has(p_type_name)) return -1;
+int BuildingManager::place_building_by_type(String p_type_name, Vector2i p_grid_pos, int p_team_id, int p_forced_id, bool is_pre_placed, bool p_force) {
+	if (!building_types_cache.has(p_type_name)) return -1;
 
-    Ref<BuildingStats> stats = building_types_cache[p_type_name];
-    uint32_t req = stats->get_placement_requirement();
+	Ref<BuildingStats> stats = building_types_cache[p_type_name];
+	uint32_t req = stats->get_placement_requirement();
 
-    if (!is_area_clear(p_grid_pos, stats)) return -1;
+	if (!p_force && !is_area_clear(p_grid_pos, stats)) return -1;
 
     // 1. 创建建筑
     int b_id = p_forced_id;
@@ -959,6 +957,11 @@ void BuildingManager::remove_building(int p_building_id, SelectionManager* p_sel
     buildings.erase(it);
     flow_field_manager->make_all_dirty();
     p_selection_manager->on_building_removed(p_building_id);
+}
+
+void BuildingManager::clear_all_buildings() {
+	buildings.clear();
+	ghost_buildings.clear();
 }
 
 void BuildingManager::add_unit_to_production_queue(int p_building_id, String p_unit_type) {
@@ -1050,8 +1053,8 @@ void BuildingManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("register_building_type", "name", "path"), &BuildingManager::register_building_type);
     ClassDB::bind_method(D_METHOD("register_buildings_from_dir", "path"), &BuildingManager::register_buildings_from_dir);
 
-    ClassDB::bind_method(D_METHOD("place_building_by_type", "type_name", "grid_pos", "team_id", "forced_id", "is_pre_placed"),
-        &BuildingManager::place_building_by_type, DEFVAL(-1), DEFVAL(false));
+    ClassDB::bind_method(D_METHOD("place_building_by_type", "type_name", "grid_pos", "team_id", "forced_id", "is_pre_placed", "force"),
+        &BuildingManager::place_building_by_type, DEFVAL(-1), DEFVAL(false), DEFVAL(false));
     ClassDB::bind_method(D_METHOD("is_area_clear", "grid_pos", "building_stats"), &BuildingManager::is_area_clear);
 
     ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &BuildingManager::set_flow_field_manager);

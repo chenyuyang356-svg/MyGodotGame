@@ -49,8 +49,11 @@ func _on_exit_pressed():
 	# 确保退出前解除暂停状态，防止切回主界面后系统依然处于暂停中
 	get_tree().paused = false
 	
-	# 复用你 GameOverUI 里的退出逻辑
-	if GlobalGameManager.has_method("leave_game"):
+	if multiplayer.is_server() and GlobalGameManager.has_method("migrate_host"):
+		# 房主：先发起主机迁移；若成功（有继任者），旧主机会在广播交接后自动退出
+		if not GlobalGameManager.migrate_host():
+			GlobalGameManager.leave_game()
+	elif GlobalGameManager.has_method("leave_game"):
 		GlobalGameManager.leave_game()
 	
 	emit_signal("change_ui", "res://ui/main_menu/main_menu.tscn")

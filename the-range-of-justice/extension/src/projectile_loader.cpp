@@ -1,4 +1,6 @@
+// src/projectile_loader.cpp
 #include "projectile_loader.h"
+#include <godot_cpp/classes/config_file.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 using namespace godot;
@@ -17,61 +19,58 @@ int ProjectileLoader::_parse_enum(String p_key, String p_value) {
     return 0;
 }
 
-Ref<ProjectileStats> ProjectileLoader::load_stats_from_txt(String p_path, Ref<ProjectileStats> p_target) {
+static void _warn_unknown_key(const String& p_path, const String& p_section, const String& p_key) {
+    UtilityFunctions::printerr("[ProjectileLoader] 未知字段 '", p_key, "'（section '", p_section, "'）in ", p_path, "，已忽略");
+}
+
+Ref<ProjectileStats> ProjectileLoader::load_stats_from_cfg(String p_path, Ref<ProjectileStats> p_target) {
     Ref<ProjectileStats> stats = p_target;
-    if (stats.is_null()) {
-        stats.instantiate();
-    }
+    if (stats.is_null()) stats.instantiate();
 
     if (!FileAccess::file_exists(p_path)) {
         UtilityFunctions::print("[ProjectileLoader] Error: File not found: ", p_path);
         return stats;
     }
 
-    Ref<FileAccess> file = FileAccess::open(p_path, FileAccess::READ);
-    if (file.is_null()) return stats;
+    Ref<ConfigFile> cf;
+    cf.instantiate();
+    Error err = cf->load(p_path);
+    if (err != OK) {
+        UtilityFunctions::printerr("[ProjectileLoader] Error: 无法解析配置文件: ", p_path);
+        return stats;
+    }
 
-    while (file->get_position() < file->get_length()) {
-        String line = file->get_line().strip_edges();
-        if (line.is_empty() || line.begins_with("#")) continue;
+    PackedStringArray sections = cf->get_sections();
+    for (int s = 0; s < sections.size(); ++s) {
+        String section = sections[s];
+        PackedStringArray keys = cf->get_section_keys(section);
 
-        int split_index = line.find("=");
-        if (split_index == -1) continue;
+        for (int k = 0; k < keys.size(); ++k) {
+            String key = keys[k];
+            String value = cf->get_value(section, key);
 
-        String key = line.substr(0, split_index).strip_edges();
-        String value_str = line.substr(split_index + 1).strip_edges();
-
-        // 1. 处理投射物类型枚举
-        if (key == "projectile_type") {
-            stats->set(key, _parse_enum(key, value_str));
-        }
-        // 2. 处理字符串（如模型/特效路径）
-        else if (key == "projectile_name") {
-            stats->set(key, value_str);
-        }
-        else if (key == "visual_path") {
-            stats->set(key, value_str);
-        }
-        // 3. 处理浮点数和整数（如 speed, splash_radius, turn_speed 等）
-        else {
-            if (value_str.is_valid_float()) {
-                if (value_str.contains(".")) {
-                    stats->set(key, value_str.to_float());
-                }
-                else {
-                    stats->set(key, value_str.to_int());
-                }
-            }
+            if (key == "projectile_type") stats->set_projectile_type(_parse_enum(key, value));
+            else if (key == "projectile_name") stats->set_projectile_name(value);
+            else if (key == "visual_path") stats->set_visual_path(value);
+            else if (key == "speed") stats->set_speed(value.to_float());
+            else if (key == "damage") stats->set_damage(value.to_float());
+            else if (key == "is_healing") stats->set_is_healing(value.to_lower().contains("true") || value == "1");
+            else if (key == "splash_radius") stats->set_splash_radius(value.to_float());
+            else if (key == "arc_height") stats->set_arc_height(value.to_float());
+            else if (key == "turn_speed") stats->set_turn_speed(value.to_float());
+            else if (key == "acceleration") stats->set_acceleration(value.to_float());
+            else if (key == "h_frames") stats->set_h_frames(value.to_int());
+            else if (key == "v_frames") stats->set_v_frames(value.to_int());
+            else if (key == "anim_fps") stats->set_anim_fps(value.to_float());
             else {
-                stats->set(key, value_str);
+                _warn_unknown_key(p_path, section, key);
             }
         }
     }
 
-    UtilityFunctions::print("[ProjectileLoader] Successfully loaded projectile: ", p_path);
     return stats;
 }
 
 void ProjectileLoader::_bind_methods() {
-    ClassDB::bind_static_method("ProjectileLoader", D_METHOD("load_stats_from_txt", "path", "target_resource"), &ProjectileLoader::load_stats_from_txt, DEFVAL(Variant()));
+    ClassDB::bind_static_method("ProjectileLoader", D_METHOD("load_stats_from_cfg", "path", "target_resource"), &ProjectileLoader::load_stats_from_cfg, DEFVAL(Variant()));
 }

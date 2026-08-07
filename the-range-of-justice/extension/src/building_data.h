@@ -1,5 +1,4 @@
 #pragma once
-#pragma warning(disable : 4828)
 #include <godot_cpp/variant/vector2.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include "building_stats.h"

@@ -1,5 +1,7 @@
 extends Node
 
+const ModManager = preload("res://main/mod_manager.gd")
+
 @export var minimap_border: PanelContainer
 @export var minimap_container: SubViewportContainer
 @export var minimap_viewport: SubViewport
@@ -109,7 +111,7 @@ func setup_game_with_map(map_res: MapResource) -> void:
 			if data.get_custom_data("IsWall") or data.get_custom_data("IsSea"):
 				flow_field_manager.init_cost(coords, 255, 0)
 			else:
-				# 基础权重 1，靠近障碍物（Wall/Sea）设为 30 实现避让边缘
+				# 陆地基础权重统一为 1（靠近障碍物 Wall/Sea 的 30 避让权重当前已停用，is_near_obstacle 检测仅作保留）
 				var is_near_obstacle = false
 				for dx in range(-1, 2):
 					for dy in range(-1, 2):
@@ -155,10 +157,8 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	var healing_tex: Texture2D = ResourceLoader.load("res://asset/particle/healing.png")
 	effect_manager.register_effect_type("Healing", healing_tex, 1000, 9.8, 0.1, 1.2)
 	
-	weapon_manager.register_weapons_from_dir("res://config/weapon/")
-	unit_manager.register_units_from_dir("res://config/unit/")
-	building_manager.register_buildings_from_dir("res://config/building/")
-	projectile_manager.register_projectiles_from_dir("res://config/projectile/")
+	# 注册配置（本体 res://config + 玩家 mod user://mods，武器先行）
+	_register_all_configs(weapon_manager, unit_manager, building_manager, projectile_manager)
 	
 	
 	var players_settings: Dictionary = GlobalGameManager.get_all_player_settings()
@@ -236,6 +236,17 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	GlobalAudioManager.play_bgm("res://asset/audio/music/02_-_sam_goor00_collard_-_reign_supreme.ogg", -8.0, 0.5)
 	fog_manager.fog_mode = GlobalGameManager.fog_mode
 	GlobalGameManager.start_game()
+
+# 按依赖顺序注册配置：武器先行（单位/建筑引用武器名），本体优先、mod 次之
+func _register_all_configs(weapon_manager, unit_manager, building_manager, projectile_manager) -> void:
+	for dir in ModManager.get_config_dirs("weapon"):
+		weapon_manager.register_weapons_from_dir(dir)
+	for dir in ModManager.get_config_dirs("unit"):
+		unit_manager.register_units_from_dir(dir)
+	for dir in ModManager.get_config_dirs("building"):
+		building_manager.register_buildings_from_dir(dir)
+	for dir in ModManager.get_config_dirs("projectile"):
+		projectile_manager.register_projectiles_from_dir(dir)
 
 func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictionary, cell_size: Vector2i):
 	for peer_id in players_settings.keys():
