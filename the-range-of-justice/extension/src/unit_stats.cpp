@@ -69,6 +69,10 @@ void UnitStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_can_fire_on_move"), &UnitStats::get_can_fire_on_move);
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "can_fire_on_move"), "set_can_fire_on_move", "get_can_fire_on_move");
 
+    ClassDB::bind_method(D_METHOD("set_deploy_time", "value"), &UnitStats::set_deploy_time);
+    ClassDB::bind_method(D_METHOD("get_deploy_time"), &UnitStats::get_deploy_time);
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "deploy_time"), "set_deploy_time", "get_deploy_time");
+
     ClassDB::bind_method(D_METHOD("set_target_priority", "value"), &UnitStats::set_target_priority);
     ClassDB::bind_method(D_METHOD("get_target_priority"), &UnitStats::get_target_priority);
     ADD_PROPERTY(PropertyInfo(Variant::INT, "target_priority", PROPERTY_HINT_ENUM, "Closest,Lowest HP,Highest Value"), "set_target_priority", "get_target_priority");
@@ -164,6 +168,14 @@ void UnitStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_idle_row"), &UnitStats::get_idle_row);
     ClassDB::bind_method(D_METHOD("set_idle_row", "p_val"), &UnitStats::set_idle_row);
     ADD_PROPERTY(PropertyInfo(Variant::INT, "idle_row"), "set_idle_row", "get_idle_row");
+
+    ClassDB::bind_method(D_METHOD("get_deploy_frames"), &UnitStats::get_deploy_frames);
+    ClassDB::bind_method(D_METHOD("set_deploy_frames", "p_val"), &UnitStats::set_deploy_frames);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "deploy_frames"), "set_deploy_frames", "get_deploy_frames");
+
+    ClassDB::bind_method(D_METHOD("get_deploy_row"), &UnitStats::get_deploy_row);
+    ClassDB::bind_method(D_METHOD("set_deploy_row", "p_val"), &UnitStats::set_deploy_row);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "deploy_row"), "set_deploy_row", "get_deploy_row");
 
     // 4. 绑定播放速度 (anim_fps)
     ClassDB::bind_method(D_METHOD("get_anim_fps"), &UnitStats::get_anim_fps);

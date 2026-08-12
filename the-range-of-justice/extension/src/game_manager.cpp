@@ -231,7 +231,7 @@ void GameManager::_process(double p_delta) {
 
 void GameManager::update_group(double p_delta) {
 	group_manager->cleanup_timer += p_delta;
-	if (group_manager->cleanup_timer < group_manager->CLEANUP_INTERVAL) return;
+	if (group_manager->cleanup_timer < group_manager->get_group_cleanup_interval()) return;
 	group_manager->cleanup_timer = 0.0;
 
 	// 计算每个组所需的到达集成值界限
@@ -658,8 +658,8 @@ void GameManager::broadcast_network_snapshot() {
 	// 1. 预先计算单位部分需要的总内存大小
 	int total_unit_bytes = 0;
 	for (const auto& unit : unit_manager->units) {
-		// 基础25字节 + 武器数量标记(1字节) + 每把武器的旋转角度(4字节 * 武器数)
-		total_unit_bytes += 25 + 1 + unit.weapons.size() * 4;
+		// 基础29字节(含护盾) + 武器数量标记(1字节) + 每把武器的旋转角度(4字节 * 武器数)
+		total_unit_bytes += 29 + 1 + unit.weapons.size() * 4;
 	}
 
 	// 2. 计算建筑所需的序列化内存
@@ -683,8 +683,9 @@ void GameManager::broadcast_network_snapshot() {
 		data.encode_float(offset + 12, unit.rotation);
 		data.encode_float(offset + 16, unit.height);
 		data.encode_float(offset + 20, unit.current_health);
-		data.set(offset + 24, (uint8_t)unit.state);
-		offset += 25;
+		data.encode_float(offset + 24, unit.current_shield);
+		data.set(offset + 28, (uint8_t)unit.state);
+		offset += 29;
 
 		// --- 写入武器的朝向同步数据 ---
 		uint8_t weapon_count = (uint8_t)unit.weapons.size();
@@ -733,7 +734,7 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 	offset += 4;
 
 	for (int i = 0; i < unit_count; i++) {
-		if (offset + 25 > p_raw_data.size()) break; // 基础长度边界检查
+		if (offset + 29 > p_raw_data.size()) break; // 基础长度边界检查
 
 		int id = p_raw_data.decode_s32(offset);
 		float px = p_raw_data.decode_float(offset + 4);
@@ -741,8 +742,9 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 		float rot = p_raw_data.decode_float(offset + 12);
 		float height = p_raw_data.decode_float(offset + 16);
 		float health = p_raw_data.decode_float(offset + 20);
-		uint8_t state = p_raw_data.get(offset + 24);
-		offset += 25;
+		float shield = p_raw_data.decode_float(offset + 24);
+		uint8_t state = p_raw_data.get(offset + 28);
+		offset += 29;
 
 		// --- 读取武器的朝向同步数据 ---
 		if (offset + 1 > p_raw_data.size()) break;
@@ -772,6 +774,7 @@ void GameManager::rpc_client_receive_snapshot(const PackedByteArray& p_raw_data)
 			unit.next_rotation = rot;
 			unit.next_height = height;
 			unit.current_health = health;
+			unit.current_shield = shield;
 			unit.state = (UnitState)state;
 
 			// 设置新的武器目标

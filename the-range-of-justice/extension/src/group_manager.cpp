@@ -32,12 +32,12 @@ void GroupManager::update_target_integrations(FlowFieldManager* ffm) {
             if (!field_ptr) return 0.0f;
 
             // 1. 计算所需面积和大致覆盖半径
-            float total_unit_area = radius_sq_sum * Math_PI;
+            float total_unit_area = radius_sq_sum * Math_PI * group_area_margin_factor;
             int needed_cells = std::ceil(total_unit_area / cell_area);
 
-            // 估计半径 (在网格空间)，并给 1.5 倍余量处理地形障碍
+            // 估计半径 (在网格空间)，并乘 group_radius_estimate_factor 处理地形障碍
             float est_r_world = std::sqrt(radius_sq_sum);
-            int r_grid = std::ceil(est_r_world / cell_sz.x * 3.0f) + 1;
+            int r_grid = std::ceil(est_r_world / cell_sz.x * group_radius_estimate_factor) + 1;
 
             // 2. 在 2R * 2R 范围内收集所有可达格子的集成值
             value_cache.clear();
@@ -69,8 +69,8 @@ void GroupManager::update_target_integrations(FlowFieldManager* ffm) {
             // 如果收集到的格子不够多，取最后一个（说明单位群可能挤不下）
             int result_idx = std::min((int)value_cache.size() - 1, needed_cells);
 
-            // 增加 10% 的容错缓冲，避免边缘单位频繁切换状态
-            return value_cache[result_idx] * 1.1f;
+            // 增加容错缓冲，避免边缘单位频繁切换状态
+            return value_cache[result_idx] * group_integration_tolerance;
             };
 
         group.ground_target_integration = calc_for_type(NAV_LAND, group.ground_idle_radius_sq_sum);
@@ -106,7 +106,7 @@ void GroupManager::remove_unit_from_temp_group(int p_gid, const UnitData& p_unit
         // 使用 UnitData 内部的属性判断
         if (p_unit.state == IDLE) {
             float r_sq = p_unit.stats->get_collision_radius() * p_unit.stats->get_collision_radius();
-            if (p_unit.height > 20.0f) { // AIR_HEIGHT_THRESHOLD
+            if (p_unit.height > air_height_threshold) { // 空中单位
                 group.air_idle_radius_sq_sum = std::max(0.0f, group.air_idle_radius_sq_sum - r_sq);
             }
             else {
@@ -129,7 +129,7 @@ void GroupManager::decrement_moving_count(int p_gid, const UnitData& p_unit) {
             group.moving_units_count--;
 
             float r_sq = p_unit.stats->get_collision_radius() * p_unit.stats->get_collision_radius();
-            if (p_unit.height > 20.0f) {
+            if (p_unit.height > air_height_threshold) {
                 group.air_idle_radius_sq_sum += r_sq;
             }
             else {
@@ -175,4 +175,14 @@ UnitGroup* GroupManager::get_temp_group(int p_gid) {
 
 void GroupManager::_bind_methods() {
     // 绑定 set_control_group 等给脚本调用
+    ClassDB::bind_method(D_METHOD("get_group_cleanup_interval"), &GroupManager::get_group_cleanup_interval);
+    ClassDB::bind_method(D_METHOD("set_group_cleanup_interval", "val"), &GroupManager::set_group_cleanup_interval);
+    ClassDB::bind_method(D_METHOD("get_group_area_margin_factor"), &GroupManager::get_group_area_margin_factor);
+    ClassDB::bind_method(D_METHOD("set_group_area_margin_factor", "val"), &GroupManager::set_group_area_margin_factor);
+    ClassDB::bind_method(D_METHOD("get_group_radius_estimate_factor"), &GroupManager::get_group_radius_estimate_factor);
+    ClassDB::bind_method(D_METHOD("set_group_radius_estimate_factor", "val"), &GroupManager::set_group_radius_estimate_factor);
+    ClassDB::bind_method(D_METHOD("get_group_integration_tolerance"), &GroupManager::get_group_integration_tolerance);
+    ClassDB::bind_method(D_METHOD("set_group_integration_tolerance", "val"), &GroupManager::set_group_integration_tolerance);
+    ClassDB::bind_method(D_METHOD("get_air_height_threshold"), &GroupManager::get_air_height_threshold);
+    ClassDB::bind_method(D_METHOD("set_air_height_threshold", "val"), &GroupManager::set_air_height_threshold);
 }

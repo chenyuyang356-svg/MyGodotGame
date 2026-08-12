@@ -47,6 +47,7 @@ namespace godot {
         // --- 攻击 ---
         TargetPriority target_priority = PRIORITY_CLOSEST;
         bool can_fire_on_move = false;
+        float deploy_time = 0.0f; // 部署时间(秒)：>0 表示需停下部署后才能攻击（火炮类）
         std::vector<Weapon> weapons; // 这些是不独立于单位的武器
         std::vector<WeaponMount> weapon_mounts; // 替换原来的 std::vector<WeaponStats> weapons;
 
@@ -79,6 +80,8 @@ namespace godot {
         int move_row = 1;      // 移动动画在图集的第几行
         int idle_row = 0;      // 待机动画在图集的第几行
         int anim_fps = 10;     // 动画播放速度
+        int deploy_frames = 1; // 部署动画占多少帧（火炮类部署时的展开动画）
+        int deploy_row = 2;    // 部署动画在图集的第几行
 
         float dying_time = 1.0f;
 
@@ -168,6 +171,9 @@ namespace godot {
         void set_can_fire_on_move(bool p_value) { can_fire_on_move = p_value; }
         bool get_can_fire_on_move() const { return can_fire_on_move; }
 
+        void set_deploy_time(float p_value) { deploy_time = p_value; }
+        float get_deploy_time() const { return deploy_time; }
+
         void set_unit_tags(BitField<UnitTag> p_value) { unit_tags = p_value; }
         BitField<UnitTag> get_unit_tags() const { return unit_tags; }
 
@@ -198,6 +204,12 @@ namespace godot {
 
         void set_idle_row(int p_val) { idle_row = p_val; }
         int get_idle_row() const { return idle_row; }
+
+        void set_deploy_frames(int p_val) { deploy_frames = p_val; }
+        int get_deploy_frames() const { return deploy_frames; }
+
+        void set_deploy_row(int p_val) { deploy_row = p_val; }
+        int get_deploy_row() const { return deploy_row; }
 
         // 播放速度
         void set_anim_fps(int p_val) { anim_fps = p_val; }

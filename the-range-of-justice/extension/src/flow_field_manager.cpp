@@ -20,7 +20,7 @@ void FlowFieldManager::update(double p_delta) {
     process_one_task();
     
     cleanup_timer += p_delta;
-    if (cleanup_timer >= CLEANUP_INTERVAL) {
+    if (cleanup_timer >= flow_field_cleanup_interval) {
         cleanup_timer = 0.0;
         cleanup_flow_fields();
     }
@@ -67,7 +67,7 @@ void FlowFieldManager::cleanup_flow_fields() {
         // 只有同时满足以下条件才删除：
         // - 没在计算队列中 (is_computing == false)
         // - 距离上次使用时间超过了阈值
-        if (!field.is_computing && (current_time - field.last_used_time > UNUSED_THRESHOLD)) {
+        if (!field.is_computing && (current_time - field.last_used_time > flow_field_unused_threshold)) {
             // UtilityFunctions::print("正在清理过期的流场，目标点: ", it->first);
 
             // erase(it) 会返回下一个有效的迭代器，这是 C++ 中安全删除的标志写法
@@ -364,9 +364,9 @@ void FlowFieldManager::compute_flow_directions(FlowFieldKey p_key) {
 
                 // 获取 8 个邻居的集成值，如果是边界或墙，则使用“当前值 + 较大偏移”来产生排斥感
                 auto get_val = [&](int nx, int ny) -> float {
-                    if (nx < 0 || nx >= width || ny < 0 || ny >= height) return field.integration_field[idx] + 3.0f;
+                    if (nx < 0 || nx >= width || ny < 0 || ny >= height) return field.integration_field[idx] + wall_gradient_offset;
                     int n_idx = ny * width + nx;
-                    if (cost_map[n_idx] == 255) return field.integration_field[idx] + 3.0f; // 给墙壁一个虚假的“高地”感
+                    if (cost_map[n_idx] == 255) return field.integration_field[idx] + wall_gradient_offset; // 给墙壁一个虚假的“高地”感
                     return field.integration_field[n_idx];
                     };
 
@@ -403,13 +403,24 @@ void FlowFieldManager::inject_density_and_blur(int p_map_idx, const std::vector<
         d_map[i] = d_map[i] * density_decay_factor + p_raw_density[i];
     }
 
-    // 均值模糊
+    // 均值模糊（半径 density_blur_radius，0 表示不模糊）
+    if (density_blur_radius <= 0) return;
     std::vector<float> temp = d_map;
-    for (int y = 1; y < height - 1; ++y) {
-        for (int x = 1; x < width - 1; ++x) {
-            int idx = y * width + x;
-            float sum = temp[idx] + temp[idx - 1] + temp[idx + 1] + temp[idx - width] + temp[idx + width];
-            d_map[idx] = sum * 0.2f;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            float sum = 0.0f;
+            int count = 0;
+            for (int dy = -density_blur_radius; dy <= density_blur_radius; ++dy) {
+                int ny = y + dy;
+                if (ny < 0 || ny >= height) continue;
+                for (int dx = -density_blur_radius; dx <= density_blur_radius; ++dx) {
+                    int nx = x + dx;
+                    if (nx < 0 || nx >= width) continue;
+                    sum += temp[ny * width + nx];
+                    count++;
+                }
+            }
+            if (count > 0) d_map[y * width + x] = sum / (float)count;
         }
     }
 }
@@ -731,7 +742,7 @@ bool FlowFieldManager::is_path_traversable(Vector2 p_start, Vector2 p_end, int p
 
     // 定义忽略密度的“安全区”半径（单位：格子数）
     // 建议设为 2-3，这样单位在最后准备进入阵型位时不会被自己人挡住路径判定
-    const int SAFE_ZONE_RADIUS = 1;
+    const int SAFE_ZONE_RADIUS = path_safe_zone_radius;
 
     for (; n > 0; --n) {
         if (x >= 0 && x < width && y >= 0 && y < height) {
@@ -783,7 +794,7 @@ Vector2i FlowFieldManager::find_nearest_walkable_cell(Vector2i p_start_grid, int
     const Vector2i dirs[] = { Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0) };
 
     // 限制搜索半径，防止在全是障碍的极端地图上搜遍全图导致卡死
-    const int MAX_SEARCH_DIST = 30;
+    const int MAX_SEARCH_DIST = max_search_dist;
     int cells_processed = 0;
 
     while (!queue.empty()) {
@@ -815,7 +826,7 @@ Vector2i FlowFieldManager::find_nearest_walkable_cell(Vector2i p_start_grid, int
         }
 
         // 安全阀
-        if (cells_processed > 1000) break;
+        if (cells_processed > nearest_walkable_cell_limit) break;
     }
 
     // 如果实在找不到，返回原点
@@ -834,6 +845,8 @@ void FlowFieldManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("clear_all_fields"), &FlowFieldManager::clear_all_fields);
     ClassDB::bind_method(D_METHOD("set_cost", "grid_position", "cost", "nav_type"), &FlowFieldManager::set_cost);
     ClassDB::bind_method(D_METHOD("set_init_cost", "grid_position", "cost", "nav_type"), &FlowFieldManager::set_init_cost);
+    ClassDB::bind_method(D_METHOD("get_cost", "grid_position", "nav_type"), &FlowFieldManager::get_cost);
+    ClassDB::bind_method(D_METHOD("find_nearest_walkable_cell", "start_grid", "nav_type"), &FlowFieldManager::find_nearest_walkable_cell);
     ClassDB::bind_method(D_METHOD("set_cell_meta_data", "grid_position", "meta_flag", "enabled"), &FlowFieldManager::set_cell_metadata);
     ClassDB::bind_method(D_METHOD("get_integration", "world_position", "target_world_position", "nav_type"), &FlowFieldManager::get_integration);
     ClassDB::bind_method(D_METHOD("get_flow_direction", "world_position", "target_world_position", "nav_type"), &FlowFieldManager::get_flow_direction);
@@ -850,8 +863,37 @@ void FlowFieldManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_max_density_cost"), &FlowFieldManager::get_max_density_cost);
     ClassDB::bind_method(D_METHOD("set_max_density_cost", "cost"), &FlowFieldManager::set_max_density_cost);
 
+    ClassDB::bind_method(D_METHOD("get_max_search_dist"), &FlowFieldManager::get_max_search_dist);
+    ClassDB::bind_method(D_METHOD("set_max_search_dist", "dist"), &FlowFieldManager::set_max_search_dist);
+
+    ClassDB::bind_method(D_METHOD("get_density_blur_radius"), &FlowFieldManager::get_density_blur_radius);
+    ClassDB::bind_method(D_METHOD("set_density_blur_radius", "radius"), &FlowFieldManager::set_density_blur_radius);
+
+    ClassDB::bind_method(D_METHOD("get_path_safe_zone_radius"), &FlowFieldManager::get_path_safe_zone_radius);
+    ClassDB::bind_method(D_METHOD("set_path_safe_zone_radius", "radius"), &FlowFieldManager::set_path_safe_zone_radius);
+
+    ClassDB::bind_method(D_METHOD("get_flow_field_cleanup_interval"), &FlowFieldManager::get_flow_field_cleanup_interval);
+    ClassDB::bind_method(D_METHOD("set_flow_field_cleanup_interval", "val"), &FlowFieldManager::set_flow_field_cleanup_interval);
+    ClassDB::bind_method(D_METHOD("get_flow_field_unused_threshold"), &FlowFieldManager::get_flow_field_unused_threshold);
+    ClassDB::bind_method(D_METHOD("set_flow_field_unused_threshold", "val"), &FlowFieldManager::set_flow_field_unused_threshold);
+    ClassDB::bind_method(D_METHOD("get_wall_gradient_offset"), &FlowFieldManager::get_wall_gradient_offset);
+    ClassDB::bind_method(D_METHOD("set_wall_gradient_offset", "val"), &FlowFieldManager::set_wall_gradient_offset);
+    ClassDB::bind_method(D_METHOD("get_nearest_walkable_cell_limit"), &FlowFieldManager::get_nearest_walkable_cell_limit);
+    ClassDB::bind_method(D_METHOD("set_nearest_walkable_cell_limit", "val"), &FlowFieldManager::set_nearest_walkable_cell_limit);
+
     ADD_GROUP("Dynamic Flow Field", "");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "density_weight", PROPERTY_HINT_RANGE, "0.0, 2.0, 0.01"), "set_density_weight", "get_density_weight");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "density_decay_factor", PROPERTY_HINT_RANGE, "0.0, 1.0, 0.01"), "set_density_decay_factor", "get_density_decay_factor");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "max_density_cost", PROPERTY_HINT_RANGE, "0.0, 1000.0, 1.0"), "set_max_density_cost", "get_max_density_cost");
+
+    ADD_GROUP("Path Search", "");
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "max_search_dist", PROPERTY_HINT_RANGE, "1, 512, 1"), "set_max_search_dist", "get_max_search_dist");
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "density_blur_radius", PROPERTY_HINT_RANGE, "0, 8, 1"), "set_density_blur_radius", "get_density_blur_radius");
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "path_safe_zone_radius", PROPERTY_HINT_RANGE, "0, 8, 1"), "set_path_safe_zone_radius", "get_path_safe_zone_radius");
+
+    ADD_GROUP("Flow Field Cache & Gradient", "");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "flow_field_cleanup_interval"), "set_flow_field_cleanup_interval", "get_flow_field_cleanup_interval");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "flow_field_unused_threshold"), "set_flow_field_unused_threshold", "get_flow_field_unused_threshold");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "wall_gradient_offset"), "set_wall_gradient_offset", "get_wall_gradient_offset");
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "nearest_walkable_cell_limit"), "set_nearest_walkable_cell_limit", "get_nearest_walkable_cell_limit");
 }

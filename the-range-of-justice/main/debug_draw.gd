@@ -7,7 +7,7 @@ var camera: Camera3D = null # 建议保留类型提示，方便享有代码补�
 var unit_ids_to_draw: Array = []
 
 # 使用数组映射状态，比 match 语句更高效、整洁
-const STATE_NAMES = ["IDLE", "MOVING", "CHASING", "ATTACKING", "PATROLLING"]
+const STATE_NAMES = ["IDLE", "MOVING", "CHASING", "ATTACKING", "PATROLLING", "DYING", "DEPLOYING"]
 
 func _process(_delta: float) -> void:
 	if not show_debug:

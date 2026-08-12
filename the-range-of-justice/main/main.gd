@@ -1,6 +1,7 @@
 extends Node
 
 const ModManager = preload("res://main/mod_manager.gd")
+const Tuning = preload("res://main/game_tuning.tres")
 
 @export var minimap_border: PanelContainer
 @export var minimap_container: SubViewportContainer
@@ -62,6 +63,9 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	var weapon_manager: WeaponManager = $WeaponManager
 	var effect_manager: EffectManager = $EffectManager
 	var audio_manager: AudioManager = get_node("/root/GlobalAudioManager")
+
+	# 应用集中调参（摩擦/分离/流场/编组等，可在 game_tuning.tres 中修改）
+	Tuning.apply_to(unit_manager, flow_field_manager, group_manager)
 	
 	var cell_size: Vector2i = tile_map_layer.tile_set.tile_size
 	var used_rect: Rect2i = tile_map_layer.get_used_rect()
@@ -111,10 +115,11 @@ func setup_game_with_map(map_res: MapResource) -> void:
 			if data.get_custom_data("IsWall") or data.get_custom_data("IsSea"):
 				flow_field_manager.init_cost(coords, 255, 0)
 			else:
-				# 陆地基础权重统一为 1（靠近障碍物 Wall/Sea 的 30 避让权重当前已停用，is_near_obstacle 检测仅作保留）
+				# 陆地基础权重统一为 1（近障碍检测半径来自 GameTuning，供避边逻辑使用）
 				var is_near_obstacle = false
-				for dx in range(-1, 2):
-					for dy in range(-1, 2):
+				var near_r: int = Tuning.near_obstacle_radius
+				for dx in range(-near_r, near_r + 1):
+					for dy in range(-near_r, near_r + 1):
 						if Vector2i(dx, dy) == Vector2i.ZERO: continue
 						var n_data = tile_map_layer.get_cell_tile_data(coords + Vector2i(dx, dy))
 						if n_data == null or n_data.get_custom_data("IsWall") or n_data.get_custom_data("IsSea"):
@@ -257,15 +262,66 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 		# 只有玩家选择的 spawn_id 在地图里真实存在时，才为他生成单位
 		if spawn_positions.has(spawn_id):
 			var pos = spawn_positions[spawn_id]
-			# 在基地旁边生成坦克 (注意传递的是 team_id，让单位归属于该阵营)
+			# 在基地旁边生成建筑
 			GlobalGameManager.rpc_server_request_place_building("HumanBarrack", Vector2i(pos / Vector2(cell_size)), team_id, -1, true)
-			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(300, 400), team_id)
-			GlobalGameManager.rpc_server_request_spawn_unit("Tank", pos + Vector2(0, 400), team_id)
-			GlobalGameManager.rpc_server_request_spawn_unit("Builder", pos + Vector2(150, 450), team_id)
+			# 测试用：网格化生成 50 辆 HeavyTank（10 列 x 5 行，间距 32px）
+			var tank_cols := 10
+			var tank_rows := 5
+			var tank_spacing := 32.0
+			var ffm: FlowFieldManager = $FlowFieldManager
+			# 自动寻找出生点附近能容纳整块阵列的开阔锚点（避免卡进墙/海里）
+			var anchor_offset: Vector2 = _find_tank_anchor(pos, tank_cols, tank_rows, tank_spacing, ffm)
+			for r in tank_rows:
+				for c in tank_cols:
+					var tank_pos: Vector2 = pos + anchor_offset + Vector2(c * tank_spacing, r * tank_spacing)
+					# 安全网：个别被挡住的坦克吸附到最近可走格
+					tank_pos = _snap_to_walkable(tank_pos, cell_size, ffm)
+					GlobalGameManager.rpc_server_request_spawn_unit("HeavyTank", tank_pos, team_id)
+			# 基地附近生成工兵和防空
+			GlobalGameManager.rpc_server_request_spawn_unit("Builder", pos + Vector2(0, 100), team_id)
 			# 如果是陆地地图，生成防空
-			GlobalGameManager.rpc_server_request_spawn_unit("Fighter", pos + Vector2(150, 350), team_id)
+			GlobalGameManager.rpc_server_request_spawn_unit("Fighter", pos + Vector2(80, 100), team_id)
 		else:
 			print("Peer: ", peer_id, " (Team: ", team_id, ") 的出生点 ", spawn_id, " 无效，不生成初始单位。")
+
+## 判断某个世界坐标是否可供陆地单位站立（非墙、非海；地图外视为可走）
+func _tank_cell_walkable(world_pos: Vector2, ffm: FlowFieldManager) -> bool:
+	var cell: Vector2i = ffm.world_to_grid(world_pos)
+	var cost: float = ffm.get_cost(cell, 0) # 0 = NAV_LAND
+	return cost < 255.0
+
+## 在出生点附近从近到远搜索能放下整块坦克阵列的偏移量（步长 16px）
+func _find_tank_anchor(base_pos: Vector2, cols: int, rows: int, spacing: float, ffm: FlowFieldManager) -> Vector2:
+	for search_cells in [8, 16, 24, 32]:
+		var half: int = search_cells * 16
+		var best_offset := Vector2.ZERO
+		var best_dist := INF
+		for oy in range(-half, half + 1, 16):
+			for ox in range(-half, half + 1, 16):
+				var all_clear := true
+				for r in rows:
+					for c in cols:
+						if not _tank_cell_walkable(base_pos + Vector2(ox + c * spacing, oy + r * spacing), ffm):
+							all_clear = false
+							break
+					if not all_clear:
+						break
+				if all_clear:
+					var d := float(ox * ox + oy * oy)
+					if d < best_dist:
+						best_dist = d
+						best_offset = Vector2(ox, oy)
+		if best_dist < INF:
+			return best_offset
+	return Vector2.ZERO
+
+## 若位置卡在墙/海里，吸附到最近可走格的格心
+func _snap_to_walkable(world_pos: Vector2, cell_size: Vector2i, ffm: FlowFieldManager) -> Vector2:
+	if _tank_cell_walkable(world_pos, ffm):
+		return world_pos
+	var cell: Vector2i = ffm.world_to_grid(world_pos)
+	var near_cell: Vector2i = ffm.find_nearest_walkable_cell(cell, 0)
+	return Vector2(near_cell * cell_size) + Vector2(cell_size) * 0.5
 
 
 func spawn_test_units():

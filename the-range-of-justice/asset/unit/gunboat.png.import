@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b4x58dq6lmay4"
-path="res://.godot/imported/机动支援单位01.png-787f8e7ff4003df229bd62928e6d0f97.ctex"
+uid="uid://vtp4lxbbufyw"
+path="res://.godot/imported/gunboat.png-44bfa1cc34c828e4c20983a365e43707.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://asset/unit/机动支援单位01.png"
-dest_files=["res://.godot/imported/机动支援单位01.png-787f8e7ff4003df229bd62928e6d0f97.ctex"]
+source_file="res://asset/unit/gunboat.png"
+dest_files=["res://.godot/imported/gunboat.png-44bfa1cc34c828e4c20983a365e43707.ctex"]
 
 [params]
 

@@ -4,7 +4,6 @@
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_rjwds"]
 texture = ExtResource("1_ey8lu")
-texture_region_size = Vector2i(256, 256)
 0:0/0 = 0
 0:1/0 = 0
 0:1/0/custom_data_0 = true
@@ -15,7 +14,6 @@ texture_region_size = Vector2i(256, 256)
 2:0/0/custom_data_2 = true
 
 [resource]
-tile_size = Vector2i(256, 256)
 custom_data_layer_0/name = "IsWall"
 custom_data_layer_0/type = 1
 custom_data_layer_1/name = "IsSea"

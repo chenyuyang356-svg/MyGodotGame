@@ -42,7 +42,7 @@ bool AttackManager::_get_target_info(int p_target_id, bool p_is_building, Vector
 
         BuildingData& b = it->second;
         // 默认网格大小是256*256像素
-        Vector2 cell_sz = Vector2(256.0f, 256.0f);
+        Vector2 cell_sz = Vector2(16.0f, 16.0f);
         if (building_manager->flow_field_manager) cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
 
         // 计算建筑的实际像素尺寸：占地格子数 * 单个格子大小
@@ -240,7 +240,14 @@ void AttackManager::_handle_chasing(UnitData& p_unit) {
     float comfortable_atk_range = atk_range * 0.85f;
 
     if (dist_sq <= comfortable_atk_range * comfortable_atk_range) {
-        p_unit.state = ATTACKING;
+        // 火炮类：需先停下部署才能开火
+        if (p_unit.stats->get_deploy_time() > 0.0f && !p_unit.is_deployed) {
+            p_unit.state = DEPLOYING;
+            p_unit.deploy_timer = 0.0f;
+        }
+        else {
+            p_unit.state = ATTACKING;
+        }
     }
     else if (dist_sq <= atk_range * atk_range) {
         // 在边缘射程：如果能移动射击，就边走边打；如果不能，立即停下开火
@@ -796,7 +803,7 @@ void AttackManager::_execute_building_attack(BuildingData& attacker, int target_
             }
 
             // 动态计算 256x256 网格下的发射坐标
-            Vector2 cell_sz = Vector2(256.0f, 256.0f);
+            Vector2 cell_sz = Vector2(16.0f, 16.0f);
 
             if (building_manager && building_manager->flow_field_manager) {
                 cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
@@ -934,7 +941,15 @@ void AttackManager::apply_damage(int target_id, bool is_building, float damage, 
             return;
         }
 
-        defender.current_health -= damage;
+        // 护盾优先吸收伤害，溢出部分扣生命
+        if (defender.current_shield > 0.0f) {
+            float absorbed = Math::min(defender.current_shield, damage);
+            defender.current_shield -= absorbed;
+            damage -= absorbed;
+        }
+        if (damage > 0.0f) {
+            defender.current_health -= damage;
+        }
     }
 }
 
@@ -961,7 +976,14 @@ void AttackManager::apply_aoe_damage(Vector2 p_epicenter, float p_radius, float 
         float real_radius = p_radius + target.stats->get_collision_radius();
 
         if (dist_sq <= real_radius * real_radius) {
-            target.current_health -= p_damage;
+            // 护盾优先吸收（范围伤害同单体规则）
+            float dmg = p_damage;
+            if (target.current_shield > 0.0f) {
+                float absorbed = Math::min(target.current_shield, dmg);
+                target.current_shield -= absorbed;
+                dmg -= absorbed;
+            }
+            if (dmg > 0.0f) target.current_health -= dmg;
             if (target.state == IDLE && target.target_id == -1 && p_attacker_id != -1) {
                 target.target_id = p_attacker_id;
                 target.target_is_building = attacker_is_building;
@@ -972,7 +994,7 @@ void AttackManager::apply_aoe_damage(Vector2 p_epicenter, float p_radius, float 
 
     // 2. 对范围内建筑造成伤害
     if (building_manager) {
-        Vector2 cell_sz = Vector2(256.0f, 256.0f);
+        Vector2 cell_sz = Vector2(16.0f, 16.0f);
         if (building_manager->flow_field_manager) cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
 
         for (auto& pair : building_manager->buildings) {

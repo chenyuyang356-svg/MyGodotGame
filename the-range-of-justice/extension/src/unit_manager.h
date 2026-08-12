@@ -69,16 +69,61 @@ namespace godot {
 		float separation_factor = 10000.0f;
 		float separation_radius_factor = 3.0f;		//排斥力半径与单位半径的比值
 		float separation_limit = 1000.0f;
-		float lateral_separation_factor = 1.0f;
+		float lateral_separation_factor = 1.0f;		//(遗留，未在移动逻辑中使用)
 		float friction_factor = 100.0f;
 		float force_threshold_squared = 1.0f;
 		float velocity_threshold_squared = 1.0f;
-		float desired_integration = 0.1f;
+		float desired_integration = 0.1f;			//(遗留，未在移动逻辑中使用)
+
+		// --- 以下为集中调参：由 game_tuning.tres 写入，含义见 game_tuning.gd ---
+		float air_height_threshold = 20.0f;			//空中/地面判定高度阈值
+		float density_limit = 4.0f;					//路径"人墙"密度阈值
+		float density_update_interval = 0.5;		//密度图重建间隔(秒)
+		float idle_density_factor = 5.0f;			//待机单位密度贡献倍率
+		float density_next_cell_factor = 0.8f;		//移动方向下一格密度贡献系数
+		float arrival_stop_distance_sq = 10.0f;		//到达死区距离(平方像素)
+		float density_avoidance_strength = 0.1f;	//直线模式密度避让强度
+		float density_avoidance_flow_strength = 0.02f;//流场模式密度避让强度
+		float separation_extra_radius = 30.0f;		//排斥搜索半径额外余量
+		float separation_min_dist_factor = 1.1f;	//排斥理想间距系数
+		float sep_idle_vs_idle_k = 0.5f;			//双方待机排斥权重
+		float sep_idle_vs_moving_k = 2.0f;			//待机推移动单位排斥权重
+		float sep_moving_vs_idle_k = 0.1f;			//移动单位被待机顶开权重
+		float sep_force_to_total_ratio = 0.5f;		//分离力计入总力比例
+		float target_integration_factor = 1.1f;		//组目标集成值倍率(到达判定)
+		float critical_area_integration_margin = 3.0f;//临界区判定余量
+		float arrival_desired_distance_factor = 1.5f;//期望到达距离 = 半径×该值
+		float soft_arrival_factor = 1.1f;			//软到达半径倍率
+		float soft_arrival_neighbor_radius_factor = 3.0f;//到达判定时邻居扫描半径系数
+		float stuck_check_interval = 0.5f;			//卡住检测间隔(秒)
+		float stuck_threshold_move_factor = 0.025f;	//卡住位移阈值系数
+		float stuck_threshold_min = 0.5f;			//卡住位移阈值下限(像素)
+		float stuck_rotation_threshold_factor = 0.08f;//卡住转角阈值系数
+		float stuck_give_up_time = 8.0f;			//卡住放弃时间(秒)
+		float path_recheck_interval = 0.8f;			//移动中直线路径重查间隔(秒)
+		float chase_path_recheck_interval = 0.5f;	//追击中路径重查间隔(秒)
+		float arrival_slow_radius_factor = 5.0f;	//到达减速半径系数
+		float arrival_min_speed_factor = 0.2f;		//到达最小速度比例
+		float chase_slow_down_factor = 1.5f;		//追击减速起始距离系数
+		float chase_min_speed_factor = 0.5f;		//追击最小速度比例
+		float rubberband_sensitivity = 0.02f;		//组内速度橡皮筋灵敏度
+		float rubberband_speed_min = 0.8f;			//橡皮筋速度下限
+		float rubberband_speed_max = 1.2f;			//橡皮筋速度上限
+		float engine_forward_ratio = 0.7f;			//引擎方向中"朝向"权重
+		float propulsion_force_scale = 1000.0f;		//推进力总缩放
+		float propulsion_min_power = 0.1f;			//推进力基础功率
+		float idle_friction_multiplier = 3.0f;		//待机摩擦力倍率
+		float turn_ramp_angle = 0.5f;				//转向线速区(弧度)
+		float collision_resolve_radius_factor = 2.5f;//单位-单位碰撞解算搜索半径系数
+		float idle_resistance = 4.0f;				//待机单位阻力倍率
+		float collision_smoothing = 0.4f;			//重叠修正平滑系数
+		float wall_collision_factor_moving = 0.5f;	//移动中撞墙回推系数
+		float wall_collision_factor_idle = 1.0f;	//待机撞墙回推系数
+		float target_projection_margin = 1.0f;		//目标点投影到墙边界的边距(像素)
 
 		bool is_setup = false;
 
 		double density_update_timer = 0.0;
-		const double DENSITY_UPDATE_INTERVAL = 0.5; // 每0.5秒更新一次密度图
 
 		// 渲染器映射：每个 UnitStats 资源对应一个 MultiMeshInstance2D
 		std::unordered_map<UnitStats*, MultiMeshInstance3D*> type_renderers;
@@ -101,13 +146,12 @@ namespace godot {
 		MultiMeshInstance3D* minimap_dot_renderer = nullptr;
 		Ref<Shader> minimap_dot_shader;
 
+		// 护盾渲染器（机甲护盾弧）
+		MultiMeshInstance3D* shield_renderer = nullptr;
+		Ref<Shader> shield_shader;
+		void _setup_shield_renderer();
+
 		HashMap<String, Ref<UnitStats>> unit_types_cache;
-
-		const float AIR_HEIGHT_THRESHOLD = 20.0f; // 定义高度阈值
-
-		// 设定密度阈值：当格子里的密度值超过这个数时，认为“不可通行”
-		// 一个格子最多差不多能塞下六辆坦克
-		const float density_limit = 4.0f;
 
 	protected:
 		static void _bind_methods();
@@ -212,5 +256,95 @@ namespace godot {
 
 		void set_desired_integration(float p_val) { desired_integration = p_val; }
 		float get_desired_integration() const { return desired_integration; }
+
+		// --- 集中调参 getter/setter (game_tuning) ---
+		void set_air_height_threshold(float p_val) { air_height_threshold = p_val; }
+		float get_air_height_threshold() const { return air_height_threshold; }
+		void set_density_limit(float p_val) { density_limit = p_val; }
+		float get_density_limit() const { return density_limit; }
+		void set_density_update_interval(float p_val) { density_update_interval = p_val; }
+		float get_density_update_interval() const { return density_update_interval; }
+		void set_idle_density_factor(float p_val) { idle_density_factor = p_val; }
+		float get_idle_density_factor() const { return idle_density_factor; }
+		void set_density_next_cell_factor(float p_val) { density_next_cell_factor = p_val; }
+		float get_density_next_cell_factor() const { return density_next_cell_factor; }
+		void set_arrival_stop_distance_sq(float p_val) { arrival_stop_distance_sq = p_val; }
+		float get_arrival_stop_distance_sq() const { return arrival_stop_distance_sq; }
+		void set_density_avoidance_strength(float p_val) { density_avoidance_strength = p_val; }
+		float get_density_avoidance_strength() const { return density_avoidance_strength; }
+		void set_density_avoidance_flow_strength(float p_val) { density_avoidance_flow_strength = p_val; }
+		float get_density_avoidance_flow_strength() const { return density_avoidance_flow_strength; }
+		void set_separation_extra_radius(float p_val) { separation_extra_radius = p_val; }
+		float get_separation_extra_radius() const { return separation_extra_radius; }
+		void set_separation_min_dist_factor(float p_val) { separation_min_dist_factor = p_val; }
+		float get_separation_min_dist_factor() const { return separation_min_dist_factor; }
+		void set_sep_idle_vs_idle_k(float p_val) { sep_idle_vs_idle_k = p_val; }
+		float get_sep_idle_vs_idle_k() const { return sep_idle_vs_idle_k; }
+		void set_sep_idle_vs_moving_k(float p_val) { sep_idle_vs_moving_k = p_val; }
+		float get_sep_idle_vs_moving_k() const { return sep_idle_vs_moving_k; }
+		void set_sep_moving_vs_idle_k(float p_val) { sep_moving_vs_idle_k = p_val; }
+		float get_sep_moving_vs_idle_k() const { return sep_moving_vs_idle_k; }
+		void set_sep_force_to_total_ratio(float p_val) { sep_force_to_total_ratio = p_val; }
+		float get_sep_force_to_total_ratio() const { return sep_force_to_total_ratio; }
+		void set_target_integration_factor(float p_val) { target_integration_factor = p_val; }
+		float get_target_integration_factor() const { return target_integration_factor; }
+		void set_critical_area_integration_margin(float p_val) { critical_area_integration_margin = p_val; }
+		float get_critical_area_integration_margin() const { return critical_area_integration_margin; }
+		void set_arrival_desired_distance_factor(float p_val) { arrival_desired_distance_factor = p_val; }
+		float get_arrival_desired_distance_factor() const { return arrival_desired_distance_factor; }
+		void set_soft_arrival_factor(float p_val) { soft_arrival_factor = p_val; }
+		float get_soft_arrival_factor() const { return soft_arrival_factor; }
+		void set_soft_arrival_neighbor_radius_factor(float p_val) { soft_arrival_neighbor_radius_factor = p_val; }
+		float get_soft_arrival_neighbor_radius_factor() const { return soft_arrival_neighbor_radius_factor; }
+		void set_stuck_check_interval(float p_val) { stuck_check_interval = p_val; }
+		float get_stuck_check_interval() const { return stuck_check_interval; }
+		void set_stuck_threshold_move_factor(float p_val) { stuck_threshold_move_factor = p_val; }
+		float get_stuck_threshold_move_factor() const { return stuck_threshold_move_factor; }
+		void set_stuck_threshold_min(float p_val) { stuck_threshold_min = p_val; }
+		float get_stuck_threshold_min() const { return stuck_threshold_min; }
+		void set_stuck_rotation_threshold_factor(float p_val) { stuck_rotation_threshold_factor = p_val; }
+		float get_stuck_rotation_threshold_factor() const { return stuck_rotation_threshold_factor; }
+		void set_stuck_give_up_time(float p_val) { stuck_give_up_time = p_val; }
+		float get_stuck_give_up_time() const { return stuck_give_up_time; }
+		void set_path_recheck_interval(float p_val) { path_recheck_interval = p_val; }
+		float get_path_recheck_interval() const { return path_recheck_interval; }
+		void set_chase_path_recheck_interval(float p_val) { chase_path_recheck_interval = p_val; }
+		float get_chase_path_recheck_interval() const { return chase_path_recheck_interval; }
+		void set_arrival_slow_radius_factor(float p_val) { arrival_slow_radius_factor = p_val; }
+		float get_arrival_slow_radius_factor() const { return arrival_slow_radius_factor; }
+		void set_arrival_min_speed_factor(float p_val) { arrival_min_speed_factor = p_val; }
+		float get_arrival_min_speed_factor() const { return arrival_min_speed_factor; }
+		void set_chase_slow_down_factor(float p_val) { chase_slow_down_factor = p_val; }
+		float get_chase_slow_down_factor() const { return chase_slow_down_factor; }
+		void set_chase_min_speed_factor(float p_val) { chase_min_speed_factor = p_val; }
+		float get_chase_min_speed_factor() const { return chase_min_speed_factor; }
+		void set_rubberband_sensitivity(float p_val) { rubberband_sensitivity = p_val; }
+		float get_rubberband_sensitivity() const { return rubberband_sensitivity; }
+		void set_rubberband_speed_min(float p_val) { rubberband_speed_min = p_val; }
+		float get_rubberband_speed_min() const { return rubberband_speed_min; }
+		void set_rubberband_speed_max(float p_val) { rubberband_speed_max = p_val; }
+		float get_rubberband_speed_max() const { return rubberband_speed_max; }
+		void set_engine_forward_ratio(float p_val) { engine_forward_ratio = p_val; }
+		float get_engine_forward_ratio() const { return engine_forward_ratio; }
+		void set_propulsion_force_scale(float p_val) { propulsion_force_scale = p_val; }
+		float get_propulsion_force_scale() const { return propulsion_force_scale; }
+		void set_propulsion_min_power(float p_val) { propulsion_min_power = p_val; }
+		float get_propulsion_min_power() const { return propulsion_min_power; }
+		void set_idle_friction_multiplier(float p_val) { idle_friction_multiplier = p_val; }
+		float get_idle_friction_multiplier() const { return idle_friction_multiplier; }
+		void set_turn_ramp_angle(float p_val) { turn_ramp_angle = p_val; }
+		float get_turn_ramp_angle() const { return turn_ramp_angle; }
+		void set_collision_resolve_radius_factor(float p_val) { collision_resolve_radius_factor = p_val; }
+		float get_collision_resolve_radius_factor() const { return collision_resolve_radius_factor; }
+		void set_idle_resistance(float p_val) { idle_resistance = p_val; }
+		float get_idle_resistance() const { return idle_resistance; }
+		void set_collision_smoothing(float p_val) { collision_smoothing = p_val; }
+		float get_collision_smoothing() const { return collision_smoothing; }
+		void set_wall_collision_factor_moving(float p_val) { wall_collision_factor_moving = p_val; }
+		float get_wall_collision_factor_moving() const { return wall_collision_factor_moving; }
+		void set_wall_collision_factor_idle(float p_val) { wall_collision_factor_idle = p_val; }
+		float get_wall_collision_factor_idle() const { return wall_collision_factor_idle; }
+		void set_target_projection_margin(float p_val) { target_projection_margin = p_val; }
+		float get_target_projection_margin() const { return target_projection_margin; }
 	};
 }

@@ -257,7 +257,7 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
     }
 
     // 假设默认单元格大小
-    Vector2 cell_sz = Vector2(32, 32);
+    Vector2 cell_sz = Vector2(16, 16);
     if (flow_field_manager) {
         cell_sz = Vector2(flow_field_manager->get_cell_size());
     }
@@ -476,7 +476,7 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
     }
 
     int inst_idx = 0;
-    Vector2 cell_sz_vec = Vector2(32, 32);
+    Vector2 cell_sz_vec = Vector2(16, 16);
     if (flow_field_manager) cell_sz_vec = Vector2(flow_field_manager->get_cell_size());
 
     // 1. 绘制建筑点

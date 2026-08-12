@@ -11,7 +11,7 @@ tile_set = ExtResource("1_0i2d5")
 [node name="SpawnPoints" type="Node2D" parent="." unique_id=2133353428]
 
 [node name="1" type="Marker2D" parent="SpawnPoints" unique_id=1261841268]
-position = Vector2(-5352, -1533)
+position = Vector2(-334.5, -95.8125)
 
 [node name="2" type="Marker2D" parent="SpawnPoints" unique_id=1103070341]
-position = Vector2(38495, 12647)
+position = Vector2(2405.9375, 790.4375)

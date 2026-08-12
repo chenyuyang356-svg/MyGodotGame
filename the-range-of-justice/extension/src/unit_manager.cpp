@@ -39,6 +39,7 @@ void UnitManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 
     _setup_hp_bar_system();
     _setup_minimap_renderer(p_width, p_height, p_cell_size);
+    _setup_shield_renderer();
 
     is_setup = true;
 }
@@ -121,6 +122,37 @@ void UnitManager::_setup_minimap_renderer(int p_width, int p_height, Vector2i p_
     minimap_dot_renderer->set_material_override(mat);
 }
 
+void UnitManager::_setup_shield_renderer() {
+    if (shield_renderer) return;
+
+    shield_renderer = memnew(MultiMeshInstance3D);
+    shield_renderer->set_name("UnitShields");
+    add_child(shield_renderer);
+
+    Ref<MultiMesh> mm;
+    mm.instantiate();
+    mm->set_transform_format(MultiMesh::TRANSFORM_3D);
+    mm->set_use_custom_data(true); // X = 当前护盾比例
+    mm->set_instance_count(0);
+
+    Ref<QuadMesh> qm;
+    qm.instantiate();
+    qm->set_size(Vector2(1.0, 1.0)); // 1x1，实例缩放控制实际大小
+    mm->set_mesh(qm);
+    shield_renderer->set_multimesh(mm);
+
+    Ref<ShaderMaterial> mat;
+    mat.instantiate();
+    if (shield_shader.is_null()) {
+        shield_shader = ResourceLoader::get_singleton()->load("res://shader/shield.gdshader");
+    }
+    mat->set_shader(shield_shader);
+    mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+    mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+    mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+    shield_renderer->set_material_override(mat);
+}
+
 void UnitManager::clear_all_units() {
 	units.clear();
 	id_to_index.clear();
@@ -164,6 +196,7 @@ int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_t
 
  
     new_unit.current_health = p_stats->get_health_max();
+    new_unit.current_shield = p_stats->get_shield_max();
     new_unit.state = IDLE;
 
     units.push_back(new_unit);
@@ -233,7 +266,7 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
         auto it = id_to_index.find(uid);
         if (it != id_to_index.end()) {
             int unit_internal_idx = it->second;
-            if (units[unit_internal_idx].height > AIR_HEIGHT_THRESHOLD) {
+            if (units[unit_internal_idx].height > air_height_threshold) {
                 air_indices.push_back(unit_internal_idx);
             }
             else {
@@ -277,10 +310,10 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
                 Vector2 cell_min = Vector2(best_grid.x * cell_sz.x, best_grid.y * cell_sz.y);
                 Vector2 cell_max = cell_min + Vector2(cell_sz.x, cell_sz.y);
 
-                // 将原始鼠标位置投影到该合法格子的 AABB 内 (保留 1.0f 的安全边距)
+                // 将原始鼠标位置投影到该合法格子的 AABB 内 (保留 target_projection_margin 的安全边距)
                 corrected_world_targets[nav_type] = Vector2(
-                    Math::clamp(p_target_world_pos.x, cell_min.x + 1.0f, cell_max.x - 1.0f),
-                    Math::clamp(p_target_world_pos.y, cell_min.y + 1.0f, cell_max.y - 1.0f)
+                    Math::clamp(p_target_world_pos.x, cell_min.x + target_projection_margin, cell_max.x - target_projection_margin),
+                    Math::clamp(p_target_world_pos.y, cell_min.y + target_projection_margin, cell_max.y - target_projection_margin)
                 );
             }
             type_initialized[nav_type] = true;
@@ -305,7 +338,7 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
             offset.y = (r - (rows - 1) * 0.5f) * spacing;
 
             // 检查偏移点是否在墙里（如果是地面单位）
-            if (unit.height <= AIR_HEIGHT_THRESHOLD) {
+            if (unit.height <= air_height_threshold) {
                 Vector2 pot_pos = final_world_pos + offset;
                 Vector2i pot_grid = flow_field_manager->world_to_grid(pot_pos);
                 if (flow_field_manager->get_cost(pot_grid, nav_type) == 255) {
@@ -344,6 +377,7 @@ void UnitManager::command_units_to_move(Array p_unit_ids, Vector2 p_target_world
             unit.is_manual_target = false;
             unit.stuck_timer = 0.0f;
             unit.last_stuck_check_pos = unit.position;
+            unit.is_deployed = false; // 移动后需重新部署（火炮类）
         }
         };
 
@@ -400,7 +434,7 @@ void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_
         int t_idx = get_unit_index_by_id(p_target_id);
         if (t_idx != -1) {
             target_team = units[t_idx].team_id;
-            target_is_air = (units[t_idx].height > AIR_HEIGHT_THRESHOLD);
+            target_is_air = (units[t_idx].height > air_height_threshold);
         }
         else {
             return; // 目标已消失
@@ -454,6 +488,7 @@ void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_
         u.stuck_timer = 0.0f;
         u.last_stuck_check_pos = u.position;
         u.state = CHASING;
+        u.is_deployed = false; // 追击后需重新部署（火炮类）
 
         // 停止之前的移动
         u.use_direct_path = false;
@@ -595,7 +630,7 @@ void UnitManager::update(double p_delta) {
 
     // --- 动态密度图：加细采样 ---
     density_update_timer += p_delta;
-    if (density_update_timer >= 0.5) { // 每0.5秒更新一次精细密度
+    if (density_update_timer >= density_update_interval) { // 每 interval 秒更新一次精细密度
         density_update_timer = 0.0;
 
         // 创建两个与流场分辨率完全一致的空 Map
@@ -613,23 +648,23 @@ void UnitManager::update(double p_delta) {
             Vector2i f_grid = flow_field_manager->world_to_grid(unit.position) - origin;
             Vector2i next_f_grid = flow_field_manager->world_to_grid(unit.position + (unit.velocity).normalized() *
                 (float)((flow_field_manager->get_cell_size()).x)) - origin;
-            float k = (unit.state == IDLE) ? 5.0f : 1.0f;
+            float k = (unit.state == IDLE) ? idle_density_factor : 1.0f;
             float radius = unit.stats->get_collision_radius() / 100.0f;
 
             if (f_grid.x >= 0 && f_grid.x < f_width && f_grid.y >= 0 && f_grid.y < f_height) {
                 // 根据高度分流
-                if (unit.height > AIR_HEIGHT_THRESHOLD) {
+                if (unit.height > air_height_threshold) {
                     air_buffer[f_grid.y * f_width + f_grid.x] += radius * radius * k;
                     if ((next_f_grid.x >= 0 && next_f_grid.x < f_width && next_f_grid.y >= 0 && next_f_grid.y < f_height) &&
                         (next_f_grid != f_grid)) {
-                        air_buffer[next_f_grid.y * f_width + next_f_grid.x] += 0.8 * radius * radius * k;
+                        air_buffer[next_f_grid.y * f_width + next_f_grid.x] += density_next_cell_factor * radius * radius * k;
                     }
                 }
                 else {
                     ground_buffer[f_grid.y * f_width + f_grid.x] += radius * radius * k;
                     if ((next_f_grid.x >= 0 && next_f_grid.x < f_width && next_f_grid.y >= 0 && next_f_grid.y < f_height) &&
                         (next_f_grid != f_grid)) {
-                        ground_buffer[next_f_grid.y * f_width + next_f_grid.x] += 0.8 * radius * radius * k;
+                        ground_buffer[next_f_grid.y * f_width + next_f_grid.x] += density_next_cell_factor * radius * radius * k;
                     }
                 }
             }
@@ -652,6 +687,18 @@ void UnitManager::physics_update(double p_delta) {
 
     for (int unit_idx = 0; unit_idx < units.size(); ++unit_idx) {
         UnitData& unit = units[unit_idx];
+
+        // 回复：护盾与生命（服务器权威，随快照同步到客户端）
+        if (unit.state != DYING) {
+            float sh_max = unit.stats->get_shield_max();
+            float hp_max = unit.stats->get_health_max();
+            if (sh_max > 0.0f && unit.current_shield < sh_max) {
+                unit.current_shield = Math::min(unit.current_shield + unit.stats->get_shield_regen() * (float)p_delta, sh_max);
+            }
+            if (hp_max > 0.0f && unit.current_health < hp_max) {
+                unit.current_health = Math::min(unit.current_health + unit.stats->get_health_regen() * (float)p_delta, hp_max);
+            }
+        }
 
         unit.prev_position = unit.position;
         unit.prev_height = unit.height;
@@ -686,12 +733,12 @@ Vector2 UnitManager::get_flow(UnitData& p_unit) {
     float dist_sq = to_target.length_squared();
 
     // 如果已经到达目的地（极近距离），不再受密度影响，防止最后一点路程反复横跳
-    if (dist_sq < 10.0f) return Vector2(0, 0);
+    if (dist_sq < arrival_stop_distance_sq) return Vector2(0, 0);
 
     Vector2 direct_dir = to_target.normalized();
 
     // --- 密度避让逻辑 ---
-    int d_idx = (p_unit.height > 20.0f) ? 1 : 0; // 高度阈值判断
+    int d_idx = (p_unit.height > air_height_threshold) ? 1 : 0; // 高度阈值判断
 
     // 获取当前位置的密度梯度
     Vector2 density_grad = flow_field_manager->get_density_gradient(p_unit.position, d_idx);
@@ -704,8 +751,8 @@ Vector2 UnitManager::get_flow(UnitData& p_unit) {
         avoidance = -(density_grad.limit_length(1.0f));
     }
 
-    // 权衡参数：你可以根据需要调整避让强度（建议 5.0 - 20.0 之间测试）
-    float avoidance_strength = 0.1f;
+    // 权衡参数：你可以根据需要调整避让强度（建议 0.05 - 0.5 之间测试）
+    float avoidance_strength = density_avoidance_strength;
 
     // 混合方向：原始方向 + 避让方向
     Vector2 blended_dir = direct_dir + avoidance * avoidance_strength;
@@ -719,7 +766,7 @@ Vector2 UnitManager::get_flow(UnitData& p_unit) {
     Vector2 flow_dir = flow_field_manager->get_flow_direction(p_unit.position, p_unit.target_pos, p_unit.get_nav_type());
 
     // 即便是流场模式，也可以叠加一层轻微的即时避让，增强单位间的动态绕行感
-    return (flow_dir + avoidance * 0.02f).normalized();
+    return (flow_dir + avoidance * density_avoidance_flow_strength).normalized();
 }
 
 Vector2 UnitManager::get_separation(UnitData& p_unit) {
@@ -729,7 +776,7 @@ Vector2 UnitManager::get_separation(UnitData& p_unit) {
     float collision_radius = p_unit.stats->get_collision_radius();
     float search_radius = collision_radius * separation_radius_factor;
     // 关键改进：确保搜索半径足以发现附近的大型单位
-    search_radius = Math::max(search_radius, collision_radius + 100.0f);
+    search_radius = Math::max(search_radius, collision_radius + separation_extra_radius);
 
     // 扫描附近的单位，产生一个相反的推力。IDLE 状态的推力系数通常更高，以保持阵型。
     for (int unit_idx : get_nearby_units(p_unit.position, search_radius)) {
@@ -751,22 +798,22 @@ Vector2 UnitManager::get_separation(UnitData& p_unit) {
         float dist = Math::sqrt(dist_sq);
 
         // 计算两个单位边缘之间的理想距离
-        float min_dist = (collision_radius + nearby_unit.stats->get_collision_radius()) * 1.1f;
+        float min_dist = (collision_radius + nearby_unit.stats->get_collision_radius()) * separation_min_dist_factor;
 
         if (dist < min_dist && dist > 0.001f) {
             // 越拥挤，力越大
             float k = 1.0f;
             if (is_IDLE) {
                 if (nearby_unit.state != IDLE) {
-                    k = 2.0f;
+                    k = sep_idle_vs_moving_k;
                 }
                 else {
-                    k = 0.5f;
+                    k = sep_idle_vs_idle_k;
                 }
             }
             else {
                 if (nearby_unit.state == IDLE) {
-                    k = 0.1f;
+                    k = sep_moving_vs_idle_k;
                 }
             }
 
@@ -804,7 +851,14 @@ Vector2 UnitManager::get_force(UnitData& p_unit) {
 }
 
 void UnitManager::stop_unit(UnitData& p_unit) {
-    p_unit.state = IDLE;
+    // 火炮类单位：停下后进入部署状态，部署完成才能开火
+    if (p_unit.stats.is_valid() && p_unit.stats->get_deploy_time() > 0.0f && !p_unit.is_deployed) {
+        p_unit.state = DEPLOYING;
+        p_unit.deploy_timer = 0.0f;
+    }
+    else {
+        p_unit.state = IDLE;
+    }
     p_unit.velocity = Vector2(0, 0);
     p_unit.is_in_critial_area = false;
     if (p_unit.temp_group_id != -1) {
@@ -818,6 +872,7 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
         break;
     }
     case MOVING: {
+        p_unit.is_deployed = false; // 移动即解除部署（火炮类）
         UnitGroup* group = group_manager->get_temp_group(p_unit.temp_group_id);
         if (!group) {
             // 如果组已经不存在了（被清理了），尝试停下或者重新寻找逻辑
@@ -826,21 +881,21 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
         }
 
         float radius = p_unit.stats->get_collision_radius();
-        bool is_air = (p_unit.height > AIR_HEIGHT_THRESHOLD);
+        bool is_air = (p_unit.height > air_height_threshold);
 
         float current_int = flow_field_manager->get_integration(p_unit.position, p_unit.target_pos, p_unit.get_nav_type());
-        float limit_int = ((is_air) ? group->air_target_integration : group->ground_target_integration) * 1.1f +
+        float limit_int = ((is_air) ? group->air_target_integration : group->ground_target_integration) * target_integration_factor +
             (radius / (float)(flow_field_manager->get_cell_size().x) *
                 (flow_field_manager->get_cost(flow_field_manager->world_to_grid(p_unit.position), p_unit.get_nav_type())));
 
-        if (current_int < limit_int + 3.0f) {
+        if (current_int < limit_int + critical_area_integration_margin) {
             p_unit.is_in_critial_area = true;
             p_unit.target_pos_offset = Vector2(0, 0);
         }
 
-        float desired_distance = 1.5f * p_unit.stats->collision_radius;
+        float desired_distance = arrival_desired_distance_factor * p_unit.stats->collision_radius;
         float soft_arrival_distance_squared = is_air ? group->air_idle_radius_sq_sum : group->ground_idle_radius_sq_sum;
-        float soft_arrivel_distance = std::sqrtf(soft_arrival_distance_squared) * 1.1f + radius;
+        float soft_arrivel_distance = std::sqrtf(soft_arrival_distance_squared) * soft_arrival_factor + radius;
         soft_arrival_distance_squared = soft_arrivel_distance * soft_arrivel_distance;
 
         float distance_squared = (p_unit.position).distance_squared_to(p_unit.target_pos);
@@ -854,22 +909,22 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
         p_unit.stuck_timer += (float)p_delta;
 
         // 每 0.5 秒检查一次位移（检查频率不宜太高，要给单位挤过去的时间）
-        const float STUCK_CHECK_INTERVAL = 0.5f;
+        const float STUCK_CHECK_INTERVAL = stuck_check_interval;
         if (p_unit.stuck_timer >= STUCK_CHECK_INTERVAL) {
             // 计算这段时间内的实际位移
             float move_dist_sq = p_unit.position.distance_squared_to(p_unit.last_stuck_check_pos);
             float rotation = UtilityFunctions::angle_difference(p_unit.rotation, p_unit.last_stuck_check_rot);
 
             // 阈值设定
-            float stuck_threshold = std::min(0.025f * (p_unit.stats->move_speed), 0.5f);
-            float stuck_rotation_threshold = 0.08f * (p_unit.stats->turn_speed);
+            float stuck_threshold = std::min(stuck_threshold_move_factor * (p_unit.stats->move_speed), stuck_threshold_min);
+            float stuck_rotation_threshold = stuck_rotation_threshold_factor * (p_unit.stats->turn_speed);
 
             if (move_dist_sq >= (stuck_threshold * stuck_threshold) || 
                 rotation >= stuck_rotation_threshold) {
                 p_unit.stuck_timer = 0.0f;
             }
 
-            if (p_unit.stuck_timer >= 8.0f) {
+            if (p_unit.stuck_timer >= stuck_give_up_time) {
                 stop_unit(p_unit);
                 p_unit.stuck_timer = 0.0f;
             }
@@ -881,7 +936,7 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
 
         if (distance_squared <= soft_arrival_distance_squared ||
             (!is_air && current_int <= limit_int && current_int >= 0)) {
-            std::vector<int> ahead_units = get_nearby_units(p_unit.position, 3.0f * p_unit.stats->collision_radius);
+            std::vector<int> ahead_units = get_nearby_units(p_unit.position, soft_arrival_neighbor_radius_factor * p_unit.stats->collision_radius);
             for (int neighbor_idx : ahead_units) {
                 UnitData& neighbor = units[neighbor_idx];
                 if (neighbor.id != p_unit.id && neighbor.state == IDLE && neighbor.target_grid == p_unit.target_grid) {
@@ -896,7 +951,7 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
         }
 
         p_unit.path_recheck_timer += (float)p_delta;
-        if (p_unit.path_recheck_timer >= 0.8) { // 每0.8秒检查一次
+        if (p_unit.path_recheck_timer >= path_recheck_interval) { // 每 interval 秒检查一次
             p_unit.path_recheck_timer = 0.0;
 
             // 调用新的探测函数
@@ -928,6 +983,7 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
         break;
     }
     case CHASING: {
+        p_unit.is_deployed = false; // 移动即解除部署（火炮类）
         int nav_type = p_unit.get_nav_type();
         // 1. 获取目标真实位置（可能在建筑内或墙里）
         Vector2 real_target_pos = p_unit.target_pos;
@@ -944,8 +1000,8 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
         // 核心修正：将目标点限制在格子的范围内（投影到边缘）
         // 这样 target_pos 就会位于格子离敌人最近的那条边上
         p_unit.target_pos = Vector2(
-            Math::clamp(real_target_pos.x, cell_min.x + 1.0f, cell_max.x - 1.0f),
-            Math::clamp(real_target_pos.y, cell_min.y + 1.0f, cell_max.y - 1.0f)
+            Math::clamp(real_target_pos.x, cell_min.x + target_projection_margin, cell_max.x - target_projection_margin),
+            Math::clamp(real_target_pos.y, cell_min.y + target_projection_margin, cell_max.y - target_projection_margin)
         );
 
         bool target_grid_changed = (best_grid != p_unit.target_grid);
@@ -954,7 +1010,7 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
         p_unit.path_recheck_timer += (float)p_delta;
 
         // 4. 定时或在目标剧烈移动时更新路径状态
-        if (target_grid_changed || p_unit.path_recheck_timer >= 0.5f) {
+        if (target_grid_changed || p_unit.path_recheck_timer >= chase_path_recheck_interval) {
             p_unit.path_recheck_timer = 0.0f;
 
             // 检查从当前位置到目标的“直线”是否畅通
@@ -979,6 +1035,15 @@ void UnitManager::update_state(UnitData& p_unit, double p_delta) {
         }
         break;
     }
+    case DEPLOYING: {
+        // 部署倒计时：结束后转为已部署的 IDLE，才允许索敌/开火
+        p_unit.deploy_timer += (float)p_delta;
+        if (p_unit.deploy_timer >= p_unit.stats->get_deploy_time()) {
+            p_unit.is_deployed = true;
+            p_unit.state = IDLE;
+        }
+        break;
+    }
     }
 }
 
@@ -997,13 +1062,13 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
             float distance_squared = p_unit.position.distance_squared_to(target_with_offset);
 
             // 定义开始减速的半径（通常是碰撞半径的 3~5 倍）
-            float arrival_radius = p_unit.stats->get_collision_radius() * 5.0f;
+            float arrival_radius = p_unit.stats->get_collision_radius() * arrival_slow_radius_factor;
             float arrival_radius_squared = arrival_radius * arrival_radius;
 
             if (distance_squared < arrival_radius_squared) {
                 // 计算减速因子 (0.0 到 1.0)
                 // 为了防止单位完全停不下来，给一个最小速度百分比 (比如 0.2)
-                float arrival_modifier = Math::max(0.2f, distance_squared / arrival_radius_squared);
+                float arrival_modifier = Math::max(arrival_min_speed_factor, distance_squared / arrival_radius_squared);
                 final_max_speed *= arrival_modifier;
             }
         }
@@ -1015,11 +1080,11 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
 
             // 只有当真正快进入“射程”时才减速，而不是快接近“格子边缘”时减速
             // 如果 dist_to_target 很大，即使接近了 target_pos (投影点)，也不要大幅减速
-            float slow_down_start = stop_dist * 1.5f;
+            float slow_down_start = stop_dist * chase_slow_down_factor;
 
             if (dist_to_target < slow_down_start) {
                 float factor = (dist_to_target - stop_dist) / (slow_down_start - stop_dist);
-                final_max_speed *= Math::clamp(factor, 0.5f, 1.0f); // 保持至少 50% 速度冲刺
+                final_max_speed *= Math::clamp(factor, chase_min_speed_factor, 1.0f); // 保持至少 50% 速度冲刺
             }
             // 注意：如果目标不可达，投影点 target_pos 会挡住单位，
             // 物理系统的 move() 函数自然会处理碰撞，不需要这里提前减速到 0
@@ -1039,9 +1104,9 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
 
                 // 修正系数：每落后 100 像素，提速 20%
                 // 修正范围限制在 80% 到 120% 之间，防止速度过快或停下
-                float k = 0.02f; // 调节灵敏度
+                float k = rubberband_sensitivity; // 调节灵敏度
                 float speed_modifier = 1.0f + (diff * k);
-                speed_modifier = Math::clamp(speed_modifier, 0.8f, 1.2f);
+                speed_modifier = Math::clamp(speed_modifier, rubberband_speed_min, rubberband_speed_max);
 
                 final_max_speed *= speed_modifier;
             }
@@ -1058,8 +1123,8 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     // 现在的 steering_vec 不仅代表“我想去哪”，还代表“我想怎么绕开障碍”
     Vector2 steering_vec = flow_vec + sep_force;
 
-    // 如果没有任何引导力且处于 IDLE，则不产生动力
-    if ((p_unit.state == IDLE || p_unit.state == ATTACKING) && steering_vec.length_squared() < 1.0f) {
+    // 如果没有任何引导力且处于 IDLE/DEPLOYING，则不产生动力
+    if ((p_unit.state == IDLE || p_unit.state == ATTACKING || p_unit.state == DEPLOYING) && steering_vec.length_squared() < force_threshold_squared) {
         steering_vec = Vector2(0, 0);
     }
 
@@ -1067,7 +1132,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
 
     // --- 计算动力 (Propulsion) ---
     Vector2 propulsion_force = Vector2(0, 0);
-    if ((p_unit.state != IDLE && p_unit.state != ATTACKING) && (desired_dir.length_squared()) > 0) {
+    if ((p_unit.state != IDLE && p_unit.state != ATTACKING && p_unit.state != DEPLOYING) && (desired_dir.length_squared()) > 0) {
         // 单位当前的物理朝向
         Vector2 forward_vec = Vector2(Math::cos(p_unit.rotation), Math::sin(p_unit.rotation));
 
@@ -1077,11 +1142,11 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
         // 动力方向修正：
         // 引擎主要向 forward_vec 推，但我们允许一部分动力直接作用于 desired_dir 分量上
         // 这样重型单位在转向时也会有一定的侧向位移，显得更自然
-        Vector2 engine_dir = (forward_vec * 0.7f + desired_dir * 0.3f).normalized();
+        Vector2 engine_dir = (forward_vec * engine_forward_ratio + desired_dir * (1.0f - engine_forward_ratio)).normalized();
 
         // 推进力 = 引擎功率 * 朝向修正系数
-        // (0.1f 是基础动力，保证单位在原地转身时也能缓慢挪动)
-        propulsion_force = engine_dir * (stat_accel * mass * (0.1f + 0.9f * alignment)) * 1000.0f;
+        // (propulsion_min_power 是基础动力，保证单位在原地转身时也能缓慢挪动)
+        propulsion_force = engine_dir * (stat_accel * mass * (propulsion_min_power + (1.0f - propulsion_min_power) * alignment)) * propulsion_force_scale;
     }
 
     // --- 综合所有力并计算加速度 ---
@@ -1095,7 +1160,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     }
 
     // 总力 = 修正后的动力 + 物理推力 + 修正后的分离力(作为物理补偿)
-    Vector2 total_force = propulsion_force + external_physics_force + sep_force * 0.5f;
+    Vector2 total_force = propulsion_force + external_physics_force + sep_force * sep_force_to_total_ratio;
 
     // --- D. 计算加速度并应用摩擦力 ---
     // a = F / m
@@ -1104,7 +1169,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     // 阻尼/摩擦力 (Friction)
     // 这里的摩擦力与速度成正比，防止单位无限滑行
     // 质量越大，摩擦力（阻力）也越大，这样重型单位停下来也需要更久
-    float current_friction = (p_unit.state == IDLE || p_unit.state == ATTACKING) ? friction_factor * 3.0f : friction_factor;
+    float current_friction = (p_unit.state == IDLE || p_unit.state == ATTACKING || p_unit.state == DEPLOYING) ? friction_factor * idle_friction_multiplier : friction_factor;
     acceleration_vec -= p_unit.velocity * current_friction;
 
     // --- E. 更新速度 ---
@@ -1116,7 +1181,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     }
 
     // --- F. 旋转逻辑 ---
-    if (p_unit.state != IDLE) {
+    if (p_unit.state != IDLE && p_unit.state != DEPLOYING) {
         float target_angle = desired_dir.angle();
         if (p_unit.state == ATTACKING) { target_angle = p_unit.target_rotation; }
         float angle_diff = UtilityFunctions::angle_difference(p_unit.rotation, target_angle);
@@ -1128,8 +1193,8 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
         // turn_accel /= (mass * 0.5f); 
 
         float target_angular_v = Math::sign(angle_diff) * turn_speed;
-        if (Math::abs(angle_diff) < 0.5f) {
-            target_angular_v = (angle_diff / 0.5f) * turn_speed;
+        if (Math::abs(angle_diff) < turn_ramp_angle) {
+            target_angular_v = (angle_diff / turn_ramp_angle) * turn_speed;
         }
 
         p_unit.angular_velocity = UtilityFunctions::move_toward(
@@ -1142,7 +1207,7 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
     p_unit.rotation += p_unit.angular_velocity * p_delta;
 
     // 停止微小移动
-    if ((p_unit.state == IDLE || p_unit.state == ATTACKING) && (p_unit.velocity).length_squared() < 1.0f) {
+    if ((p_unit.state == IDLE || p_unit.state == ATTACKING || p_unit.state == DEPLOYING) && (p_unit.velocity).length_squared() < velocity_threshold_squared) {
         p_unit.velocity = Vector2(0, 0);
     }
 }
@@ -1159,10 +1224,10 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
     Vector2i cell_size = flow_field_manager->get_cell_size();
      
     // --- 单位之间的平滑排斥 ---
-    std::vector<int> nearby = get_nearby_units(next_pos, radius * 2.5f);
+    std::vector<int> nearby = get_nearby_units(next_pos, radius * collision_resolve_radius_factor);
 
     float mass_self = p_unit.stats->get_mass();
-    float resistance_self = (p_unit.state == IDLE || p_unit.state == ATTACKING) ? 4.0f : 1.0f;
+    float resistance_self = (p_unit.state == IDLE || p_unit.state == ATTACKING) ? idle_resistance : 1.0f;
     float effective_mass_self = mass_self * resistance_self;
 
     for (int other_idx : nearby) {
@@ -1183,7 +1248,7 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
 
             // 基于质量和状态的分配比例
             float mass_other = other.stats->get_mass();
-            float resistance_other = (other.state == IDLE || other.state == ATTACKING) ? 4.0f : 1.0f;
+            float resistance_other = (other.state == IDLE || other.state == ATTACKING) ? idle_resistance : 1.0f;
             float effective_mass_other = mass_other * resistance_other;
 
             float total_res = effective_mass_self + effective_mass_other;
@@ -1192,7 +1257,7 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
             // --- 核心优化 A: 渐进式修正 (Relaxation) ---
             // 不要在一帧内移走所有 overlap，每帧只移走 15%~20%
             // 这样重叠会在 5-10 帧内平滑消除，看起来就像是由于“挤压”而滑开
-            float smoothing = 0.4f;
+            float smoothing = collision_smoothing;
             float correction_amount = overlap * my_push_share * smoothing;
             next_pos -= resolve_dir * correction_amount;
 
@@ -1236,9 +1301,9 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
                 float distance_squared = diff.length_squared();
 
                 if (distance_squared < radius * radius && distance_squared > 0.00001f) {
-                    float factor = 0.5;
+                    float factor = wall_collision_factor_moving;
                     if (p_unit.state == IDLE) {
-                        factor = 1.0;
+                        factor = wall_collision_factor_idle;
                     }
 
                     float distance = Math::sqrt(distance_squared);
@@ -1308,10 +1373,32 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
 
             mm->set_instance_transform(i, xform);
 
-            int frames = (unit.state == MOVING) ? s_ptr->get_move_frames() : s_ptr->get_idle_frames();
-            int row = (unit.state == MOVING) ? s_ptr->get_move_row() : s_ptr->get_idle_row();
+            // 动画帧选择：MOVING 用移动行；DEPLOYING 用部署行（进度驱动）；其余用待机行
+            int frames, row;
+            if (unit.state == MOVING) {
+                frames = s_ptr->get_move_frames();
+                row = s_ptr->get_move_row();
+            }
+            else if (unit.state == DEPLOYING) {
+                frames = s_ptr->get_deploy_frames();
+                row = s_ptr->get_deploy_row();
+            }
+            else {
+                frames = s_ptr->get_idle_frames();
+                row = s_ptr->get_idle_row();
+            }
             float duration = (float)frames / s_ptr->get_anim_fps();
-            int frame_idx = (int)(Math::fmod(unit.anim_time, duration) * s_ptr->get_anim_fps());
+            int frame_idx;
+            if (unit.state == DEPLOYING && frames > 1) {
+                // 部署动画进度跟随部署计时：部署开始第0帧，结束恰好最后一帧（清晰反馈）
+                float deploy_total = Math::max(unit.stats->get_deploy_time(), 0.001f);
+                float progress = Math::clamp(unit.deploy_timer / deploy_total, 0.0f, 1.0f);
+                frame_idx = (int)(progress * frames);
+                if (frame_idx >= frames) frame_idx = frames - 1;
+            }
+            else {
+                frame_idx = (int)(Math::fmod(unit.anim_time, duration) * s_ptr->get_anim_fps());
+            }
 
             float modulate = 1.0;
             if (p_selection_manager->is_unit_selected(unit.id)) {
@@ -1334,7 +1421,7 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
             float move_dist = visual_position.distance_to(unit.last_visual_pos);
             unit.last_visual_pos = visual_position;
 
-            if (unit.state != IDLE && unit.height < AIR_HEIGHT_THRESHOLD) {
+            if (unit.state != IDLE && unit.height < air_height_threshold) {
                 unit.dust_accumulator += move_dist;
 
                 float radius = unit.stats->get_collision_radius();
@@ -1456,8 +1543,10 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
 
         hp_mm->set_instance_transform(i, xform);
 
-        // 3. 计算血量百分比
-        float hp_ratio = (float)unit.current_health / (float)unit.stats->get_health_max();
+        // 3. 计算血量百分比（护盾+生命合并显示）
+        float total_now = unit.current_health + unit.current_shield;
+        float total_max = unit.stats->get_health_max() + unit.stats->get_shield_max();
+        float hp_ratio = total_max > 0.0f ? total_now / total_max : 1.0f;
 
         // 4. 控制显示逻辑 (比如：受伤显示，或者选中显示)
         bool is_selected = p_selection_manager->is_unit_selected(unit.id);
@@ -1501,6 +1590,47 @@ void UnitManager::update_multimesh_buffer(double p_delta, float p_alpha, Selecti
         if (unit.state == DYING) {
             mmm->set_instance_transform(i, Transform3D().scaled(Vector3(0, 0, 0)));
         }
+    }
+
+    // --- 更新护盾渲染（仅护盾上限 > 0 的单位，如机甲） ---
+    if (!shield_renderer) {
+        _setup_shield_renderer();
+    }
+    int shielded = 0;
+    for (const auto& u : units) {
+        if (u.stats->get_shield_max() > 0.0f) shielded++;
+    }
+    Ref<MultiMesh> sh_mm = shield_renderer->get_multimesh();
+    if (sh_mm->get_instance_count() != shielded) {
+        sh_mm->set_instance_count(shielded);
+    }
+
+    int shield_idx = 0;
+    for (int i = 0; i < units.size(); ++i) {
+        UnitData& unit = units[i];
+        if (unit.stats->get_shield_max() <= 0.0f) continue;
+
+        Vector2 shield_pos = UtilityFunctions::lerp(unit.prev_position, unit.next_position, p_alpha);
+        float shield_height = UtilityFunctions::lerp(unit.prev_height, unit.next_height, p_alpha);
+        float fd = shield_pos.y * 0.0001f;
+
+        Transform3D sh_xform;
+        sh_xform.origin = Vector3(shield_pos.x, shield_height + fd + 0.1f, shield_pos.y - shield_height);
+        sh_xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI / 2.0);
+        // 护盾大小随碰撞半径：覆盖单位周边
+        float sh_size = unit.stats->get_collision_radius() * 4.5f;
+        sh_xform.basis = sh_xform.basis.scaled(Vector3(sh_size, sh_size, sh_size));
+
+        if (unit.state == DYING) {
+            sh_mm->set_instance_transform(shield_idx, Transform3D().scaled(Vector3(0, 0, 0)));
+        }
+        else {
+            sh_mm->set_instance_transform(shield_idx, sh_xform);
+        }
+        // 护盾比例：护盾越低圆弧越淡
+        float ratio = unit.current_shield / unit.stats->get_shield_max();
+        sh_mm->set_instance_custom_data(shield_idx, Color(ratio, 0, 0, 0));
+        shield_idx++;
     }
 }
 
@@ -1830,6 +1960,96 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_desired_integration"), &UnitManager::get_desired_integration);
     ClassDB::bind_method(D_METHOD("set_desired_integration", "p_val"), &UnitManager::set_desired_integration);
 
+    // --- 集中调参绑定 (game_tuning) ---
+    ClassDB::bind_method(D_METHOD("get_air_height_threshold"), &UnitManager::get_air_height_threshold);
+    ClassDB::bind_method(D_METHOD("set_air_height_threshold", "p_val"), &UnitManager::set_air_height_threshold);
+    ClassDB::bind_method(D_METHOD("get_density_limit"), &UnitManager::get_density_limit);
+    ClassDB::bind_method(D_METHOD("set_density_limit", "p_val"), &UnitManager::set_density_limit);
+    ClassDB::bind_method(D_METHOD("get_density_update_interval"), &UnitManager::get_density_update_interval);
+    ClassDB::bind_method(D_METHOD("set_density_update_interval", "p_val"), &UnitManager::set_density_update_interval);
+    ClassDB::bind_method(D_METHOD("get_idle_density_factor"), &UnitManager::get_idle_density_factor);
+    ClassDB::bind_method(D_METHOD("set_idle_density_factor", "p_val"), &UnitManager::set_idle_density_factor);
+    ClassDB::bind_method(D_METHOD("get_density_next_cell_factor"), &UnitManager::get_density_next_cell_factor);
+    ClassDB::bind_method(D_METHOD("set_density_next_cell_factor", "p_val"), &UnitManager::set_density_next_cell_factor);
+    ClassDB::bind_method(D_METHOD("get_arrival_stop_distance_sq"), &UnitManager::get_arrival_stop_distance_sq);
+    ClassDB::bind_method(D_METHOD("set_arrival_stop_distance_sq", "p_val"), &UnitManager::set_arrival_stop_distance_sq);
+    ClassDB::bind_method(D_METHOD("get_density_avoidance_strength"), &UnitManager::get_density_avoidance_strength);
+    ClassDB::bind_method(D_METHOD("set_density_avoidance_strength", "p_val"), &UnitManager::set_density_avoidance_strength);
+    ClassDB::bind_method(D_METHOD("get_density_avoidance_flow_strength"), &UnitManager::get_density_avoidance_flow_strength);
+    ClassDB::bind_method(D_METHOD("set_density_avoidance_flow_strength", "p_val"), &UnitManager::set_density_avoidance_flow_strength);
+    ClassDB::bind_method(D_METHOD("get_separation_extra_radius"), &UnitManager::get_separation_extra_radius);
+    ClassDB::bind_method(D_METHOD("set_separation_extra_radius", "p_val"), &UnitManager::set_separation_extra_radius);
+    ClassDB::bind_method(D_METHOD("get_separation_min_dist_factor"), &UnitManager::get_separation_min_dist_factor);
+    ClassDB::bind_method(D_METHOD("set_separation_min_dist_factor", "p_val"), &UnitManager::set_separation_min_dist_factor);
+    ClassDB::bind_method(D_METHOD("get_sep_idle_vs_idle_k"), &UnitManager::get_sep_idle_vs_idle_k);
+    ClassDB::bind_method(D_METHOD("set_sep_idle_vs_idle_k", "p_val"), &UnitManager::set_sep_idle_vs_idle_k);
+    ClassDB::bind_method(D_METHOD("get_sep_idle_vs_moving_k"), &UnitManager::get_sep_idle_vs_moving_k);
+    ClassDB::bind_method(D_METHOD("set_sep_idle_vs_moving_k", "p_val"), &UnitManager::set_sep_idle_vs_moving_k);
+    ClassDB::bind_method(D_METHOD("get_sep_moving_vs_idle_k"), &UnitManager::get_sep_moving_vs_idle_k);
+    ClassDB::bind_method(D_METHOD("set_sep_moving_vs_idle_k", "p_val"), &UnitManager::set_sep_moving_vs_idle_k);
+    ClassDB::bind_method(D_METHOD("get_sep_force_to_total_ratio"), &UnitManager::get_sep_force_to_total_ratio);
+    ClassDB::bind_method(D_METHOD("set_sep_force_to_total_ratio", "p_val"), &UnitManager::set_sep_force_to_total_ratio);
+    ClassDB::bind_method(D_METHOD("get_target_integration_factor"), &UnitManager::get_target_integration_factor);
+    ClassDB::bind_method(D_METHOD("set_target_integration_factor", "p_val"), &UnitManager::set_target_integration_factor);
+    ClassDB::bind_method(D_METHOD("get_critical_area_integration_margin"), &UnitManager::get_critical_area_integration_margin);
+    ClassDB::bind_method(D_METHOD("set_critical_area_integration_margin", "p_val"), &UnitManager::set_critical_area_integration_margin);
+    ClassDB::bind_method(D_METHOD("get_arrival_desired_distance_factor"), &UnitManager::get_arrival_desired_distance_factor);
+    ClassDB::bind_method(D_METHOD("set_arrival_desired_distance_factor", "p_val"), &UnitManager::set_arrival_desired_distance_factor);
+    ClassDB::bind_method(D_METHOD("get_soft_arrival_factor"), &UnitManager::get_soft_arrival_factor);
+    ClassDB::bind_method(D_METHOD("set_soft_arrival_factor", "p_val"), &UnitManager::set_soft_arrival_factor);
+    ClassDB::bind_method(D_METHOD("get_soft_arrival_neighbor_radius_factor"), &UnitManager::get_soft_arrival_neighbor_radius_factor);
+    ClassDB::bind_method(D_METHOD("set_soft_arrival_neighbor_radius_factor", "p_val"), &UnitManager::set_soft_arrival_neighbor_radius_factor);
+    ClassDB::bind_method(D_METHOD("get_stuck_check_interval"), &UnitManager::get_stuck_check_interval);
+    ClassDB::bind_method(D_METHOD("set_stuck_check_interval", "p_val"), &UnitManager::set_stuck_check_interval);
+    ClassDB::bind_method(D_METHOD("get_stuck_threshold_move_factor"), &UnitManager::get_stuck_threshold_move_factor);
+    ClassDB::bind_method(D_METHOD("set_stuck_threshold_move_factor", "p_val"), &UnitManager::set_stuck_threshold_move_factor);
+    ClassDB::bind_method(D_METHOD("get_stuck_threshold_min"), &UnitManager::get_stuck_threshold_min);
+    ClassDB::bind_method(D_METHOD("set_stuck_threshold_min", "p_val"), &UnitManager::set_stuck_threshold_min);
+    ClassDB::bind_method(D_METHOD("get_stuck_rotation_threshold_factor"), &UnitManager::get_stuck_rotation_threshold_factor);
+    ClassDB::bind_method(D_METHOD("set_stuck_rotation_threshold_factor", "p_val"), &UnitManager::set_stuck_rotation_threshold_factor);
+    ClassDB::bind_method(D_METHOD("get_stuck_give_up_time"), &UnitManager::get_stuck_give_up_time);
+    ClassDB::bind_method(D_METHOD("set_stuck_give_up_time", "p_val"), &UnitManager::set_stuck_give_up_time);
+    ClassDB::bind_method(D_METHOD("get_path_recheck_interval"), &UnitManager::get_path_recheck_interval);
+    ClassDB::bind_method(D_METHOD("set_path_recheck_interval", "p_val"), &UnitManager::set_path_recheck_interval);
+    ClassDB::bind_method(D_METHOD("get_chase_path_recheck_interval"), &UnitManager::get_chase_path_recheck_interval);
+    ClassDB::bind_method(D_METHOD("set_chase_path_recheck_interval", "p_val"), &UnitManager::set_chase_path_recheck_interval);
+    ClassDB::bind_method(D_METHOD("get_arrival_slow_radius_factor"), &UnitManager::get_arrival_slow_radius_factor);
+    ClassDB::bind_method(D_METHOD("set_arrival_slow_radius_factor", "p_val"), &UnitManager::set_arrival_slow_radius_factor);
+    ClassDB::bind_method(D_METHOD("get_arrival_min_speed_factor"), &UnitManager::get_arrival_min_speed_factor);
+    ClassDB::bind_method(D_METHOD("set_arrival_min_speed_factor", "p_val"), &UnitManager::set_arrival_min_speed_factor);
+    ClassDB::bind_method(D_METHOD("get_chase_slow_down_factor"), &UnitManager::get_chase_slow_down_factor);
+    ClassDB::bind_method(D_METHOD("set_chase_slow_down_factor", "p_val"), &UnitManager::set_chase_slow_down_factor);
+    ClassDB::bind_method(D_METHOD("get_chase_min_speed_factor"), &UnitManager::get_chase_min_speed_factor);
+    ClassDB::bind_method(D_METHOD("set_chase_min_speed_factor", "p_val"), &UnitManager::set_chase_min_speed_factor);
+    ClassDB::bind_method(D_METHOD("get_rubberband_sensitivity"), &UnitManager::get_rubberband_sensitivity);
+    ClassDB::bind_method(D_METHOD("set_rubberband_sensitivity", "p_val"), &UnitManager::set_rubberband_sensitivity);
+    ClassDB::bind_method(D_METHOD("get_rubberband_speed_min"), &UnitManager::get_rubberband_speed_min);
+    ClassDB::bind_method(D_METHOD("set_rubberband_speed_min", "p_val"), &UnitManager::set_rubberband_speed_min);
+    ClassDB::bind_method(D_METHOD("get_rubberband_speed_max"), &UnitManager::get_rubberband_speed_max);
+    ClassDB::bind_method(D_METHOD("set_rubberband_speed_max", "p_val"), &UnitManager::set_rubberband_speed_max);
+    ClassDB::bind_method(D_METHOD("get_engine_forward_ratio"), &UnitManager::get_engine_forward_ratio);
+    ClassDB::bind_method(D_METHOD("set_engine_forward_ratio", "p_val"), &UnitManager::set_engine_forward_ratio);
+    ClassDB::bind_method(D_METHOD("get_propulsion_force_scale"), &UnitManager::get_propulsion_force_scale);
+    ClassDB::bind_method(D_METHOD("set_propulsion_force_scale", "p_val"), &UnitManager::set_propulsion_force_scale);
+    ClassDB::bind_method(D_METHOD("get_propulsion_min_power"), &UnitManager::get_propulsion_min_power);
+    ClassDB::bind_method(D_METHOD("set_propulsion_min_power", "p_val"), &UnitManager::set_propulsion_min_power);
+    ClassDB::bind_method(D_METHOD("get_idle_friction_multiplier"), &UnitManager::get_idle_friction_multiplier);
+    ClassDB::bind_method(D_METHOD("set_idle_friction_multiplier", "p_val"), &UnitManager::set_idle_friction_multiplier);
+    ClassDB::bind_method(D_METHOD("get_turn_ramp_angle"), &UnitManager::get_turn_ramp_angle);
+    ClassDB::bind_method(D_METHOD("set_turn_ramp_angle", "p_val"), &UnitManager::set_turn_ramp_angle);
+    ClassDB::bind_method(D_METHOD("get_collision_resolve_radius_factor"), &UnitManager::get_collision_resolve_radius_factor);
+    ClassDB::bind_method(D_METHOD("set_collision_resolve_radius_factor", "p_val"), &UnitManager::set_collision_resolve_radius_factor);
+    ClassDB::bind_method(D_METHOD("get_idle_resistance"), &UnitManager::get_idle_resistance);
+    ClassDB::bind_method(D_METHOD("set_idle_resistance", "p_val"), &UnitManager::set_idle_resistance);
+    ClassDB::bind_method(D_METHOD("get_collision_smoothing"), &UnitManager::get_collision_smoothing);
+    ClassDB::bind_method(D_METHOD("set_collision_smoothing", "p_val"), &UnitManager::set_collision_smoothing);
+    ClassDB::bind_method(D_METHOD("get_wall_collision_factor_moving"), &UnitManager::get_wall_collision_factor_moving);
+    ClassDB::bind_method(D_METHOD("set_wall_collision_factor_moving", "p_val"), &UnitManager::set_wall_collision_factor_moving);
+    ClassDB::bind_method(D_METHOD("get_wall_collision_factor_idle"), &UnitManager::get_wall_collision_factor_idle);
+    ClassDB::bind_method(D_METHOD("set_wall_collision_factor_idle", "p_val"), &UnitManager::set_wall_collision_factor_idle);
+    ClassDB::bind_method(D_METHOD("get_target_projection_margin"), &UnitManager::get_target_projection_margin);
+    ClassDB::bind_method(D_METHOD("set_target_projection_margin", "p_val"), &UnitManager::set_target_projection_margin);
+
     ADD_GROUP("Force Settings", "");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "flow_factor"), "set_flow_factor", "get_flow_factor");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "separation_factor"), "set_separation_factor", "get_separation_factor");
@@ -1842,6 +2062,52 @@ void UnitManager::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "force_threshold_squared"), "set_force_threshold_squared", "get_force_threshold_squared");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "velocity_threshold_squared"), "set_velocity_threshold_squared", "get_velocity_threshold_squared");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "desired_integration"), "set_desired_integration", "get_desired_integration");
+
+    ADD_GROUP("Movement Tuning", "");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "air_height_threshold"), "set_air_height_threshold", "get_air_height_threshold");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "density_limit"), "set_density_limit", "get_density_limit");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "density_update_interval"), "set_density_update_interval", "get_density_update_interval");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "idle_density_factor"), "set_idle_density_factor", "get_idle_density_factor");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "density_next_cell_factor"), "set_density_next_cell_factor", "get_density_next_cell_factor");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "arrival_stop_distance_sq"), "set_arrival_stop_distance_sq", "get_arrival_stop_distance_sq");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "density_avoidance_strength"), "set_density_avoidance_strength", "get_density_avoidance_strength");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "density_avoidance_flow_strength"), "set_density_avoidance_flow_strength", "get_density_avoidance_flow_strength");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "separation_extra_radius"), "set_separation_extra_radius", "get_separation_extra_radius");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "separation_min_dist_factor"), "set_separation_min_dist_factor", "get_separation_min_dist_factor");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "sep_idle_vs_idle_k"), "set_sep_idle_vs_idle_k", "get_sep_idle_vs_idle_k");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "sep_idle_vs_moving_k"), "set_sep_idle_vs_moving_k", "get_sep_idle_vs_moving_k");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "sep_moving_vs_idle_k"), "set_sep_moving_vs_idle_k", "get_sep_moving_vs_idle_k");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "sep_force_to_total_ratio"), "set_sep_force_to_total_ratio", "get_sep_force_to_total_ratio");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "target_integration_factor"), "set_target_integration_factor", "get_target_integration_factor");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "critical_area_integration_margin"), "set_critical_area_integration_margin", "get_critical_area_integration_margin");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "arrival_desired_distance_factor"), "set_arrival_desired_distance_factor", "get_arrival_desired_distance_factor");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "soft_arrival_factor"), "set_soft_arrival_factor", "get_soft_arrival_factor");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "soft_arrival_neighbor_radius_factor"), "set_soft_arrival_neighbor_radius_factor", "get_soft_arrival_neighbor_radius_factor");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "stuck_check_interval"), "set_stuck_check_interval", "get_stuck_check_interval");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "stuck_threshold_move_factor"), "set_stuck_threshold_move_factor", "get_stuck_threshold_move_factor");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "stuck_threshold_min"), "set_stuck_threshold_min", "get_stuck_threshold_min");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "stuck_rotation_threshold_factor"), "set_stuck_rotation_threshold_factor", "get_stuck_rotation_threshold_factor");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "stuck_give_up_time"), "set_stuck_give_up_time", "get_stuck_give_up_time");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "path_recheck_interval"), "set_path_recheck_interval", "get_path_recheck_interval");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "chase_path_recheck_interval"), "set_chase_path_recheck_interval", "get_chase_path_recheck_interval");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "arrival_slow_radius_factor"), "set_arrival_slow_radius_factor", "get_arrival_slow_radius_factor");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "arrival_min_speed_factor"), "set_arrival_min_speed_factor", "get_arrival_min_speed_factor");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "chase_slow_down_factor"), "set_chase_slow_down_factor", "get_chase_slow_down_factor");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "chase_min_speed_factor"), "set_chase_min_speed_factor", "get_chase_min_speed_factor");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "rubberband_sensitivity"), "set_rubberband_sensitivity", "get_rubberband_sensitivity");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "rubberband_speed_min"), "set_rubberband_speed_min", "get_rubberband_speed_min");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "rubberband_speed_max"), "set_rubberband_speed_max", "get_rubberband_speed_max");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "engine_forward_ratio"), "set_engine_forward_ratio", "get_engine_forward_ratio");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "propulsion_force_scale"), "set_propulsion_force_scale", "get_propulsion_force_scale");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "propulsion_min_power"), "set_propulsion_min_power", "get_propulsion_min_power");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "idle_friction_multiplier"), "set_idle_friction_multiplier", "get_idle_friction_multiplier");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "turn_ramp_angle"), "set_turn_ramp_angle", "get_turn_ramp_angle");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "collision_resolve_radius_factor"), "set_collision_resolve_radius_factor", "get_collision_resolve_radius_factor");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "idle_resistance"), "set_idle_resistance", "get_idle_resistance");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "collision_smoothing"), "set_collision_smoothing", "get_collision_smoothing");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "wall_collision_factor_moving"), "set_wall_collision_factor_moving", "get_wall_collision_factor_moving");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "wall_collision_factor_idle"), "set_wall_collision_factor_idle", "get_wall_collision_factor_idle");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "target_projection_margin"), "set_target_projection_margin", "get_target_projection_margin");
 
     ADD_SIGNAL(MethodInfo("despawn_unit_requested", PropertyInfo(Variant::INT, "unit_id")));
 }

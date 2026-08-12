@@ -1,4 +1,3 @@
-#include <godot_cpp/classes/config_file.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 #include "building_loader.h"
@@ -26,22 +25,17 @@ Ref<BuildingStats> BuildingLoader::load_from_cfg(String p_path, WeaponManager* p
 
     if (!FileAccess::file_exists(p_path)) return stats;
 
-    Ref<ConfigFile> cf;
-    cf.instantiate();
-    Error err = cf->load(p_path);
-    if (err != OK) {
-        UtilityFunctions::printerr("[BuildingLoader] Error: 无法解析配置文件: ", p_path);
-        return stats;
-    }
+    // 按行解析：容忍无引号字符串值；";"/"#" 为注释、"[..." 为小节名，均忽略
+    Ref<FileAccess> file = FileAccess::open(p_path, FileAccess::READ);
+    if (file.is_null()) return stats;
 
-    PackedStringArray sections = cf->get_sections();
-    for (int s = 0; s < sections.size(); ++s) {
-        String section = sections[s];
-        PackedStringArray keys = cf->get_section_keys(section);
-
-        for (int k = 0; k < keys.size(); ++k) {
-            String key = keys[k];
-            String value = cf->get_value(section, key);
+    while (file->get_position() < file->get_length()) {
+        String line = file->get_line().strip_edges();
+        if (line.is_empty() || line.begins_with(";") || line.begins_with("#") || line.begins_with("[")) continue;
+        int split_index = line.find("=");
+        if (split_index == -1) continue;
+        String key = line.substr(0, split_index).strip_edges();
+        String value = line.substr(split_index + 1).strip_edges();
 
             // --- 标识 ---
             if (key == "building_name_key") stats->set_building_name_key(value);
@@ -133,10 +127,9 @@ Ref<BuildingStats> BuildingLoader::load_from_cfg(String p_path, WeaponManager* p
 
             // --- 未知字段告警 ---
             else {
-                _warn_unknown_key(p_path, section, key);
+                _warn_unknown_key(p_path, "", key);
             }
         }
-    }
 
     if (stats->get_building_name().is_empty()) {
         UtilityFunctions::printerr("[BuildingLoader] 建筑配置缺少 building_name: ", p_path);

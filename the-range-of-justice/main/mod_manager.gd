@@ -8,7 +8,7 @@ extends RefCounted
 ## main.gd 通过 get_config_dirs() 拿到"本体 + 所有 mod"的配置目录列表，
 ## 按依赖顺序（武器 -> 单位/建筑 -> 投射物）依次注册。
 
-static var _mod_dirs: Array = []
+static var _mod_dirs: PackedStringArray = PackedStringArray()
 static var _scanned: bool = false
 
 ## 扫描 user://mods，缓存有效 mod 目录并加载其翻译。只执行一次。
@@ -48,7 +48,7 @@ static func get_config_dirs(type: String) -> PackedStringArray:
 	return dirs
 
 ## 已扫描到的 mod 目录列表（仅调试用）。
-static func get_mod_dirs() -> Array:
+static func get_mod_dirs() -> PackedStringArray:
 	_ensure_scanned()
 	return _mod_dirs
 

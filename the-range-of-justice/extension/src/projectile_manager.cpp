@@ -62,7 +62,7 @@ void ProjectileManager::spawn_projectile(
         if (building_manager) {
             auto b_it = building_manager->buildings.find(p_target_id);
             if (b_it != building_manager->buildings.end()) {
-                Vector2 cell_sz = Vector2(32, 32);
+                Vector2 cell_sz = Vector2(16, 16);
                 if (building_manager->flow_field_manager) cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
                 Vector2 fp_size = Vector2(b_it->second.stats->get_footprint()) * cell_sz;
                 initial_target_pos = Vector2(b_it->second.grid_pos) * cell_sz + fp_size * 0.5f;
@@ -260,7 +260,7 @@ void ProjectileManager::_physics_process(double p_delta) {
                 auto b_it = building_manager->buildings.find(it->target_id);
                 if (b_it != building_manager->buildings.end() && b_it->second.current_health > 0) {
                     // 获取建筑的中心坐标
-                    Vector2 cell_sz = Vector2(32, 32);
+                    Vector2 cell_sz = Vector2(16, 16);
                     if (building_manager->flow_field_manager) {
                         cell_sz = Vector2(building_manager->flow_field_manager->get_cell_size());
                     }

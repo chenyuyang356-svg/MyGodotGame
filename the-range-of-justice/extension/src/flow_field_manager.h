@@ -71,8 +71,10 @@ namespace godot {
         std::queue<FlowFieldKey> calculation_queue;
 
         double cleanup_timer = 0.0;      // 累加时间
-        const double CLEANUP_INTERVAL = 2.0; // 每 2 秒扫描一次
-        const double UNUSED_THRESHOLD = 1.0; // 超过 1 秒没用就删除
+        float flow_field_cleanup_interval = 2.0f; // 每 2 秒扫描一次 (可调)
+        float flow_field_unused_threshold = 1.0f; // 超过 1 秒没用就删除 (可调)
+        float wall_gradient_offset = 3.0f;        // 梯度计算中墙壁/边界的虚假集成值增量 (可调)
+        int nearest_walkable_cell_limit = 1000;   // 最近可走格 BFS 搜索的安全阀 (可调)
 
         std::vector<uint32_t> metadata_grid; // 存储每个格子的元数据（位掩码）
 
@@ -81,6 +83,10 @@ namespace godot {
         float density_weight = 0.3f; // 每个单位产生的额外代价权重
         float density_decay_factor = 0.2f;
         float max_density_cost = 100.0f;  // 动态代价上限，防止单位乱跑
+
+        int max_search_dist = 30;          // 找最近可走格的搜索半径（格）
+        int density_blur_radius = 1;       // 密度模糊半径（格，0 表示不模糊）
+        int path_safe_zone_radius = 1;     // 直线检测目的地的安全区半径（格）
 
         bool is_setup = false;
 
@@ -180,6 +186,27 @@ namespace godot {
 
         void set_max_density_cost(float p_val) { max_density_cost = p_val; }
         float get_max_density_cost() const { return max_density_cost; }
+
+        void set_max_search_dist(int p_val) { max_search_dist = p_val; }
+        int get_max_search_dist() const { return max_search_dist; }
+
+        void set_density_blur_radius(int p_val) { density_blur_radius = p_val; }
+        int get_density_blur_radius() const { return density_blur_radius; }
+
+        void set_path_safe_zone_radius(int p_val) { path_safe_zone_radius = p_val; }
+        int get_path_safe_zone_radius() const { return path_safe_zone_radius; }
+
+        void set_flow_field_cleanup_interval(float p_val) { flow_field_cleanup_interval = p_val; }
+        float get_flow_field_cleanup_interval() const { return flow_field_cleanup_interval; }
+
+        void set_flow_field_unused_threshold(float p_val) { flow_field_unused_threshold = p_val; }
+        float get_flow_field_unused_threshold() const { return flow_field_unused_threshold; }
+
+        void set_wall_gradient_offset(float p_val) { wall_gradient_offset = p_val; }
+        float get_wall_gradient_offset() const { return wall_gradient_offset; }
+
+        void set_nearest_walkable_cell_limit(int p_val) { nearest_walkable_cell_limit = p_val; }
+        int get_nearest_walkable_cell_limit() const { return nearest_walkable_cell_limit; }
 
     };
 

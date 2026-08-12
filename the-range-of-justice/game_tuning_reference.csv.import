@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://couxw7q1d8q53"
+
+[deps]
+
+files=["res://game_tuning_reference.参数名.translation", "res://game_tuning_reference.当前值.translation", "res://game_tuning_reference.量纲.translation", "res://game_tuning_reference.含义.translation"]
+
+source_file="res://game_tuning_reference.csv"
+dest_files=["res://game_tuning_reference.参数名.translation", "res://game_tuning_reference.当前值.translation", "res://game_tuning_reference.量纲.translation", "res://game_tuning_reference.含义.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

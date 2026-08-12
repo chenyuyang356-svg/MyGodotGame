@@ -1,6 +1,5 @@
 // src/unit_loader.cpp
 #include "unit_loader.h"
-#include <godot_cpp/classes/config_file.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 using namespace godot;
@@ -85,22 +84,17 @@ Ref<UnitStats> UnitLoader::load_stats_from_cfg(String p_path, WeaponManager* p_w
         return stats;
     }
 
-    Ref<ConfigFile> cf;
-    cf.instantiate();
-    Error err = cf->load(p_path);
-    if (err != OK) {
-        UtilityFunctions::printerr("[UnitLoader] Error: 无法解析配置文件: ", p_path);
-        return stats;
-    }
+    // 按行解析：容忍无引号字符串值；";"/"#" 为注释、"[..." 为小节名，均忽略
+    Ref<FileAccess> file = FileAccess::open(p_path, FileAccess::READ);
+    if (file.is_null()) return stats;
 
-    PackedStringArray sections = cf->get_sections();
-    for (int s = 0; s < sections.size(); ++s) {
-        String section = sections[s];
-        PackedStringArray keys = cf->get_section_keys(section);
-
-        for (int k = 0; k < keys.size(); ++k) {
-            String key = keys[k];
-            String value = cf->get_value(section, key);
+    while (file->get_position() < file->get_length()) {
+        String line = file->get_line().strip_edges();
+        if (line.is_empty() || line.begins_with(";") || line.begins_with("#") || line.begins_with("[")) continue;
+        int split_index = line.find("=");
+        if (split_index == -1) continue;
+        String key = line.substr(0, split_index).strip_edges();
+        String value = line.substr(split_index + 1).strip_edges();
 
             // --- 字符串 ---
             if (key == "unit_name") stats->set_unit_name(value);
@@ -118,6 +112,7 @@ Ref<UnitStats> UnitLoader::load_stats_from_cfg(String p_path, WeaponManager* p_w
             // --- 攻击 ---
             else if (key == "target_priority") stats->set_target_priority((TargetPriority)_parse_enum(key, value));
             else if (key == "can_fire_on_move") stats->set_can_fire_on_move(value.to_lower().contains("true") || value.to_lower().contains("1"));
+            else if (key == "deploy_time") stats->set_deploy_time(value.to_float());
 
             // --- 移动 ---
             else if (key == "mass") stats->set_mass(value.to_float());
@@ -150,6 +145,8 @@ Ref<UnitStats> UnitLoader::load_stats_from_cfg(String p_path, WeaponManager* p_w
             else if (key == "idle_frames") stats->set_idle_frames(value.to_int());
             else if (key == "move_row") stats->set_move_row(value.to_int());
             else if (key == "idle_row") stats->set_idle_row(value.to_int());
+            else if (key == "deploy_frames") stats->set_deploy_frames(value.to_int());
+            else if (key == "deploy_row") stats->set_deploy_row(value.to_int());
             else if (key == "anim_fps") stats->set_anim_fps(value.to_int());
             else if (key == "dying_time") stats->set_dying_time(value.to_float());
 
@@ -215,10 +212,9 @@ Ref<UnitStats> UnitLoader::load_stats_from_cfg(String p_path, WeaponManager* p_w
 
             // --- 未知字段告警 ---
             else {
-                _warn_unknown_key(p_path, section, key);
+                _warn_unknown_key(p_path, "", key);
             }
         }
-    }
 
     if (stats->unit_name.is_empty()) {
         UtilityFunctions::printerr("[UnitLoader] 单位配置缺少 unit_name: ", p_path);

@@ -13,6 +13,7 @@ namespace godot {
         ATTACKING,   // 攻击中
         PATROLLING,  // 巡逻中
         DYING,      // 死亡中
+        DEPLOYING,   // 部署中（火炮类：停下后倒计时，结束才能开火）
     };
 
     struct UnitData {
@@ -42,11 +43,16 @@ namespace godot {
 
         UnitState state;        // 状态机		
         float current_health;
+        float current_shield = 0.0f; // 当前护盾值（先于生命扣减，可回复）
         float height = 0.0f;
 
         float anim_time = 0.0f; // 累计播放时间
 
         float current_dying_time = 0.0f;
+
+        // 部署机制（火炮类）
+        float deploy_timer = 0.0f;   // 部署累计时间
+        bool is_deployed = false;    // 是否已完成部署（允许开火）
 
         // 组管理相关数据
         int temp_group_id = -1;
