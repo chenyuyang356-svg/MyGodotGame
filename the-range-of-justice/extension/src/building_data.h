@@ -31,6 +31,11 @@ namespace godot {
         std::vector<String> production_queue; 
         float unit_production_timer = 0.0f; 
 
+        // 一次性动画（如生产完成时的开门动画）：>0 表示正在播放
+        float one_shot_anim_time = -1.0f;
+        float one_shot_anim_total = 0.0f;
+        float one_shot_anim_hold = 0.0f; // 动画结束后在最后一帧暂停的剩余时间
+
         float current_dying_time = 0.0f;
     };
 

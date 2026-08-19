@@ -6,20 +6,6 @@
 #include "weapon_stats.h"
 
 namespace godot {
-    //目前这个结构体是供非独立武器使用的
-    struct Weapon {
-        String projectile_type_name; // 发射的子弹视觉类型（用于在 ProjectileManager 查找模型）
-        float damage = 10.0f;        // 武器伤害
-        float attack_range = 100.0f; // 武器射程
-        float attack_interval = 1.0f;// 攻击间隔（冷却时间）
-        float projectile_speed = 500.0f; // 子弹飞行速度
-        float splash_radius = 0.0f;  // 范围溅射半径 (AOE)
-        Vector3 spawn_offset = Vector3(0, 0, 0);
-        float firing_tolerance = 15.0f; // 非独立武器的对准误差
-        bool can_attack_ground = true;
-        bool can_attack_air = false;
-    };
-
     struct EffectPoint {
         String effect_type;
         Vector2 local_position;
@@ -48,8 +34,7 @@ namespace godot {
         TargetPriority target_priority = PRIORITY_CLOSEST;
         bool can_fire_on_move = false;
         float deploy_time = 0.0f; // 部署时间(秒)：>0 表示需停下部署后才能攻击（火炮类）
-        std::vector<Weapon> weapons; // 这些是不独立于单位的武器
-        std::vector<WeaponMount> weapon_mounts; // 替换原来的 std::vector<WeaponStats> weapons;
+        std::vector<WeaponMount> weapon_mounts;
 
         // --- 移动 ---
         float mass = 1.0f;

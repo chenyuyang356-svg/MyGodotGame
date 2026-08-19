@@ -96,6 +96,7 @@ void FlowFieldManager::setup_grid(int p_width, int p_height, Vector2i p_origin, 
     }
 
     metadata_grid.assign(size, CELL_META_NONE);
+    dir_masks.assign(size, DIR_ALL); // 默认全方向可通行
     density_maps[0].assign(size, 0.0f);
     density_maps[1].assign(size, 0.0f);
 
@@ -188,6 +189,23 @@ void FlowFieldManager::set_cell_metadata(Vector2i p_grid_pos, uint32_t p_meta_fl
     }
 }
 
+void FlowFieldManager::set_dir_mask(Vector2i p_grid_pos, uint8_t p_mask) {
+    Vector2i relative = p_grid_pos - grid_origin;
+    if (relative.x >= 0 && relative.x < width && relative.y >= 0 && relative.y < height) {
+        int index = relative.y * width + relative.x;
+        dir_masks[index] = p_mask;
+    }
+}
+
+uint8_t FlowFieldManager::get_dir_mask(Vector2i p_grid_pos) {
+    Vector2i relative = p_grid_pos - grid_origin;
+    if (relative.x >= 0 && relative.x < width && relative.y >= 0 && relative.y < height) {
+        int index = relative.y * width + relative.x;
+        return dir_masks[index];
+    }
+    return 0;
+}
+
 void FlowFieldManager::compute_integration_field(FlowFieldKey p_key) {
     // 1. 查找对应的流场数据
     auto it = flow_fields.find(p_key);
@@ -256,6 +274,71 @@ void FlowFieldManager::compute_integration_field(FlowFieldKey p_key) {
 
                     // 如果是墙 (255)，不可通行
                     if (cell_cost == 255) continue;
+
+                    // --- 方向性通行检查（高地/悬崖）---
+                    // 双向对称：从 cur 到 neighbor 可通行，要求两格都开放对应方向
+                    // 掩码语义 = 该格允许从哪些方向进入本格
+                    // 只有陆地/海面单位受方向限制，飞行单位（NAV_AIR）不受影响
+                    if (p_key.nav_type != NAV_AIR) {
+                        // cur 往 neighbor 方向走：cur 必须能往该方向出去（掩码含反向进入位），
+                        // neighbor 必须能接受来自 cur 方向的进入
+                        uint8_t neighbor_enter_bit = 0; // neighbor 应允许的进入方向
+                        uint8_t cur_exit_bit = 0;        // cur 应允许的进入方向（反向 = 出去方向）
+                        if (x_off == 1) {
+                            neighbor_enter_bit = DIR_LEFT;  // 从西侧(左)进入 neighbor
+                            cur_exit_bit = DIR_RIGHT;        // cur 需允许从东侧(右)被进入 = 能往东出去
+                        }
+                        else if (x_off == -1) {
+                            neighbor_enter_bit = DIR_RIGHT; // 从东侧(右)进入 neighbor
+                            cur_exit_bit = DIR_LEFT;         // cur 需允许从西侧(左)被进入 = 能往西出去
+                        }
+                        else if (y_off == 1) {
+                            neighbor_enter_bit = DIR_UP;   // 从北侧(上)进入 neighbor
+                            cur_exit_bit = DIR_DOWN;         // cur 需允许从南侧(下)被进入 = 能往南出去
+                        }
+                        else if (y_off == -1) {
+                            neighbor_enter_bit = DIR_DOWN; // 从南侧(下)进入 neighbor
+                            cur_exit_bit = DIR_UP;           // cur 需允许从北侧(上)被进入 = 能往北出去
+                        }
+
+                        if (x_off != 0 && y_off != 0) {
+                            // 对角：两个轴向都必须双向开放（拐角不可穿越）
+                            uint8_t nh, nv, ch, cv;
+                            if (x_off == 1) { nh = DIR_LEFT; ch = DIR_RIGHT; }
+                            else { nh = DIR_RIGHT; ch = DIR_LEFT; }
+                            if (y_off == 1) { nv = DIR_UP; cv = DIR_DOWN; }
+                            else { nv = DIR_DOWN; cv = DIR_UP; }
+                            if ((dir_masks[neighbor_idx] & nh) == 0 || (dir_masks[neighbor_idx] & nv) == 0) continue;
+                            if ((dir_masks[current_idx] & ch) == 0 || (dir_masks[current_idx] & cv) == 0) continue;
+
+                            // 墙角检测：对角移动不能“切角”穿过墙/高地崖壁
+                            int side_h_idx = cur_y * width + (cur_x + x_off); // 水平侧向格子
+                            int side_v_idx = (cur_y + y_off) * width + cur_x;  // 垂直侧向格子
+                            if (current_cost_map[side_h_idx] == 255 || current_cost_map[side_v_idx] == 255) continue;
+
+                            // 侧向格子的方向掩码：两条切角路径（水平+垂直 / 垂直+水平）至少一条合法
+                            uint8_t h_cur_bit = (x_off == 1) ? DIR_RIGHT : DIR_LEFT;
+                            uint8_t h_side_in = (x_off == 1) ? DIR_LEFT : DIR_RIGHT;   // side_h 允许从 cur 进入
+                            uint8_t h_side_out = (y_off == 1) ? DIR_DOWN : DIR_UP;      // side_h 允许往 neighbor
+                            uint8_t h_nb_bit = (y_off == 1) ? DIR_UP : DIR_DOWN;       // neighbor 允许从 side_h 进入
+
+                            uint8_t v_cur_bit = (y_off == 1) ? DIR_DOWN : DIR_UP;
+                            uint8_t v_side_in = (y_off == 1) ? DIR_UP : DIR_DOWN;      // side_v 允许从 cur 进入
+                            uint8_t v_side_out = (x_off == 1) ? DIR_RIGHT : DIR_LEFT;  // side_v 允许往 neighbor
+                            uint8_t v_nb_bit = (x_off == 1) ? DIR_LEFT : DIR_RIGHT;    // neighbor 允许从 side_v 进入
+
+                            bool path_h = (dir_masks[current_idx] & h_cur_bit) && (dir_masks[side_h_idx] & h_side_in) &&
+                                (dir_masks[side_h_idx] & h_side_out) && (dir_masks[neighbor_idx] & h_nb_bit);
+                            bool path_v = (dir_masks[current_idx] & v_cur_bit) && (dir_masks[side_v_idx] & v_side_in) &&
+                                (dir_masks[side_v_idx] & v_side_out) && (dir_masks[neighbor_idx] & v_nb_bit);
+                            if (!path_h && !path_v) continue;
+                        }
+                        else {
+                            // 直向：目标格可进入 且 当前格可出去
+                            if ((dir_masks[neighbor_idx] & neighbor_enter_bit) == 0) continue;
+                            if ((dir_masks[current_idx] & cur_exit_bit) == 0) continue;
+                        }
+                    }
 
                     // --- 读取动态密度代价 ---
                     float d_cost = current_density[neighbor_idx] * density_weight;
@@ -351,6 +434,7 @@ void FlowFieldManager::compute_flow_directions(FlowFieldKey p_key) {
 
         FlowField& field = it->second;
         const std::vector<uint8_t>& cost_map = cost_maps[p_key.nav_type];
+        bool is_air = (p_key.nav_type == NAV_AIR);
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -362,22 +446,83 @@ void FlowFieldManager::compute_flow_directions(FlowFieldKey p_key) {
                     continue;
                 }
 
-                // 获取 8 个邻居的集成值，如果是边界或墙，则使用“当前值 + 较大偏移”来产生排斥感
-                auto get_val = [&](int nx, int ny) -> float {
-                    if (nx < 0 || nx >= width || ny < 0 || ny >= height) return field.integration_field[idx] + wall_gradient_offset;
-                    int n_idx = ny * width + nx;
-                    if (cost_map[n_idx] == 255) return field.integration_field[idx] + wall_gradient_offset; // 给墙壁一个虚假的“高地”感
-                    return field.integration_field[n_idx];
-                    };
+                float self_val = field.integration_field[idx];
+                float fake_wall_val = self_val + wall_gradient_offset;
 
-                float vNW = get_val(x - 1, y - 1);
-                float vN = get_val(x, y - 1);
-                float vNE = get_val(x + 1, y - 1);
-                float vW = get_val(x - 1, y);
-                float vE = get_val(x + 1, y);
-                float vSW = get_val(x - 1, y + 1);
-                float vS = get_val(x, y + 1);
-                float vSE = get_val(x + 1, y + 1);
+                // 获取邻居集成值：如果该方向被单向墙/方向掩码阻挡，则视为“虚拟高地”，
+                // 使梯度不会指向被阻挡的方向（与 compute_integration_field 的通行规则保持一致）
+                auto get_dir_val = [&](int x_off, int y_off) -> float {
+                    int nx = x + x_off;
+                    int ny = y + y_off;
+
+                    // 1. 出界检测
+                    if (nx < 0 || nx >= width || ny < 0 || ny >= height) return fake_wall_val;
+
+                    int n_idx = ny * width + nx;
+
+                    // 2. 静态全阻挡障碍物
+                    if (cost_map[n_idx] == 255) return fake_wall_val;
+
+                    // 飞行单位不受方向阻挡限制
+                    if (is_air) return field.integration_field[n_idx];
+
+                    // 3. 方向性阻挡掩码检查 (dir_masks)
+                    if (x_off != 0 && y_off != 0) {
+                        // 对角：两个轴向都必须双向开放（拐角不可穿越）
+                        uint8_t nh, nv, ch, cv;
+                        if (x_off == 1) { nh = DIR_LEFT; ch = DIR_RIGHT; }
+                        else { nh = DIR_RIGHT; ch = DIR_LEFT; }
+                        if (y_off == 1) { nv = DIR_UP; cv = DIR_DOWN; }
+                        else { nv = DIR_DOWN; cv = DIR_UP; }
+                        if ((dir_masks[n_idx] & nh) == 0 || (dir_masks[n_idx] & nv) == 0) return fake_wall_val;
+                        if ((dir_masks[idx] & ch) == 0 || (dir_masks[idx] & cv) == 0) return fake_wall_val;
+
+                        // 墙角检测：对角移动不能“切角”穿过墙/高地崖壁
+                        int side_h_idx = y * width + nx;
+                        int side_v_idx = ny * width + x;
+                        if (cost_map[side_h_idx] == 255 || cost_map[side_v_idx] == 255) return fake_wall_val;
+
+                        // 侧向格子的方向掩码：两条切角路径（水平+垂直 / 垂直+水平）至少一条合法
+                        uint8_t h_cur_bit = (x_off == 1) ? DIR_RIGHT : DIR_LEFT;
+                        uint8_t h_side_in = (x_off == 1) ? DIR_LEFT : DIR_RIGHT;
+                        uint8_t h_side_out = (y_off == 1) ? DIR_DOWN : DIR_UP;
+                        uint8_t h_nb_bit = (y_off == 1) ? DIR_UP : DIR_DOWN;
+
+                        uint8_t v_cur_bit = (y_off == 1) ? DIR_DOWN : DIR_UP;
+                        uint8_t v_side_in = (y_off == 1) ? DIR_UP : DIR_DOWN;
+                        uint8_t v_side_out = (x_off == 1) ? DIR_RIGHT : DIR_LEFT;
+                        uint8_t v_nb_bit = (x_off == 1) ? DIR_LEFT : DIR_RIGHT;
+
+                        bool path_h = (dir_masks[idx] & h_cur_bit) && (dir_masks[side_h_idx] & h_side_in) &&
+                            (dir_masks[side_h_idx] & h_side_out) && (dir_masks[n_idx] & h_nb_bit);
+                        bool path_v = (dir_masks[idx] & v_cur_bit) && (dir_masks[side_v_idx] & v_side_in) &&
+                            (dir_masks[side_v_idx] & v_side_out) && (dir_masks[n_idx] & v_nb_bit);
+                        if (!path_h && !path_v) return fake_wall_val;
+                    }
+                    else {
+                        // 直向：邻居可进入 且 当前格可出去（双向对称）
+                        uint8_t neighbor_enter_bit = 0;
+                        uint8_t cur_exit_bit = 0;
+                        if (x_off == 1)       { neighbor_enter_bit = DIR_LEFT;  cur_exit_bit = DIR_RIGHT; }
+                        else if (x_off == -1) { neighbor_enter_bit = DIR_RIGHT; cur_exit_bit = DIR_LEFT; }
+                        else if (y_off == 1)  { neighbor_enter_bit = DIR_UP;    cur_exit_bit = DIR_DOWN; }
+                        else if (y_off == -1) { neighbor_enter_bit = DIR_DOWN;  cur_exit_bit = DIR_UP; }
+
+                        if ((dir_masks[n_idx] & neighbor_enter_bit) == 0) return fake_wall_val;
+                        if ((dir_masks[idx] & cur_exit_bit) == 0) return fake_wall_val;
+                    }
+
+                    return field.integration_field[n_idx];
+                };
+
+                float vNW = get_dir_val(-1, -1);
+                float vN = get_dir_val(0, -1);
+                float vNE = get_dir_val(1, -1);
+                float vW = get_dir_val(-1, 0);
+                float vE = get_dir_val(1, 0);
+                float vSW = get_dir_val(-1, 1);
+                float vS = get_dir_val(0, 1);
+                float vSE = get_dir_val(1, 1);
 
                 // 使用类似 Sobel 算子的加权梯度
                 // x 方向：左边 - 右边
@@ -496,9 +641,9 @@ float FlowFieldManager::get_integration(Vector2 p_world_pos, Vector2 p_target_wo
         return 65535.0f;
     }
 
-    // --- 核心逻辑修改：处理不可达方块 ---
+    // --- 核心逻辑修改：处理不可达方块与方向性阻挡 ---
 
-    // 1. 先确定单位中心点所在的格子坐标和它的原始值
+    // 1. 先确定单位中心点所在的相对格子坐标和它的原始值
     Vector2i center_grid = world_to_grid(p_world_pos) - grid_origin;
     float center_val = 65535.0f;
     if (center_grid.x >= 0 && center_grid.x < width && center_grid.y >= 0 && center_grid.y < height) {
@@ -517,9 +662,12 @@ float FlowFieldManager::get_integration(Vector2 p_world_pos, Vector2 p_target_wo
     float tx = sample_pos.x - (float)x0;
     float ty = sample_pos.y - (float)y0;
 
-    // 3. 内部安全采样函数：如果格子是障碍物，返回中心值 + 1
+    // 3. 内部安全采样函数：如果格子是障碍物或跨越悬崖阻挡，返回中心值 + 1
     auto get_val_corrected = [&](int gx, int gy) -> float {
         if (gx < 0 || gx >= width || gy < 0 || gy >= height) {
+            return center_val + 1.0f;
+        }
+        if (!can_traverse_between_relative(center_grid.x, center_grid.y, gx, gy, p_nav_type)) {
             return center_val + 1.0f;
         }
         float val = field.integration_field[gy * width + gx];
@@ -573,10 +721,14 @@ Vector2 FlowFieldManager::get_flow_direction(Vector2 p_world_pos, Vector2 p_targ
         return Vector2(0, 0);
     }
 
-    // --- 3. 双线性插值采样逻辑 (新增：解决摇摆核心) ---
+    // --- 3. 双线性插值采样逻辑 (防止跨悬崖吸附) ---
+
+    int cur_gx = relative_grid_pos.x;
+    int cur_gy = relative_grid_pos.y;
+    int cur_idx = cur_gy * width + cur_gx;
+    Vector2 d_cur = field.flow_directions[cur_idx];
 
     // 计算相对于网格起点的浮点坐标 (单位：格)
-    // 例如：单位在 (10.5, 20.2)，格子大小 10，则结果为 (1.05, 2.02)
     Vector2 f_relative = (p_world_pos - Vector2(grid_origin * cell_size)) / Vector2(cell_size);
 
     // 将采样中心偏移半个格子，使得在格中心处权重最高，向四周平滑过渡
@@ -591,11 +743,13 @@ Vector2 FlowFieldManager::get_flow_direction(Vector2 p_world_pos, Vector2 p_targ
     float tx = sample_pos.x - (float)x0;
     float ty = sample_pos.y - (float)y0;
 
-    // 内部安全采样函数
+    // 内部安全采样函数：如果邻居跨越悬崖或为阻挡，回退为当前格子方向
     auto get_dir_safe = [&](int gx, int gy) -> Vector2 {
         if (gx < 0 || gx >= width || gy < 0 || gy >= height) {
-            // 如果越界，尝试采样最近的合法格子的方向，或者返回零
-            return Vector2(0, 0);
+            return d_cur;
+        }
+        if (!can_traverse_between_relative(cur_gx, cur_gy, gx, gy, p_nav_type)) {
+            return d_cur;
         }
         return field.flow_directions[gy * width + gx];
         };
@@ -613,9 +767,7 @@ Vector2 FlowFieldManager::get_flow_direction(Vector2 p_world_pos, Vector2 p_targ
 
     // 防止在四个方向完全抵消时（如死角）出现零向量报错
     if (final_dir.length_squared() < 0.001f) {
-        // 回退到点采样
-        int safe_idx = relative_grid_pos.y * width + relative_grid_pos.x;
-        return field.flow_directions[safe_idx];
+        return d_cur;
     }
 
     return final_dir.normalized();
@@ -666,58 +818,79 @@ bool FlowFieldManager::is_in_grid(Vector2i p_grid_pos) {
     return (rx >= 0 && rx < width && ry >= 0 && ry < height);
 }
 
-bool FlowFieldManager::is_path_clear(Vector2 p_start_world, Vector2 p_end_world, int p_nav_type) {
+bool FlowFieldManager::can_traverse_between_relative(int x1, int y1, int x2, int y2, int p_nav_type) const {
+    if (p_nav_type == NAV_AIR) return true;
     if (p_nav_type < 0 || p_nav_type >= NAV_MAX) return false;
+    if (x1 < 0 || x1 >= width || y1 < 0 || y1 >= height) return false;
+    if (x2 < 0 || x2 >= width || y2 < 0 || y2 >= height) return false;
 
-    Vector2i start_grid = world_to_grid(p_start_world) - grid_origin;
-    Vector2i end_grid = world_to_grid(p_end_world) - grid_origin;
-
-    // 使用 DDA 算法遍历直线经过的所有格子
-    int x1 = start_grid.x;
-    int y1 = start_grid.y;
-    int x2 = end_grid.x;
-    int y2 = end_grid.y;
-
-    int dx = abs(x2 - x1);
-    int dy = abs(y2 - y1);
-    int x = x1;
-    int y = y1;
-    int n = 1 + dx + dy;
-    int x_inc = (x2 > x1) ? 1 : -1;
-    int y_inc = (y2 > y1) ? 1 : -1;
-    int error = dx - dy;
-    dx *= 2;
-    dy *= 2;
+    int idx1 = y1 * width + x1;
+    int idx2 = y2 * width + x2;
 
     const std::vector<uint8_t>& cost_map = cost_maps[p_nav_type];
+    if (cost_map[idx1] == 255 || cost_map[idx2] == 255) return false;
 
-    for (; n > 0; --n) {
-        // 边界检查
-        if (x >= 0 && x < width && y >= 0 && y < height) {
-            if (cost_map[y * width + x] == 255) {
-                return false; // 撞墙了
-            }
-        }
-        else {
-            return false; // 出界了
-        }
+    int off_x = x2 - x1;
+    int off_y = y2 - y1;
 
-        if (error > 0) {
-            x += x_inc;
-            error -= dy;
-        }
-        else if (error < 0) {
-            y += y_inc;
-            error += dx;
-        }
-        else { // 刚好经过对角点
-            x += x_inc;
-            y += y_inc;
-            error += dx - dy;
-            n--;
-        }
+    if (off_x == 0 && off_y == 0) return true;
+
+    if (off_x != 0 && off_y != 0) {
+        // 对角：两个轴向都必须双向开放（拐角不可穿越）
+        uint8_t nh, nv, ch, cv;
+        if (off_x == 1) { nh = DIR_LEFT; ch = DIR_RIGHT; }
+        else { nh = DIR_RIGHT; ch = DIR_LEFT; }
+        if (off_y == 1) { nv = DIR_UP; cv = DIR_DOWN; }
+        else { nv = DIR_DOWN; cv = DIR_UP; }
+        if ((dir_masks[idx2] & nh) == 0 || (dir_masks[idx2] & nv) == 0) return false;
+        if ((dir_masks[idx1] & ch) == 0 || (dir_masks[idx1] & cv) == 0) return false;
+
+        // 墙角检测：对角移动不能“切角”穿过墙/高地崖壁
+        int side_h_idx = y1 * width + x2;
+        int side_v_idx = y2 * width + x1;
+        if (cost_map[side_h_idx] == 255 || cost_map[side_v_idx] == 255) return false;
+
+        uint8_t h_cur_bit = (off_x == 1) ? DIR_RIGHT : DIR_LEFT;
+        uint8_t h_side_in = (off_x == 1) ? DIR_LEFT : DIR_RIGHT;
+        uint8_t h_side_out = (off_y == 1) ? DIR_DOWN : DIR_UP;
+        uint8_t h_nb_bit = (off_y == 1) ? DIR_UP : DIR_DOWN;
+
+        uint8_t v_cur_bit = (off_y == 1) ? DIR_DOWN : DIR_UP;
+        uint8_t v_side_in = (off_y == 1) ? DIR_UP : DIR_DOWN;
+        uint8_t v_side_out = (off_x == 1) ? DIR_RIGHT : DIR_LEFT;
+        uint8_t v_nb_bit = (off_x == 1) ? DIR_LEFT : DIR_RIGHT;
+
+        bool path_h = (dir_masks[idx1] & h_cur_bit) && (dir_masks[side_h_idx] & h_side_in) &&
+            (dir_masks[side_h_idx] & h_side_out) && (dir_masks[idx2] & h_nb_bit);
+        bool path_v = (dir_masks[idx1] & v_cur_bit) && (dir_masks[side_v_idx] & v_side_in) &&
+            (dir_masks[side_v_idx] & v_side_out) && (dir_masks[idx2] & v_nb_bit);
+        return path_h || path_v;
     }
-    return true;
+    else {
+        // 直向：邻居可进入 且 当前格可出去（双向对称）
+        uint8_t neighbor_enter_bit = 0;
+        uint8_t cur_exit_bit = 0;
+        if (off_x == 1)       { neighbor_enter_bit = DIR_LEFT;  cur_exit_bit = DIR_RIGHT; }
+        else if (off_x == -1) { neighbor_enter_bit = DIR_RIGHT; cur_exit_bit = DIR_LEFT; }
+        else if (off_y == 1)  { neighbor_enter_bit = DIR_UP;    cur_exit_bit = DIR_DOWN; }
+        else if (off_y == -1) { neighbor_enter_bit = DIR_DOWN;  cur_exit_bit = DIR_UP; }
+
+        if ((dir_masks[idx2] & neighbor_enter_bit) == 0) return false;
+        if ((dir_masks[idx1] & cur_exit_bit) == 0) return false;
+        return true;
+    }
+}
+
+bool FlowFieldManager::can_traverse_between(Vector2i p_grid_a, Vector2i p_grid_b, int p_nav_type) const {
+    Vector2i a = p_grid_a - grid_origin;
+    Vector2i b = p_grid_b - grid_origin;
+    return can_traverse_between_relative(a.x, a.y, b.x, b.y, p_nav_type);
+}
+
+bool FlowFieldManager::is_path_clear(Vector2 p_start_world, Vector2 p_end_world, int p_nav_type) {
+    // 复用 is_path_traversable 的完整逻辑（含 dir_masks 方向阻挡判定），
+    // 关闭密度检测以保持与原 is_path_clear 一致的语义：只判断静态墙与方向阻挡
+    return is_path_traversable(p_start_world, p_end_world, p_nav_type, 0.0f, false);
 }
 
 bool FlowFieldManager::is_path_traversable(Vector2 p_start, Vector2 p_end, int p_nav_type, float p_max_density_threshold, bool count_density) {
@@ -744,6 +917,9 @@ bool FlowFieldManager::is_path_traversable(Vector2 p_start, Vector2 p_end, int p
     // 建议设为 2-3，这样单位在最后准备进入阵型位时不会被自己人挡住路径判定
     const int SAFE_ZONE_RADIUS = path_safe_zone_radius;
 
+    int prev_x = x, prev_y = y;
+    bool is_first = true;
+
     for (; n > 0; --n) {
         if (x >= 0 && x < width && y >= 0 && y < height) {
             int idx = y * width + x;
@@ -751,12 +927,58 @@ bool FlowFieldManager::is_path_traversable(Vector2 p_start, Vector2 p_end, int p
             // 1. 静态障碍检查：无论在哪，撞墙绝对不行
             if (cost_map[idx] == 255) return false;
 
-            // 2. 目的地附近安全区判断
+            // 2. 方向掩码检查（高地/悬崖）：从上一格走到当前格的移动方向是否被允许
+            //    只有非飞行单位受方向限制
+            if (!is_first && p_nav_type != NAV_AIR) {
+                int step_x = x - prev_x;
+                int step_y = y - prev_y;
+                int prev_idx = prev_y * width + prev_x;
+
+                // 对角：墙角检测，防止切角穿过墙/高地崖壁
+                if (step_x != 0 && step_y != 0) {
+                    int side_h_idx = prev_y * width + (prev_x + step_x); // 水平侧向
+                    int side_v_idx = (prev_y + step_y) * width + prev_x;  // 垂直侧向
+                    if (cost_map[side_h_idx] == 255 || cost_map[side_v_idx] == 255) return false;
+
+                    uint8_t h_prev = (step_x > 0) ? DIR_RIGHT : DIR_LEFT;
+                    uint8_t h_side_in = (step_x > 0) ? DIR_LEFT : DIR_RIGHT;
+                    uint8_t h_side_out = (step_y > 0) ? DIR_DOWN : DIR_UP;
+                    uint8_t h_cur = (step_y > 0) ? DIR_UP : DIR_DOWN;
+
+                    uint8_t v_prev = (step_y > 0) ? DIR_DOWN : DIR_UP;
+                    uint8_t v_side_in = (step_y > 0) ? DIR_UP : DIR_DOWN;
+                    uint8_t v_side_out = (step_x > 0) ? DIR_RIGHT : DIR_LEFT;
+                    uint8_t v_cur = (step_x > 0) ? DIR_LEFT : DIR_RIGHT;
+
+                    bool path_h = (dir_masks[prev_idx] & h_prev) && (dir_masks[side_h_idx] & h_side_in) &&
+                        (dir_masks[side_h_idx] & h_side_out) && (dir_masks[idx] & h_cur);
+                    bool path_v = (dir_masks[prev_idx] & v_prev) && (dir_masks[side_v_idx] & v_side_in) &&
+                        (dir_masks[side_v_idx] & v_side_out) && (dir_masks[idx] & v_cur);
+                    if (!path_h && !path_v) return false;
+                }
+
+                // 水平方向（双向对称：prev 可往该方向走，且 cur 可走回 prev）
+                if (step_x != 0) {
+                    uint8_t prev_bit = (step_x > 0) ? DIR_RIGHT : DIR_LEFT;
+                    uint8_t cur_bit = (step_x > 0) ? DIR_LEFT : DIR_RIGHT;
+                    if ((dir_masks[prev_idx] & prev_bit) == 0) return false;
+                    if ((dir_masks[idx] & cur_bit) == 0) return false;
+                }
+                // 垂直方向（双向对称）
+                if (step_y != 0) {
+                    uint8_t prev_bit = (step_y > 0) ? DIR_DOWN : DIR_UP;
+                    uint8_t cur_bit = (step_y > 0) ? DIR_UP : DIR_DOWN;
+                    if ((dir_masks[prev_idx] & prev_bit) == 0) return false;
+                    if ((dir_masks[idx] & cur_bit) == 0) return false;
+                }
+            }
+
+            // 3. 目的地附近安全区判断
             // 如果当前检查的格子坐标 (x, y) 距离目的地坐标 (x2, y2) 很近
             bool is_near_destination = (abs(x - x2) <= SAFE_ZONE_RADIUS && abs(y - y2) <= SAFE_ZONE_RADIUS);
 
             if (!is_near_destination && count_density) {
-                // 3. 动态密度检查：只有在安全区外才检测是否被“人墙”堵死
+                // 4. 动态密度检查：只有在安全区外才检测是否被“人墙”堵死
                 if (d_map[idx] > p_max_density_threshold) {
                     return false;
                 }
@@ -765,6 +987,9 @@ bool FlowFieldManager::is_path_traversable(Vector2 p_start, Vector2 p_end, int p
         else {
             return false;
         }
+
+        prev_x = x; prev_y = y;
+        is_first = false;
 
         // DDA 步进逻辑
         if (error > 0) { x += x_inc; error -= dy; }
@@ -848,11 +1073,17 @@ void FlowFieldManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_cost", "grid_position", "nav_type"), &FlowFieldManager::get_cost);
     ClassDB::bind_method(D_METHOD("find_nearest_walkable_cell", "start_grid", "nav_type"), &FlowFieldManager::find_nearest_walkable_cell);
     ClassDB::bind_method(D_METHOD("set_cell_meta_data", "grid_position", "meta_flag", "enabled"), &FlowFieldManager::set_cell_metadata);
+    ClassDB::bind_method(D_METHOD("set_dir_mask", "grid_position", "mask"), &FlowFieldManager::set_dir_mask);
+    ClassDB::bind_method(D_METHOD("get_dir_mask", "grid_position"), &FlowFieldManager::get_dir_mask);
+    ClassDB::bind_method(D_METHOD("can_traverse_between", "grid_a", "grid_b", "nav_type"), &FlowFieldManager::can_traverse_between);
+    ClassDB::bind_method(D_METHOD("is_path_traversable", "start", "end", "nav_type", "density_threshold", "count_density"), &FlowFieldManager::is_path_traversable, DEFVAL(true));
     ClassDB::bind_method(D_METHOD("get_integration", "world_position", "target_world_position", "nav_type"), &FlowFieldManager::get_integration);
     ClassDB::bind_method(D_METHOD("get_flow_direction", "world_position", "target_world_position", "nav_type"), &FlowFieldManager::get_flow_direction);
     ClassDB::bind_method(D_METHOD("world_to_grid", "world_pos"), &FlowFieldManager::world_to_grid);
     ClassDB::bind_method(D_METHOD("get_grid_origin"), &FlowFieldManager::get_grid_origin);
     ClassDB::bind_method(D_METHOD("get_cell_size"), &FlowFieldManager::get_cell_size);
+    ClassDB::bind_method(D_METHOD("get_width"), &FlowFieldManager::get_width);
+    ClassDB::bind_method(D_METHOD("get_height"), &FlowFieldManager::get_height);
 
     ClassDB::bind_method(D_METHOD("get_density_weight"), &FlowFieldManager::get_density_weight);
     ClassDB::bind_method(D_METHOD("set_density_weight", "weight"), &FlowFieldManager::set_density_weight);

@@ -1,8 +1,8 @@
 shader_type spatial;
 // unshaded: 不受 3D 灯光影响
 // cull_disabled: 双面可见
-// depth_draw_always: 强制写入深度，保证 Y-Sort 准确
-render_mode cull_disabled, depth_draw_always;
+// blend_mix, depth_prepass_alpha: 深度预通过与半透明混合
+render_mode unshaded, cull_disabled, blend_mix, depth_prepass_alpha;
 
 uniform sampler2D albedo_texture : source_color, filter_nearest;
 uniform int h_frames = 1;
@@ -41,11 +41,12 @@ void fragment() {
     // 计算图集 UV
     vec2 atlas_uv = UV;
     atlas_uv.x = (atlas_uv.x + frame) * frame_size.x;
-    atlas_uv.y = (atlas_uv.y + row) * frame_size.y;
+    // 建造中(BUILDING)行号为 -1，采样时按第 0 行处理
+    atlas_uv.y = (atlas_uv.y + max(row, 0.0)) * frame_size.y;
 
     vec4 tex = texture(albedo_texture, atlas_uv);
     
-	if (tex.a < 0.5) {
+	if (tex.a < 0.01) {
         discard;
     }
 	
@@ -68,9 +69,8 @@ void fragment() {
     }
 
 	// --- 建造状态特殊效果 ---
-    // 判断是否在第一行 (row == 0.0)
-    // 使用 epsilon 避免浮点误差
-    bool is_constructing = row < 0.5;
+    // 判断是否为建造中（C++ 传 row = -1）
+    bool is_constructing = row < -0.5;
     float current_alpha = 1.0;
 
     if (is_constructing) {
@@ -87,5 +87,5 @@ void fragment() {
     }
 
     ALBEDO = final_rgb * modulate;
-	ALPHA = fog_alpha * current_alpha;
+	ALPHA = tex.a * fog_alpha * current_alpha;
 }

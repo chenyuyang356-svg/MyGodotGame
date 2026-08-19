@@ -211,6 +211,7 @@ namespace godot {
 		float get_unit_attack_range(int p_unit_id) const;
 		int get_unit_state(int p_unit_id) const;
 		Ref<UnitStats> get_unit_stats_by_type(String p_type_name);
+		PackedStringArray get_registered_unit_types();
 
 		void set_flow_field_manager(Node* p_node);
 		void set_group_manager(Node* p_node);

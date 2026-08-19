@@ -55,6 +55,7 @@ namespace godot {
         int working_frames = 1;
         int working_row = 0;
         int building_frames = 1;
+        float working_hold_time = 0.0f; // 工作动画最后一帧暂停秒数（0 = 不暂停）
 
         // --- 兵营类属性 ---
         PackedStringArray producible_units;
@@ -187,6 +188,9 @@ namespace godot {
 
         void set_building_frames(int p_val) { building_frames = p_val; }
         int get_building_frames() const { return building_frames; }
+
+        void set_working_hold_time(float p_val) { working_hold_time = p_val; }
+        float get_working_hold_time() const { return working_hold_time; }
 
         void set_dying_time(float p_val) { dying_time = p_val; }
         float get_dying_time() const { return dying_time; }

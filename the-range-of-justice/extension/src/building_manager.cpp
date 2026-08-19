@@ -38,6 +38,34 @@ void BuildingManager::setup_system(int p_width, int p_height, Vector2i p_cell_si
     _setup_progress_bar_system();
     _gather_resource_positions();
     _setup_minimap_renderer(p_width, p_height, p_cell_size);
+
+    if (fog_manager) {
+        for (auto& [s_ptr, mmi] : type_renderers) {
+            Ref<ShaderMaterial> mat = mmi->get_material_override();
+            if (mat.is_valid()) {
+                mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+                mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+                mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+            }
+        }
+        for (auto& [s_ptr, s_mmi] : shadow_renderers) {
+            Ref<ShaderMaterial> s_mat = s_mmi->get_material_override();
+            if (s_mat.is_valid()) {
+                s_mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+                s_mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+                s_mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+            }
+        }
+        for (auto& [s_ptr, g_mmi] : ghost_renderers) {
+            Ref<ShaderMaterial> g_mat = g_mmi->get_material_override();
+            if (g_mat.is_valid()) {
+                g_mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+                g_mat->set_shader_parameter("tex_history", fog_manager->get_history_texture());
+                g_mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+                g_mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+            }
+        }
+    }
 }
 
 void BuildingManager::_setup_progress_bar_system() {
@@ -152,6 +180,14 @@ void BuildingManager::physics_update(double p_delta) {
 
         if (b.state == BuildingState::DYING) continue;
 
+        // 递减一次性动画计时器（如生产完成开门动画）
+        if (b.one_shot_anim_time > 0.0f) {
+            b.one_shot_anim_time -= (float)p_delta;
+            if (b.one_shot_anim_time <= 0.0f) {
+                b.one_shot_anim_time = -1.0f;
+            }
+        }
+
         for (auto& weapon : b.weapons) {
             weapon.prev_rotation = weapon.rotation;
             weapon.update(0.0f, p_delta);
@@ -211,6 +247,13 @@ void BuildingManager::physics_update(double p_delta) {
                         // 5. 清理队列
                         b.production_queue.erase(b.production_queue.begin());
                         b.unit_production_timer = 0.0f;
+
+                        // 触发生产完成的一次性动画（如开门动画）
+                        // 总时长 = 动画帧时长 + 最后一帧暂停时长
+                        b.one_shot_anim_total = (float)b.stats->get_working_frames() / b.stats->get_anim_fps();
+                        b.one_shot_anim_hold = b.stats->get_working_hold_time();
+                        b.one_shot_anim_time = b.one_shot_anim_total + b.one_shot_anim_hold;
+                        b.anim_time = 0.0f;
 
                         // 如果队列空了，回到 IDLE 状态
                         if (b.production_queue.empty()) {
@@ -299,10 +342,52 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
             s_mm->set_instance_transform(i, s_xform);
 
             // --- C. 动画同步 ---
-            int frames = (b.stats)->get_frames(b.state);
-            int row = (int)(b.state);
-            float duration = (float)frames / s_ptr->get_anim_fps();
-            int frame_idx = (int)(Math::fmod(b.anim_time, duration) * s_ptr->get_anim_fps());
+            bool playing_one_shot = (b.one_shot_anim_time > 0.0f);
+            // 一次性动画用 working 帧数（如 7 帧开门动画），其余按状态取帧
+            int frames = playing_one_shot
+                ? s_ptr->get_working_frames()
+                : (b.stats)->get_frames(b.state);
+            // 行号使用配置中的动画行（支持单行图集，所有状态共用第 0 行）
+            // 建造中(BUILDING)用 -1 标记，让 shader 识别"建造中"并叠加灰色半透明效果
+            int row;
+            bool is_constructing = (b.state == BuildingState::BUILDING);
+            if (playing_one_shot) {
+                // 一次性动画（如生产完成开门动画）：按比例取帧，不循环
+                row = s_ptr->get_working_row();
+            }
+            else if (b.state == BuildingState::IDLE) {
+                row = s_ptr->get_idle_row();
+            }
+            else if (b.state == BuildingState::WORKING) {
+                row = s_ptr->get_working_row();
+            }
+            else if (is_constructing) {
+                row = -1;
+            }
+            else {
+                row = 0; // DYING 等
+            }
+
+            int frame_idx;
+            if (playing_one_shot) {
+                // 一次性动画：先播放全部帧，然后可选在最后一帧暂停（hold），随后回待机
+                float anim_dur = b.one_shot_anim_total > 0.0f ? b.one_shot_anim_total : 1.0f;
+                float elapsed = (b.one_shot_anim_total + b.one_shot_anim_hold) - b.one_shot_anim_time;
+                if (elapsed <= anim_dur) {
+                    // 动画播放阶段：按比例取帧
+                    float progress = Math::clamp(elapsed / anim_dur, 0.0f, 1.0f);
+                    frame_idx = (int)(progress * (float)frames);
+                    if (frame_idx >= frames) frame_idx = frames - 1;
+                }
+                else {
+                    // 暂停阶段：停在最后一帧
+                    frame_idx = frames - 1;
+                }
+            }
+            else {
+                float duration = (float)frames / s_ptr->get_anim_fps();
+                frame_idx = (int)(Math::fmod(b.anim_time, duration) * s_ptr->get_anim_fps());
+            }
 
             float modulate = 1.0;
             if (p_selection_manager->is_building_selected(b.id)) {
@@ -648,6 +733,8 @@ void BuildingManager::_internal_register_building(Ref<BuildingStats> p_stats) {
     if (tex.is_valid()) {
         Vector2 frame_size = tex->get_size() / Vector2(p_stats->get_h_frames(), p_stats->get_v_frames());
         qmesh->set_size(frame_size);
+    } else {
+        UtilityFunctions::printerr("[BuildingManager] 无法加载建筑贴图: ", p_stats->get_texture_path(), " 建筑: ", p_name);
     }
     mm->set_mesh(qmesh);
     mmi->set_multimesh(mm);
@@ -662,12 +749,11 @@ void BuildingManager::_internal_register_building(Ref<BuildingStats> p_stats) {
     mat->set_shader_parameter("albedo_texture", tex);
     mat->set_shader_parameter("h_frames", p_stats->get_h_frames());
     mat->set_shader_parameter("v_frames", p_stats->get_v_frames());
-    // 传入实时视野贴图
-    mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
-    // 传入地图尺寸
-    mat->set_shader_parameter("map_size", fog_manager->get_map_size());
-    // 传入地图位置
-    mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+    if (fog_manager) {
+        mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+        mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+        mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+    }
 
     mmi->set_material_override(mat);
     type_renderers[s_ptr] = mmi;
@@ -698,12 +784,11 @@ void BuildingManager::_internal_register_building(Ref<BuildingStats> p_stats) {
     s_mat->set_shader_parameter("albedo_texture", tex);
     s_mat->set_shader_parameter("h_frames", p_stats->get_h_frames());
     s_mat->set_shader_parameter("v_frames", p_stats->get_v_frames());
-    // 传入实时视野贴图
-    s_mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
-    // 传入地图尺寸
-    s_mat->set_shader_parameter("map_size", fog_manager->get_map_size());
-    // 传入地图位置
-    s_mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+    if (fog_manager) {
+        s_mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+        s_mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+        s_mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+    }
 
     s_mmi->set_material_override(s_mat);
     shadow_renderers[s_ptr] = s_mmi;
@@ -734,10 +819,12 @@ void BuildingManager::_internal_register_building(Ref<BuildingStats> p_stats) {
     g_mat->set_shader_parameter("albedo_texture", tex);
     g_mat->set_shader_parameter("h_frames", p_stats->get_h_frames());
     g_mat->set_shader_parameter("v_frames", p_stats->get_v_frames());
-    g_mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
-    g_mat->set_shader_parameter("tex_history", fog_manager->get_history_texture());
-    g_mat->set_shader_parameter("map_size", fog_manager->get_map_size());
-    g_mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+    if (fog_manager) {
+        g_mat->set_shader_parameter("tex_fog_live", fog_manager->get_live_texture());
+        g_mat->set_shader_parameter("tex_history", fog_manager->get_history_texture());
+        g_mat->set_shader_parameter("map_size", fog_manager->get_map_size());
+        g_mat->set_shader_parameter("map_pos", fog_manager->get_map_pos());
+    }
 
     g_mmi->set_material_override(g_mat);
     ghost_renderers[s_ptr] = g_mmi;

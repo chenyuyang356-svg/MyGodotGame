@@ -1,0 +1,489 @@
+[gd_scene format=3 uid="uid://dflslir2uahv1"]
+
+[ext_resource type="Script" uid="uid://6rasw1a8p48t" path="res://tool/turret_positioner/turret_positioner.gd" id="1"]
+
+[node name="TurretPositioner" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="StageContainer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Bg" type="ColorRect" parent="StageContainer"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.1, 0.12, 0.15, 1)
+
+[node name="Stage" type="Node2D" parent="StageContainer"]
+
+[node name="GridDraw" type="Node2D" parent="StageContainer/Stage"]
+
+[node name="BodySprite" type="Sprite2D" parent="StageContainer/Stage"]
+
+[node name="TurretContainer" type="Node2D" parent="StageContainer/Stage"]
+
+[node name="HandlesDraw" type="Node2D" parent="StageContainer/Stage"]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="TopBar" type="PanelContainer" parent="UI"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 12.0
+offset_top = 10.0
+offset_right = -12.0
+offset_bottom = 60.0
+grow_horizontal = 2
+
+[node name="HBox" type="HBoxContainer" parent="UI/TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="UnitLabel" type="Label" parent="UI/TopBar/HBox"]
+layout_mode = 2
+text = "目标:"
+vertical_alignment = 1
+
+[node name="PrevUnitBtn" type="Button" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+text = "◀"
+
+[node name="UnitSelector" type="OptionButton" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+
+[node name="NextUnitBtn" type="Button" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+text = "▶"
+
+[node name="VSep1" type="VSeparator" parent="UI/TopBar/HBox"]
+layout_mode = 2
+
+[node name="ModeLabel" type="Label" parent="UI/TopBar/HBox"]
+layout_mode = 2
+text = "模式:"
+vertical_alignment = 1
+
+[node name="ModeMountBtn" type="Button" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "🎯 挂载点(1)"
+
+[node name="ModePivotBtn" type="Button" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "🔴 枢轴(2)"
+
+[node name="ModeMuzzleBtn" type="Button" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "⚡ 枪口(3)"
+
+[node name="VSep2" type="VSeparator" parent="UI/TopBar/HBox"]
+layout_mode = 2
+
+[node name="SaveUnitBtn" type="Button" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "💾 保存单位"
+
+[node name="SaveWeaponBtn" type="Button" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "💾 保存武器"
+
+[node name="SaveAllBtn" type="Button" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "💾 保存全部 (Ctrl+S)"
+
+[node name="ResetBtn" type="Button" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "↺ 还原"
+
+[node name="VSep3" type="VSeparator" parent="UI/TopBar/HBox"]
+layout_mode = 2
+
+[node name="GridCheck" type="CheckButton" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "网格"
+
+[node name="RadiusCheck" type="CheckButton" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "碰撞半径"
+
+[node name="TurretsCheck" type="CheckButton" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "炮塔贴图"
+
+[node name="Spacer" type="Control" parent="UI/TopBar/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ZoomOutBtn" type="Button" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+text = "-"
+
+[node name="ZoomLabel" type="Label" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+text = "x4.0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ZoomInBtn" type="Button" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+text = "+"
+
+[node name="ZoomResetBtn" type="Button" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "100%"
+
+[node name="ZoomFitBtn" type="Button" parent="UI/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "居中"
+
+[node name="RightSidebar" type="PanelContainer" parent="UI"]
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -310.0
+offset_top = 70.0
+offset_right = -12.0
+offset_bottom = -12.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="UI/RightSidebar"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="MountsHeader" type="Label" parent="UI/RightSidebar/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "■ 武器挂载点 (Mounts)"
+
+[node name="MountItemList" type="ItemList" parent="UI/RightSidebar/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 110)
+layout_mode = 2
+
+[node name="MountBtnGrid" type="GridContainer" parent="UI/RightSidebar/VBox"]
+layout_mode = 2
+columns = 3
+
+[node name="AddMountBtn" type="Button" parent="UI/RightSidebar/VBox/MountBtnGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "+ 添加"
+
+[node name="DelMountBtn" type="Button" parent="UI/RightSidebar/VBox/MountBtnGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "- 删除"
+
+[node name="MirrorMountBtn" type="Button" parent="UI/RightSidebar/VBox/MountBtnGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🪞 X镜像"
+
+[node name="MirrorDupBtn" type="Button" parent="UI/RightSidebar/VBox/MountBtnGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🪞 镜像克隆"
+
+[node name="MoveUpBtn" type="Button" parent="UI/RightSidebar/VBox/MountBtnGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "⬆ 上移"
+
+[node name="MoveDownBtn" type="Button" parent="UI/RightSidebar/VBox/MountBtnGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "⬇ 下移"
+
+[node name="MountPosGrid" type="GridContainer" parent="UI/RightSidebar/VBox"]
+layout_mode = 2
+columns = 4
+
+[node name="MountXLabel" type="Label" parent="UI/RightSidebar/VBox/MountPosGrid"]
+layout_mode = 2
+text = "挂载 X:"
+
+[node name="SpinMountX" type="SpinBox" parent="UI/RightSidebar/VBox/MountPosGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -500.0
+max_value = 500.0
+step = 0.5
+
+[node name="MountYLabel" type="Label" parent="UI/RightSidebar/VBox/MountPosGrid"]
+layout_mode = 2
+text = "Y:"
+
+[node name="SpinMountY" type="SpinBox" parent="UI/RightSidebar/VBox/MountPosGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -500.0
+max_value = 500.0
+step = 0.5
+
+[node name="HSep1" type="HSeparator" parent="UI/RightSidebar/VBox"]
+layout_mode = 2
+
+[node name="WeaponHeader" type="Label" parent="UI/RightSidebar/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "■ 武器枢轴与属性 (Weapon)"
+
+[node name="WeaponInfoLabel" type="Label" parent="UI/RightSidebar/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "武器: 无"
+
+[node name="PivotGrid" type="GridContainer" parent="UI/RightSidebar/VBox"]
+layout_mode = 2
+columns = 4
+
+[node name="PivotXLabel" type="Label" parent="UI/RightSidebar/VBox/PivotGrid"]
+layout_mode = 2
+text = "枢轴 X:"
+
+[node name="SpinPivotX" type="SpinBox" parent="UI/RightSidebar/VBox/PivotGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -500.0
+max_value = 500.0
+step = 0.5
+
+[node name="PivotYLabel" type="Label" parent="UI/RightSidebar/VBox/PivotGrid"]
+layout_mode = 2
+text = "Y:"
+
+[node name="SpinPivotY" type="SpinBox" parent="UI/RightSidebar/VBox/PivotGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -500.0
+max_value = 500.0
+step = 0.5
+
+[node name="MuzzleGrid" type="GridContainer" parent="UI/RightSidebar/VBox"]
+layout_mode = 2
+columns = 4
+
+[node name="MuzXLabel" type="Label" parent="UI/RightSidebar/VBox/MuzzleGrid"]
+layout_mode = 2
+text = "枪口 X:"
+
+[node name="SpinMuzzleX" type="SpinBox" parent="UI/RightSidebar/VBox/MuzzleGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -500.0
+max_value = 500.0
+step = 0.5
+
+[node name="MuzYLabel" type="Label" parent="UI/RightSidebar/VBox/MuzzleGrid"]
+layout_mode = 2
+text = "Y:"
+
+[node name="SpinMuzzleY" type="SpinBox" parent="UI/RightSidebar/VBox/MuzzleGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -500.0
+max_value = 500.0
+step = 0.5
+
+[node name="MuzZLabel" type="Label" parent="UI/RightSidebar/VBox/MuzzleGrid"]
+layout_mode = 2
+text = "高度 Z:"
+
+[node name="SpinMuzzleZ" type="SpinBox" parent="UI/RightSidebar/VBox/MuzzleGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -500.0
+max_value = 500.0
+step = 0.5
+
+[node name="HSep2" type="HSeparator" parent="UI/RightSidebar/VBox"]
+layout_mode = 2
+
+[node name="PreviewHeader" type="Label" parent="UI/RightSidebar/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "■ 实时旋转与测试 (Preview)"
+
+[node name="AngleHBox" type="HBoxContainer" parent="UI/RightSidebar/VBox"]
+layout_mode = 2
+
+[node name="AngleLabel" type="Label" parent="UI/RightSidebar/VBox/AngleHBox"]
+layout_mode = 2
+text = "角度:"
+
+[node name="AngleSlider" type="HSlider" parent="UI/RightSidebar/VBox/AngleHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+max_value = 360.0
+step = 0.5
+
+[node name="AngleValueLabel" type="Label" parent="UI/RightSidebar/VBox/AngleHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(45, 0)
+layout_mode = 2
+text = "0.0°"
+horizontal_alignment = 2
+
+[node name="AngleBtnHBox" type="HBoxContainer" parent="UI/RightSidebar/VBox"]
+layout_mode = 2
+
+[node name="BtnAngle0" type="Button" parent="UI/RightSidebar/VBox/AngleBtnHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "0° (右)"
+
+[node name="BtnAngle90" type="Button" parent="UI/RightSidebar/VBox/AngleBtnHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "90° (下)"
+
+[node name="BtnAngle180" type="Button" parent="UI/RightSidebar/VBox/AngleBtnHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "180° (左)"
+
+[node name="BtnAngle270" type="Button" parent="UI/RightSidebar/VBox/AngleBtnHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "270° (上)"
+
+[node name="TestChecksVBox" type="VBoxContainer" parent="UI/RightSidebar/VBox"]
+layout_mode = 2
+
+[node name="AutoRotCheck" type="CheckButton" parent="UI/RightSidebar/VBox/TestChecksVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🔄 自动匀速旋转 (空格键)"
+
+[node name="MouseAimCheck" type="CheckButton" parent="UI/RightSidebar/VBox/TestChecksVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🎯 鼠标瞄准跟随"
+
+[node name="FireAnimCheck" type="CheckButton" parent="UI/RightSidebar/VBox/TestChecksVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "💥 开火帧动画测试"
+
+[node name="BottomBar" type="PanelContainer" parent="UI"]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = -42.0
+offset_right = -330.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="HBox" type="HBoxContainer" parent="UI/BottomBar"]
+layout_mode = 2
+
+[node name="HintLabel" type="Label" parent="UI/BottomBar/HBox"]
+layout_mode = 2
+text = "💡 提示: 左键拖拽句柄 | 中键/右键平移画布 | 滚轮缩放 | Ctrl+S 保存全部"
+vertical_alignment = 1
+
+[node name="Spacer" type="Control" parent="UI/BottomBar/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ToastLabel" type="Label" parent="UI/BottomBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
+text = "就绪"
+vertical_alignment = 1
+
+[node name="ToastTimer" type="Timer" parent="."]
+one_shot = true
+
+[node name="AddWeaponDialog" type="ConfirmationDialog" parent="."]
+title = "添加武器挂载"
+size = Vector2i(360, 420)
+
+[node name="VBox" type="VBoxContainer" parent="AddWeaponDialog"]
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 352.0
+offset_bottom = 371.0
+
+[node name="Label" type="Label" parent="AddWeaponDialog/VBox"]
+layout_mode = 2
+text = "选择要挂载的武器类型:"
+
+[node name="WeaponPickList" type="ItemList" parent="AddWeaponDialog/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[connection signal="draw" from="StageContainer/Stage/GridDraw" to="." method="_on_grid_draw"]
+[connection signal="draw" from="StageContainer/Stage/HandlesDraw" to="." method="_on_handles_draw"]
+[connection signal="timeout" from="ToastTimer" to="." method="_on_toast_timeout"]
+

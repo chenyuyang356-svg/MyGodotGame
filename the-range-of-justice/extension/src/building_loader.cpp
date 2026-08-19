@@ -83,6 +83,7 @@ Ref<BuildingStats> BuildingLoader::load_from_cfg(String p_path, WeaponManager* p
             else if (key == "working_frames") stats->set_working_frames(value.to_int());
             else if (key == "working_row") stats->set_working_row(value.to_int());
             else if (key == "building_frames") stats->set_building_frames(value.to_int());
+            else if (key == "working_hold_time") stats->set_working_hold_time(value.to_float());
 
             // --- 兵营 ---
             else if (key == "producible_units") {

@@ -41,6 +41,12 @@ func _unhandled_input(event: InputEvent):
 		_reset_ui_state()
 		return
 
+	# 如果处于开发者单位放置模式，拦截选择行为
+	var dev_placer = get_node_or_null("../UnitDevPlacer")
+	if dev_placer and dev_placer.is_unit_mode:
+		_reset_ui_state()
+		return
+
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:

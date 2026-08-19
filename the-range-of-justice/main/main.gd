@@ -11,6 +11,7 @@ const Tuning = preload("res://main/game_tuning.tres")
 @onready var pause_menu: Control = %PauseMenu
 
 func _ready() -> void:
+	print("get ready")
 	game_over_ui.change_ui.connect(_on_change_ui)
 	pause_menu.change_ui.connect(_on_change_ui)
 	
@@ -111,6 +112,17 @@ func setup_game_with_map(map_res: MapResource) -> void:
 			if data.get_custom_data("IsResource"):
 				flow_field_manager.set_cell_meta_data(coords, 1, true)
 			
+			# 方向通行掩码（高地/悬崖，双向对称）
+			# 掩码位 = 该格允许从哪些方向进入：UP=1, DOWN=2, LEFT=4, RIGHT=8
+			# 例：南侧有坡口的高地 → DirMask=2(DIR_DOWN)，其余三面为崖壁不可通行
+			# 默认15(全方向) = 普通地面
+			# 注意：int 类型自定义数据未设置时返回 0（不是 null），0 也视为"未设置"→ 全方向
+			var dir_mask_var = data.get_custom_data("DirMask")
+			var dir_mask: int = 15
+			if dir_mask_var != null and int(dir_mask_var) != 0:
+				dir_mask = int(dir_mask_var)
+			flow_field_manager.set_dir_mask(coords, dir_mask)
+			
 			# NAV_LAND (Index 0)
 			if data.get_custom_data("IsWall") or data.get_custom_data("IsSea"):
 				flow_field_manager.init_cost(coords, 255, 0)
@@ -140,6 +152,9 @@ func setup_game_with_map(map_res: MapResource) -> void:
 							is_near_land = true
 							break
 				flow_field_manager.init_cost(coords, 30 if is_near_land else 1, 1)
+	
+	# 调试：测试高地方向掩码（进入/离开场景）
+	_test_dir_mask(tile_map_layer, flow_field_manager, cell_size)
 	
 	GlobalGameManager.setup_system(width, height, cell_size, grid_origin)
 	
@@ -237,6 +252,7 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	if debug_draw != null:
 		debug_draw.unit_manager = unit_manager
 		debug_draw.camera = main_camera
+		debug_draw.flow_field_manager = flow_field_manager
 	
 	GlobalAudioManager.play_bgm("res://asset/audio/music/02_-_sam_goor00_collard_-_reign_supreme.ogg", -8.0, 0.5)
 	fog_manager.fog_mode = GlobalGameManager.fog_mode
@@ -276,7 +292,7 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 					var tank_pos: Vector2 = pos + anchor_offset + Vector2(c * tank_spacing, r * tank_spacing)
 					# 安全网：个别被挡住的坦克吸附到最近可走格
 					tank_pos = _snap_to_walkable(tank_pos, cell_size, ffm)
-					GlobalGameManager.rpc_server_request_spawn_unit("HeavyTank", tank_pos, team_id)
+					GlobalGameManager.rpc_server_request_spawn_unit("TinyTank", tank_pos, team_id)
 			# 基地附近生成工兵和防空
 			GlobalGameManager.rpc_server_request_spawn_unit("Builder", pos + Vector2(0, 100), team_id)
 			# 如果是陆地地图，生成防空
@@ -334,3 +350,59 @@ func spawn_test_units():
 			#GlobalGameManager.rpc_server_request_spawn_unit("HeavyTank", -32 * Vector2(x, y) + Vector2(0, 1600), 2)
 			#GlobalGameManager.rpc_server_request_spawn_unit("Helicopter", -32 * Vector2(x, y) + Vector2(0, 1600), 2)
 			continue
+
+
+## 调试：测试高地方向掩码（进入/离开场景）
+func _test_dir_mask(tile_map_layer: TileMapLayer, ffm: FlowFieldManager, cell_size: Vector2i) -> void:
+	var found: Vector2i = Vector2i(-999999, -999999)
+	var used_rect := tile_map_layer.get_used_rect()
+	for x in range(used_rect.position.x, used_rect.end.x):
+		for y in range(used_rect.position.y, used_rect.end.y):
+			var data = tile_map_layer.get_cell_tile_data(Vector2i(x, y))
+			if not data: continue
+			var dm = data.get_custom_data("DirMask")
+			if dm != null and int(dm) != 0 and int(dm) != 15:
+				found = Vector2i(x, y)
+				break
+		if found.x != -999999: break
+	
+	if found.x == -999999:
+		print("[TEST] 未找到高地")
+		return
+	
+	var h = found
+	var mask: int = ffm.get_dir_mask(h)
+	print("[TEST] 高地 ", h, " 掩码=", mask, " U=", (mask & 1) != 0, " D=", (mask & 2) != 0, " L=", (mask & 4) != 0, " R=", (mask & 8) != 0)
+	
+	var cs := Vector2(cell_size)
+	var center := Vector2(h) * cs + cs * 0.5
+	# 各方向 1.5 格外的点（越过边界）
+	var left := center - Vector2(cs.x * 1.5, 0)
+	var right := center + Vector2(cs.x * 1.5, 0)
+	var up := center - Vector2(0, cs.y * 1.5)
+	var down := center + Vector2(0, cs.y * 1.5)
+	
+	# 进入高地（终点在高地中心，起点在四个方向）
+	print("[TEST] 从左(崖壁?)进入高地: ", ffm.is_path_traversable(left, center, 0, 100000.0))
+	print("[TEST] 从右(坡口?)进入高地: ", ffm.is_path_traversable(right, center, 0, 100000.0))
+	print("[TEST] 从上(崖壁?)进入高地: ", ffm.is_path_traversable(up, center, 0, 100000.0))
+	print("[TEST] 从下(坡口?)进入高地: ", ffm.is_path_traversable(down, center, 0, 100000.0))
+	# 离开高地（起点在高地中心，终点在四个方向）
+	print("[TEST] 从左离开高地: ", ffm.is_path_traversable(center, left, 0, 100000.0))
+	print("[TEST] 从右离开高地: ", ffm.is_path_traversable(center, right, 0, 100000.0))
+	print("[TEST] 从上离开高地: ", ffm.is_path_traversable(center, up, 0, 100000.0))
+	print("[TEST] 从下离开高地: ", ffm.is_path_traversable(center, down, 0, 100000.0))
+	
+	# 测试流场方向：目标在高地右边，检查高地左边（崖壁）格子的流场方向
+	var target := right + Vector2(cs.x * 2, 0)  # 高地右边更远
+	ffm.create_flow_field(ffm.world_to_grid(target), 0, true)
+	# 多次触发 get_flow_direction 确保流场入队，并等待足够帧数
+	for i in range(120):
+		ffm.get_flow_direction(left, target, 0)
+		await get_tree().process_frame
+	var left_grid := ffm.world_to_grid(left)
+	print("[TEST] 高地左边格子 ", left_grid, " 的流场方向: ", ffm.get_flow_direction(left, target, 0))
+	print("[TEST] 高地左边格子 ", left_grid, " 的 integration: ", ffm.get_integration(left, target, 0))
+	var down_grid := ffm.world_to_grid(down)
+	print("[TEST] 高地下边格子 ", down_grid, " 的流场方向: ", ffm.get_flow_direction(down, target, 0))
+	print("[TEST] 高地下边格子 ", down_grid, " 的 integration: ", ffm.get_integration(down, target, 0))

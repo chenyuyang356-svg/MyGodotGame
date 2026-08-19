@@ -1422,9 +1422,6 @@ Dictionary GameManager::serialize_game_state() {
 		d["health"] = u.current_health;
 		d["height"] = u.height;
 		d["team"] = u.team_id;
-		Array cd;
-		for (float c : u.weapon_cooldowns) cd.append(c);
-		d["weapon_cd"] = cd;
 		Array ws;
 		for (const auto& w : u.weapons) {
 			Dictionary wd;
@@ -1508,9 +1505,6 @@ void GameManager::restore_game_state(const Dictionary& p_state) {
 		u.state = (UnitState)(int)d["state"];
 		u.current_health = d["health"];
 		u.height = d["height"];
-		Array cd = d["weapon_cd"];
-		u.weapon_cooldowns.resize(cd.size());
-		for (int k = 0; k < cd.size(); ++k) u.weapon_cooldowns[k] = cd[k];
 		Array ws = d["weapons"];
 		for (int k = 0; k < ws.size() && k < (int)u.weapons.size(); ++k) {
 			Dictionary wd = ws[k];

@@ -48,7 +48,8 @@ namespace godot {
         TAG_MECHANICAL = 1 << 1,
         TAG_BUILDER = 1 << 2,
         TAG_SUMMONED = 1 << 3,
-        TAG_HERO = 1 << 4
+        TAG_HERO = 1 << 4,
+        TAG_DUMMY = 1 << 5
     };
 
     enum NavigationType {

@@ -178,7 +178,6 @@ int UnitManager::spawn_unit(Vector2 p_world_pos, Ref<UnitStats> p_stats, int p_t
     new_unit.next_position = p_world_pos;
     new_unit.height = p_stats->base_height;
     new_unit.stats = p_stats; 
-    new_unit.weapon_cooldowns.resize(p_stats->weapons.size(), 0.0f);
     new_unit.path_recheck_timer = (float)(new_unit.id % 60) / 60.0f;
     new_unit.last_visual_pos = p_world_pos;
     new_unit.dust_accumulator = 0.0f;
@@ -447,7 +446,16 @@ void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_
 
         UnitData& u = units[idx];
         bool is_builder = (u.stats->get_unit_tags() & TAG_BUILDER);
-        bool target_is_ally = (target_team == u.team_id);
+
+        // 靶子单位：即使同队伍也视为可攻击目标
+        bool target_is_dummy = false;
+        if (!p_target_is_building) {
+            int t_idx = get_unit_index_by_id(p_target_id);
+            if (t_idx != -1) {
+                target_is_dummy = (units[t_idx].stats.is_valid() && (units[t_idx].stats->get_unit_tags() & TAG_DUMMY));
+            }
+        }
+        bool target_is_ally = (target_team == u.team_id) && !target_is_dummy;
 
         // A. 基础逻辑过滤（同原有逻辑）
         if (!target_is_ally && is_builder) continue; // 建造者不打敌军
@@ -457,22 +465,12 @@ void UnitManager::command_units_to_attack_target(Array p_unit_ids, int p_target_
         if (!target_is_ally) {
             bool can_hit_altitude = false;
 
-            // 1. 检查固定武器 (Body Weapons)
-            for (const auto& w : u.stats->weapons) {
-                if (target_is_air ? w.can_attack_air : w.can_attack_ground) {
-                    can_hit_altitude = true;
-                    break;
-                }
-            }
-
-            // 2. 如果固定武器打不到，检查独立武器 (Turrets/WeaponData)
-            if (!can_hit_altitude) {
-                for (const auto& wd : u.weapons) {
-                    if (wd.stats.is_valid()) {
-                        if (target_is_air ? wd.stats->get_can_attack_air() : wd.stats->get_can_attack_ground()) {
-                            can_hit_altitude = true;
-                            break;
-                        }
+            // 检查挂载武器 (Turrets/WeaponData)
+            for (const auto& wd : u.weapons) {
+                if (wd.stats.is_valid()) {
+                    if (target_is_air ? wd.stats->get_can_attack_air() : wd.stats->get_can_attack_ground()) {
+                        can_hit_altitude = true;
+                        break;
                     }
                 }
             }
@@ -1214,6 +1212,12 @@ void UnitManager::update_velocity(UnitData& p_unit, double p_delta) {
 
 void UnitManager::move(UnitData& p_unit, double p_delta) {
     if (!flow_field_manager) return; 
+    // 靶子单位：不可移动
+    if (p_unit.stats->get_unit_tags() & TAG_DUMMY) {
+        p_unit.velocity = Vector2(0, 0);
+        p_unit.state = IDLE;
+        return;
+    }
     if (p_unit.state == DYING) {
         p_unit.height = UtilityFunctions::max(p_unit.height - 50.0 * p_delta, 0.0f);
         return;
@@ -1280,13 +1284,15 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
 
     Vector2i min_grid = flow_field_manager->world_to_grid(next_pos - Vector2(radius, radius));
     Vector2i max_grid = flow_field_manager->world_to_grid(next_pos + Vector2(radius, radius));
+    int nav_type = p_unit.get_nav_type();
+    float collision_factor = (p_unit.state == IDLE) ? wall_collision_factor_idle : wall_collision_factor_moving;
 
-    // 静态碰撞 (墙壁)：如果是地面单位，且即将进入 FlowField 标记为 255 (不可通行) 的格子，则将其限制在边缘 AABB 内
+    // 1. 静态全阻挡碰撞 (墙壁/深海)：如果是地面单位，且即将进入 FlowField 标记为 255 (不可通行) 的格子，则将其限制在边缘 AABB 内
     for (int gx = min_grid.x; gx <= max_grid.x; ++gx) {
         for (int gy = min_grid.y; gy <= max_grid.y; ++gy) {
             Vector2i check_grid(gx, gy);
 
-            if (flow_field_manager->get_cost(check_grid, p_unit.get_nav_type()) == 255) {
+            if (flow_field_manager->get_cost(check_grid, nav_type) == 255) {
   
                 float rect_left = (float)gx * cell_size.x;
                 float rect_top = (float)gy * cell_size.y;
@@ -1301,15 +1307,10 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
                 float distance_squared = diff.length_squared();
 
                 if (distance_squared < radius * radius && distance_squared > 0.00001f) {
-                    float factor = wall_collision_factor_moving;
-                    if (p_unit.state == IDLE) {
-                        factor = wall_collision_factor_idle;
-                    }
-
                     float distance = Math::sqrt(distance_squared);
                     float overlap = radius - distance;
  
-                    next_pos += (diff / distance) * overlap * factor;
+                    next_pos += (diff / distance) * overlap * collision_factor;
    
                     Vector2 normal = diff / distance;
                     if (p_unit.velocity.dot(normal) < 0) {
@@ -1324,6 +1325,150 @@ void UnitManager::move(UnitData& p_unit, double p_delta) {
             }
         }
     }  
+
+    // 2. 方向性阻挡碰撞 (高地悬崖边缘)：检测网格边界上的阻挡线段
+    for (int gx = min_grid.x - 1; gx <= max_grid.x; ++gx) {
+        for (int gy = min_grid.y - 1; gy <= max_grid.y; ++gy) {
+            Vector2i grid_cur(gx, gy);
+            Vector2i grid_right(gx + 1, gy);
+            Vector2i grid_down(gx, gy + 1);
+
+            // 垂直边缘：位于 (gx, gy) 和 (gx + 1, gy) 之间的边界线
+            if (flow_field_manager->get_cost(grid_cur, nav_type) < 255 &&
+                flow_field_manager->get_cost(grid_right, nav_type) < 255 &&
+                !flow_field_manager->can_traverse_between(grid_cur, grid_right, nav_type)) {
+
+                float edge_x = (float)(gx + 1) * cell_size.x;
+                float edge_y_min = (float)gy * cell_size.y;
+                float edge_y_max = edge_y_min + (float)cell_size.y;
+
+                float closest_y = Math::clamp(next_pos.y, edge_y_min, edge_y_max);
+                Vector2 closest_point(edge_x, closest_y);
+                Vector2 diff = next_pos - closest_point;
+                float dist_sq = diff.length_squared();
+
+                if (dist_sq < radius * radius) {
+                    bool is_interior = (next_pos.y >= edge_y_min && next_pos.y <= edge_y_max);
+
+                    if (is_interior) {
+                        float orig_side = (p_unit.position.x < edge_x) ? -1.0f : 1.0f;
+                        if (orig_side < 0.0f) {
+                            // 单位原本在左侧
+                            if (next_pos.x >= edge_x) {
+                                next_pos.x = edge_x - radius;
+                                if (p_unit.velocity.x > 0) p_unit.velocity.x = 0;
+                            }
+                            else {
+                                float dist = edge_x - next_pos.x;
+                                float overlap = radius - dist;
+                                next_pos.x -= overlap * collision_factor;
+                                if (p_unit.velocity.x > 0) p_unit.velocity.x -= p_unit.velocity.x * collision_factor;
+                            }
+                        }
+                        else {
+                            // 单位原本在右侧
+                            if (next_pos.x <= edge_x) {
+                                next_pos.x = edge_x + radius;
+                                if (p_unit.velocity.x < 0) p_unit.velocity.x = 0;
+                            }
+                            else {
+                                float dist = next_pos.x - edge_x;
+                                float overlap = radius - dist;
+                                next_pos.x += overlap * collision_factor;
+                                if (p_unit.velocity.x < 0) p_unit.velocity.x -= p_unit.velocity.x * collision_factor;
+                            }
+                        }
+                    }
+                    else {
+                        // 处于端点外侧（拐角处）：按点圆碰撞平滑绕行，不锁轴
+                        if (dist_sq > 0.0001f) {
+                            float dist = Math::sqrt(dist_sq);
+                            float overlap = radius - dist;
+                            Vector2 normal = diff / dist;
+                            next_pos += normal * overlap * collision_factor;
+                            if (p_unit.velocity.dot(normal) < 0) {
+                                p_unit.velocity -= normal * p_unit.velocity.dot(normal);
+                            }
+                        }
+                        else {
+                            float push_x = (p_unit.position.x < edge_x) ? -1.0f : 1.0f;
+                            float push_y = (p_unit.position.y < closest_y) ? -1.0f : 1.0f;
+                            Vector2 push_dir = Vector2(push_x, push_y).normalized();
+                            next_pos = closest_point + push_dir * radius;
+                        }
+                    }
+                }
+            }
+
+            // 水平边缘：位于 (gx, gy) 和 (gx, gy + 1) 之间的边界线
+            if (flow_field_manager->get_cost(grid_cur, nav_type) < 255 &&
+                flow_field_manager->get_cost(grid_down, nav_type) < 255 &&
+                !flow_field_manager->can_traverse_between(grid_cur, grid_down, nav_type)) {
+
+                float edge_y = (float)(gy + 1) * cell_size.y;
+                float edge_x_min = (float)gx * cell_size.x;
+                float edge_x_max = edge_x_min + (float)cell_size.x;
+
+                float closest_x = Math::clamp(next_pos.x, edge_x_min, edge_x_max);
+                Vector2 closest_point(closest_x, edge_y);
+                Vector2 diff = next_pos - closest_point;
+                float dist_sq = diff.length_squared();
+
+                if (dist_sq < radius * radius) {
+                    bool is_interior = (next_pos.x >= edge_x_min && next_pos.x <= edge_x_max);
+
+                    if (is_interior) {
+                        float orig_side = (p_unit.position.y < edge_y) ? -1.0f : 1.0f;
+                        if (orig_side < 0.0f) {
+                            // 单位原本在上侧
+                            if (next_pos.y >= edge_y) {
+                                next_pos.y = edge_y - radius;
+                                if (p_unit.velocity.y > 0) p_unit.velocity.y = 0;
+                            }
+                            else {
+                                float dist = edge_y - next_pos.y;
+                                float overlap = radius - dist;
+                                next_pos.y -= overlap * collision_factor;
+                                if (p_unit.velocity.y > 0) p_unit.velocity.y -= p_unit.velocity.y * collision_factor;
+                            }
+                        }
+                        else {
+                            // 单位原本在下侧
+                            if (next_pos.y <= edge_y) {
+                                next_pos.y = edge_y + radius;
+                                if (p_unit.velocity.y < 0) p_unit.velocity.y = 0;
+                            }
+                            else {
+                                float dist = next_pos.y - edge_y;
+                                float overlap = radius - dist;
+                                next_pos.y += overlap * collision_factor;
+                                if (p_unit.velocity.y < 0) p_unit.velocity.y -= p_unit.velocity.y * collision_factor;
+                            }
+                        }
+                    }
+                    else {
+                        // 处于端点外侧（拐角处）：按点圆碰撞平滑绕行，不锁轴
+                        if (dist_sq > 0.0001f) {
+                            float dist = Math::sqrt(dist_sq);
+                            float overlap = radius - dist;
+                            Vector2 normal = diff / dist;
+                            next_pos += normal * overlap * collision_factor;
+                            if (p_unit.velocity.dot(normal) < 0) {
+                                p_unit.velocity -= normal * p_unit.velocity.dot(normal);
+                            }
+                        }
+                        else {
+                            float push_x = (p_unit.position.x < closest_x) ? -1.0f : 1.0f;
+                            float push_y = (p_unit.position.y < edge_y) ? -1.0f : 1.0f;
+                            Vector2 push_dir = Vector2(push_x, push_y).normalized();
+                            next_pos = closest_point + push_dir * radius;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     p_unit.position = next_pos;
 }
 
@@ -1662,6 +1807,14 @@ Ref<UnitStats> godot::UnitManager::get_unit_stats_by_type(String p_type_name)
     return nullptr;
 }
 
+PackedStringArray UnitManager::get_registered_unit_types() {
+    PackedStringArray out;
+    for (const auto& kv : unit_types_cache) {
+        out.append(kv.key);
+    }
+    return out;
+}
+
 void UnitManager::set_flow_field_manager(Node* p_node) {
     flow_field_manager = Object::cast_to<FlowFieldManager>(p_node);
 }
@@ -1890,14 +2043,9 @@ float UnitManager::get_unit_attack_range(int p_unit_id) const {
         const UnitData& unit = units[it->second];
 
         // 确保单位 stats 有效，并且该单位拥有至少一把武器
-        if (unit.stats.is_valid() && (!unit.stats->weapons.empty() || !unit.weapons.empty())) {
+        if (unit.stats.is_valid() && !unit.weapons.empty()) {
             float max_range = 0.0f;
             // 遍历单位挂载的所有武器，找出最大射程
-            for (const auto& weapon : unit.stats->weapons) {
-                if (weapon.attack_range > max_range) {
-                    max_range = weapon.attack_range;
-                }
-            }
             for (const auto& weapon : unit.weapons) {
                 float attack_range = weapon.stats->get_attack_range();
                 if (attack_range > max_range) {
@@ -1924,6 +2072,7 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_unit_state", "unit_id"), &UnitManager::get_unit_state);
     ClassDB::bind_method(D_METHOD("get_unit_stats", "unit_id"), &UnitManager::get_unit_stats);
     ClassDB::bind_method(D_METHOD("get_unit_stats_by_type", "unit_type"), &UnitManager::get_unit_stats_by_type);
+    ClassDB::bind_method(D_METHOD("get_registered_unit_types"), &UnitManager::get_registered_unit_types);
     ClassDB::bind_method(D_METHOD("set_flow_field_manager", "node"), &UnitManager::set_flow_field_manager);
     ClassDB::bind_method(D_METHOD("set_group_manager", "node"), &UnitManager::set_group_manager);
     ClassDB::bind_method(D_METHOD("set_attack_manager", "node"), &UnitManager::set_attack_manager);

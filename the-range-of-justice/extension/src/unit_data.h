@@ -61,7 +61,6 @@ namespace godot {
 
         int team_id = 0;
         int target_id = -1;
-        std::vector<float> weapon_cooldowns; //改为只有不独立于单位的武器才使用
         std::vector<WeaponData> weapons; // 这些是单位装载的独立武器
 
         bool is_patrolling = false;

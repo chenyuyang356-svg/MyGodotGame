@@ -22,20 +22,20 @@ extends Resource
 @export var lateral_separation_factor: float = 1.0 # 侧向排斥系数【无】（遗留，未在移动逻辑中使用）
 @export var friction_factor: float = 20.0        # 摩擦力【1/s】每帧从速度中减去 velocity×该值，越大停得越快
 @export var force_threshold_squared: float = 0.0 # 力的平方阈值【力²】引导力平方小于该值视为无动力（停止态死区）
-@export var velocity_threshold_squared: float = 1.0 # 速度的平方阈值【px²/s²】速度平方小于该值强制置零（防滑行）
+@export var velocity_threshold_squared: float = 0.1 # 速度的平方阈值【px²/s²】速度平方小于该值强制置零（防滑行）
 @export var desired_integration: float = 0.5     # 期望集成值【无】（遗留，未在移动逻辑中使用）
 
 # ---------- 单位物理扩展（写入 UnitManager） ----------
 @export_group("单位物理扩展 UnitManager")
 @export var air_height_threshold: float = 20.0    # 空中/地面判定高度阈值【px】高度>该值按空中处理（走 NAV_AIR、不参与地面密度/碰撞/扬尘）
-@export var density_limit: float = 4.0            # 路径"人墙"密度阈值【密度】直线探测中格子密度超过该值判定被堵死，切回流场绕行（一格子约能塞下六辆坦克）
+@export var density_limit: float = 0.25           # 路径"人墙"密度阈值【密度】直线探测中格子密度超过该值判定被堵死，切回流场绕行（一格子约能塞下六辆坦克）
 @export var density_update_interval: float = 0.5  # 动态密度图重建间隔【s】越小避让越灵敏但越耗性能
 @export var idle_density_factor: float = 5.0      # 待机单位密度贡献倍率【无】待机单位占格更久，让移动单位绕行
 @export var density_next_cell_factor: float = 0.8 # 移动方向下一格密度贡献系数【无】让"行进前方"也占一点密度，提前避让
-@export var arrival_stop_distance_sq: float = 10.0 # 到达死区距离（平方）【px²】距目标小于该值时返回零流场力，防终点横跳
+@export var arrival_stop_distance_sq: float = 1.0 # 到达死区距离（平方）【px²】距目标小于该值时返回零流场力，防终点横跳
 @export var density_avoidance_strength: float = 0.1  # 直线模式密度避让强度【无】（建议 0.05~0.5），越大越早绕开人群
 @export var density_avoidance_flow_strength: float = 0.02 # 流场模式密度避让强度【无】只取垂直分量叠加，增强动态绕行感
-@export var separation_extra_radius: float = 30.0 # 排斥搜索半径额外余量【px】保证搜索半径能覆盖大型单位
+@export var separation_extra_radius: float = 8.0  # 排斥搜索半径额外余量【px】保证搜索半径能覆盖大型单位
 @export var separation_min_dist_factor: float = 1.1 # 排斥理想间距系数【无】理想间距=(双方碰撞半径之和)×该值，>1 单位留缝
 @export var sep_idle_vs_idle_k: float = 0.5       # 双方都待机时排斥力权重【无】
 @export var sep_idle_vs_moving_k: float = 2.0     # 待机单位推开移动单位的排斥力权重【无】
@@ -48,7 +48,7 @@ extends Resource
 @export var soft_arrival_neighbor_radius_factor: float = 3.0 # 软到达邻居扫描半径 = 碰撞半径 × 该值【无】
 @export var stuck_check_interval: float = 0.5     # 卡住检测间隔【s】不宜过小，要给单位"挤过去"的时间
 @export var stuck_threshold_move_factor: float = 0.025 # 卡住位移阈值系数【无】阈值=min(该值×移速, stuck_threshold_min)
-@export var stuck_threshold_min: float = 0.5      # 卡住位移阈值下限【px】
+@export var stuck_threshold_min: float = 0.1      # 卡住位移阈值下限【px】
 @export var stuck_rotation_threshold_factor: float = 0.08 # 卡住转角阈值 = 该值 × 转向速度【无】在转圈也算"没卡住"
 @export var stuck_give_up_time: float = 8.0       # 连续无位移超过该秒数判定卡死，放弃并停下【s】
 @export var path_recheck_interval: float = 0.8    # 移动中直线路径重查间隔【s】
@@ -74,7 +74,7 @@ extends Resource
 
 # ---------- 流场（写入 FlowFieldManager） ----------
 @export_group("流场 FlowFieldManager")
-@export var density_weight: float = 0.3            # 密度代价权重【无】单位密度×该值加入路径代价
+@export var density_weight: float = 4.8            # 密度代价权重【无】单位密度×该值加入路径代价
 @export var density_decay_factor: float = 0.2      # 密度衰减系数【无】(0~1) 每帧旧密度保留比例
 @export var max_density_cost: float = 100.0        # 密度代价上限【代价】防止密度代价过大导致乱跑
 @export var max_search_dist: int = 60              # 找最近可走格搜索半径【格】

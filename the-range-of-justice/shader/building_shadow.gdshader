@@ -33,7 +33,7 @@ void fragment() {
     // 计算图集 UV
     vec2 atlas_uv = UV;
     atlas_uv.x = (atlas_uv.x + frame) * frame_size.x;
-    atlas_uv.y = (atlas_uv.y + row) * frame_size.y;
+    atlas_uv.y = (atlas_uv.y + max(row, 0.0)) * frame_size.y;
 	
     vec4 tex = texture(albedo_texture, atlas_uv);
     // 影子的颜色由纹理的透明度决定

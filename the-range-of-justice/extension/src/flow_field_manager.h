@@ -14,6 +14,15 @@
 
 namespace godot {
 
+    // 方向通行位掩码（用于高地/悬崖等方向性地形）
+    enum DirBit {
+        DIR_UP = 1,
+        DIR_DOWN = 2,
+        DIR_LEFT = 4,
+        DIR_RIGHT = 8,
+        DIR_ALL = DIR_UP | DIR_DOWN | DIR_LEFT | DIR_RIGHT
+    };
+
     // 复合 Key：用于在哈希表中区分 [目标点 + 移动类型]
     struct FlowFieldKey {
         Vector2i target;
@@ -77,6 +86,7 @@ namespace godot {
         int nearest_walkable_cell_limit = 1000;   // 最近可走格 BFS 搜索的安全阀 (可调)
 
         std::vector<uint32_t> metadata_grid; // 存储每个格子的元数据（位掩码）
+        std::vector<uint8_t> dir_masks; // 每个格子的方向通行掩码（UP/DOWN/LEFT/RIGHT 位）
 
         // 0: 地面/水面密度 (Ground/Sea), 1: 空中密度 (Air)
         std::vector<float> density_maps[2];
@@ -130,6 +140,10 @@ namespace godot {
 
         void set_cell_metadata(Vector2i p_grid_pos, uint32_t p_meta_flag, bool p_enabled);
 
+        // 设置格子方向通行掩码（位：UP=1, DOWN=2, LEFT=4, RIGHT=8）
+        void set_dir_mask(Vector2i p_grid_pos, uint8_t p_mask);
+        uint8_t get_dir_mask(Vector2i p_grid_pos);
+
         // [核心] 计算指定目标的集成场 (Dijkstra/BFS)
         void compute_integration_field(FlowFieldKey p_key);
 
@@ -169,6 +183,9 @@ namespace godot {
         int get_height() { return height; }
 
         bool is_in_grid(Vector2i p_grid_pos);
+
+        bool can_traverse_between(Vector2i p_grid_a, Vector2i p_grid_b, int p_nav_type) const;
+        bool can_traverse_between_relative(int x1, int y1, int x2, int y2, int p_nav_type) const;
 
         bool is_path_clear(Vector2 p_start_world, Vector2 p_end_world, int p_nav_type);
         bool is_path_traversable(Vector2 p_start, Vector2 p_end, int p_nav_type, float p_max_density_threshold, bool count_density = true);

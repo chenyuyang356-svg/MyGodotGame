@@ -52,14 +52,9 @@ namespace godot {
         bool _is_target_valid(int p_target_id, bool p_is_building);
 
         //攻击逻辑
-        void _execute_attack(UnitData& attacker, int target_id, bool target_is_building, const Weapon& weapon);
         void _execute_weapon_data_attack(Vector2 p_source_pos, float p_source_h, float p_source_rot, int p_source_id, bool p_source_is_b,
             int p_target_id, bool p_target_is_b, WeaponData& wd);
         void _execute_building_attack(BuildingData& attacker, int target_id, bool target_is_building);
-
-        bool _process_weapons_logic(int p_attacker_id, bool p_attacker_is_b, Vector2 p_pos, float p_h, float p_rot,
-            int p_target_id, bool p_target_is_b, std::vector<WeaponData>& p_weapons,
-            const std::vector<Weapon>* p_body_weapons = nullptr, std::vector<float>* p_cooldowns = nullptr);
 
         // 获取目标的位置和碰撞半径
         bool _get_target_info(int p_target_id, bool p_is_building, Vector2& out_pos, float& out_radius);

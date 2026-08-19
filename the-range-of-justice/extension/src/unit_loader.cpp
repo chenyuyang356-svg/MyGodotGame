@@ -63,6 +63,7 @@ int UnitLoader::_parse_bitfield(String p_value) {
         else if (tag == "Builder") result |= TAG_BUILDER;
         else if (tag == "Summoned") result |= TAG_SUMMONED;
         else if (tag == "Hero") result |= TAG_HERO;
+        else if (tag == "Dummy") result |= TAG_DUMMY;
         else if (tag.is_valid_int()) result |= tag.to_int();
     }
     return result;
@@ -167,26 +168,6 @@ Ref<UnitStats> UnitLoader::load_stats_from_cfg(String p_path, WeaponManager* p_w
                 }
             }
 
-            // --- 内联武器 (非独立) ---
-            else if (key == "weapon") {
-                PackedStringArray parts = value.split(",");
-                if (parts.size() >= 4) {
-                    Weapon w;
-                    w.projectile_type_name = parts[0].strip_edges();
-                    w.damage = parts[1].to_float();
-                    w.attack_range = parts[2].to_float();
-                    w.attack_interval = parts[3].to_float();
-
-                    if (parts.size() >= 5) w.projectile_speed = parts[4].to_float();
-                    if (parts.size() >= 6) w.splash_radius = parts[5].to_float();
-                    if (parts.size() >= 9) w.spawn_offset = Vector3(parts[6].to_float(), parts[7].to_float(), parts[8].to_float());
-                    if (parts.size() >= 10) w.firing_tolerance = parts[9].to_float();
-                    if (parts.size() >= 11) w.can_attack_ground = (parts[10].strip_edges().to_lower() == "true");
-                    if (parts.size() >= 12) w.can_attack_air = (parts[11].strip_edges().to_lower() == "true");
-
-                    stats->weapons.push_back(w);
-                }
-            }
             // --- 独立武器挂载 (引用 WeaponManager 已注册武器) ---
             else if (key == "weapon_mount") {
                 PackedStringArray parts = value.split(",");

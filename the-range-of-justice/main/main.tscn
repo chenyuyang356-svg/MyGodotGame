@@ -1,7 +1,8 @@
 [gd_scene format=3 uid="uid://dq5bn2l7ni314"]
 
 [ext_resource type="Script" uid="uid://dn1a7tvm4pw6o" path="res://main/main.gd" id="1_3wy1v"]
-[ext_resource type="Script" uid="uid://b42kq4l3ku46f" path="res://main/flow_field_manager.gd" id="2_4dugh"]
+[ext_resource type="Script" path="res://main/flow_field_manager.gd" id="2_4dugh"]
+[ext_resource type="Script" path="res://main/unit_dev_placer.gd" id="2_unitdev"]
 [ext_resource type="Texture2D" uid="uid://crpew34fhydxd" path="res://asset/fog_brush.tres" id="3_bsumw"]
 [ext_resource type="Script" uid="uid://dm3xricwkeu64" path="res://main/economy_manager.gd" id="3_grrlh"]
 [ext_resource type="Script" uid="uid://dctuafq0a0mpn" path="res://main/building_manager.gd" id="3_kfbq2"]
@@ -110,6 +111,14 @@ flow_field_manager = NodePath("../FlowFieldManager")
 selection_manager = NodePath("../SelectionManager")
 build_menu_container = NodePath("../GameHUB/RightSidePanel/RightSidebar/BuildingMenu")
 
+[node name="UnitDevPlacer" type="Node" parent="." unique_id=322222222 node_paths=PackedStringArray("camera", "unit_manager", "selection_manager", "flow_field_manager", "unit_menu_container")]
+script = ExtResource("2_unitdev")
+camera = NodePath("../Camera3D")
+unit_manager = NodePath("../UnitManager")
+selection_manager = NodePath("../SelectionManager")
+flow_field_manager = NodePath("../FlowFieldManager")
+unit_menu_container = NodePath("../GameHUB/RightSidePanel/RightSidebar/UnitMenu")
+
 [node name="DebugCanvas" type="CanvasLayer" parent="." unique_id=800377856]
 
 [node name="DebugDraw" type="Node2D" parent="DebugCanvas" unique_id=1412301083]
@@ -174,6 +183,10 @@ theme_override_constants/v_separation = 5
 columns = 2
 
 [node name="BuildingMenu" type="VBoxContainer" parent="GameHUB/RightSidePanel/RightSidebar" unique_id=1512739518]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+
+[node name="UnitMenu" type="VBoxContainer" parent="GameHUB/RightSidePanel/RightSidebar" unique_id=1512739519]
 custom_minimum_size = Vector2(320, 0)
 layout_mode = 2
 
