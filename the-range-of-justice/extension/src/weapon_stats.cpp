@@ -50,6 +50,10 @@ void WeaponStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_turn_speed"), &WeaponStats::get_turn_speed);
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "turn_speed"), "set_turn_speed", "get_turn_speed");
 
+    ClassDB::bind_method(D_METHOD("set_idle_rotate_speed", "val"), &WeaponStats::set_idle_rotate_speed);
+    ClassDB::bind_method(D_METHOD("get_idle_rotate_speed"), &WeaponStats::get_idle_rotate_speed);
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "idle_rotate_speed"), "set_idle_rotate_speed", "get_idle_rotate_speed");
+
     ClassDB::bind_method(D_METHOD("set_rotation_center", "p_val"), &WeaponStats::set_rotation_center);
     ClassDB::bind_method(D_METHOD("get_rotation_center"), &WeaponStats::get_rotation_center);
     ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "rotation_center"), "set_rotation_center", "get_rotation_center");
@@ -57,6 +61,38 @@ void WeaponStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_muzzle_offset", "p_val"), &WeaponStats::set_muzzle_offset);
     ClassDB::bind_method(D_METHOD("get_muzzle_offset"), &WeaponStats::get_muzzle_offset);
     ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "muzzle_offset"), "set_muzzle_offset", "get_muzzle_offset");
+
+    ClassDB::bind_method(D_METHOD("set_muzzle_offsets", "p_val"), &WeaponStats::set_muzzle_offsets);
+    ClassDB::bind_method(D_METHOD("get_muzzle_offsets"), &WeaponStats::get_muzzle_offsets);
+    ADD_PROPERTY(PropertyInfo(Variant::PACKED_VECTOR3_ARRAY, "muzzle_offsets"), "set_muzzle_offsets", "get_muzzle_offsets");
+
+    ClassDB::bind_method(D_METHOD("set_firing_mode", "p_val"), &WeaponStats::set_firing_mode);
+    ClassDB::bind_method(D_METHOD("get_firing_mode"), &WeaponStats::get_firing_mode);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "firing_mode"), "set_firing_mode", "get_firing_mode");
+
+    ClassDB::bind_method(D_METHOD("set_muzzle_flash_enabled", "p_val"), &WeaponStats::set_muzzle_flash_enabled);
+    ClassDB::bind_method(D_METHOD("get_muzzle_flash_enabled"), &WeaponStats::get_muzzle_flash_enabled);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "muzzle_flash_enabled"), "set_muzzle_flash_enabled", "get_muzzle_flash_enabled");
+
+    ClassDB::bind_method(D_METHOD("set_flash_scale", "p_val"), &WeaponStats::set_flash_scale);
+    ClassDB::bind_method(D_METHOD("get_flash_scale"), &WeaponStats::get_flash_scale);
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "flash_scale"), "set_flash_scale", "get_flash_scale");
+
+    ClassDB::bind_method(D_METHOD("set_muzzle_flash_angle", "p_val"), &WeaponStats::set_muzzle_flash_angle);
+    ClassDB::bind_method(D_METHOD("get_muzzle_flash_angle"), &WeaponStats::get_muzzle_flash_angle);
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "muzzle_flash_angle"), "set_muzzle_flash_angle", "get_muzzle_flash_angle");
+
+    ClassDB::bind_method(D_METHOD("set_flash_life", "p_val"), &WeaponStats::set_flash_life);
+    ClassDB::bind_method(D_METHOD("get_flash_life"), &WeaponStats::get_flash_life);
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "flash_life"), "set_flash_life", "get_flash_life");
+
+    ClassDB::bind_method(D_METHOD("set_flash_preset", "p_val"), &WeaponStats::set_flash_preset);
+    ClassDB::bind_method(D_METHOD("get_flash_preset"), &WeaponStats::get_flash_preset);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "flash_preset"), "set_flash_preset", "get_flash_preset");
+
+    ClassDB::bind_method(D_METHOD("set_flash_trigger_frame", "p_val"), &WeaponStats::set_flash_trigger_frame);
+    ClassDB::bind_method(D_METHOD("get_flash_trigger_frame"), &WeaponStats::get_flash_trigger_frame);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "flash_trigger_frame"), "set_flash_trigger_frame", "get_flash_trigger_frame");
 
     ClassDB::bind_method(D_METHOD("set_firing_tolerance", "p_val"), &WeaponStats::set_firing_tolerance);
     ClassDB::bind_method(D_METHOD("get_firing_tolerance"), &WeaponStats::get_firing_tolerance);

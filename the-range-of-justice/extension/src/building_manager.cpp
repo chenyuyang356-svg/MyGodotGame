@@ -190,7 +190,15 @@ void BuildingManager::physics_update(double p_delta) {
 
         for (auto& weapon : b.weapons) {
             weapon.prev_rotation = weapon.rotation;
-            weapon.update(0.0f, p_delta);
+            if (b.stats->get_turret_spin()) {
+                // 工厂炮塔：生产单位时缓慢自转，生产结束(或未生产)保持当前朝向不动
+                if (b.state == BuildingState::WORKING) {
+                    weapon.rotation += Math::deg_to_rad(b.stats->get_turret_spin_speed()) * (float)p_delta;
+                }
+            }
+            else {
+                weapon.update(0.0f, p_delta);
+            }
             weapon.next_rotation = weapon.rotation;
         }
 
@@ -250,7 +258,7 @@ void BuildingManager::physics_update(double p_delta) {
 
                         // 触发生产完成的一次性动画（如开门动画）
                         // 总时长 = 动画帧时长 + 最后一帧暂停时长
-                        b.one_shot_anim_total = (float)b.stats->get_working_frames() / b.stats->get_anim_fps();
+                        b.one_shot_anim_total = (float)b.stats->get_completion_frames() / b.stats->get_anim_fps();
                         b.one_shot_anim_hold = b.stats->get_working_hold_time();
                         b.one_shot_anim_time = b.one_shot_anim_total + b.one_shot_anim_hold;
                         b.anim_time = 0.0f;
@@ -343,9 +351,9 @@ void BuildingManager::update_multimesh_buffer(double p_delta, float p_alpha, Sel
 
             // --- C. 动画同步 ---
             bool playing_one_shot = (b.one_shot_anim_time > 0.0f);
-            // 一次性动画用 working 帧数（如 7 帧开门动画），其余按状态取帧
+            // 一次性动画用完成动画帧数（如 8 帧开门动画，未配置则回退 working_frames），其余按状态取帧
             int frames = playing_one_shot
-                ? s_ptr->get_working_frames()
+                ? s_ptr->get_completion_frames()
                 : (b.stats)->get_frames(b.state);
             // 行号使用配置中的动画行（支持单行图集，所有状态共用第 0 行）
             // 建造中(BUILDING)用 -1 标记，让 shader 识别"建造中"并叠加灰色半透明效果

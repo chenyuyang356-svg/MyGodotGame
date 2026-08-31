@@ -25,10 +25,13 @@ namespace godot {
 
     public:
         // 执行选择逻辑：由 GDScript 在点击或框选结束时调用
-        void do_single_select(Vector2 p_mouse_pos, Node* p_um, Node* p_bm);
+        void do_single_select(Vector2 p_mouse_pos, Node* p_um, Node* p_bm, bool p_additive = false);
         void do_type_select(Vector2 p_mouse_pos, Rect2 p_screen_rect, Node* p_um, Node* p_bm);
-        void do_box_select(Rect2 p_box, Node* p_um, Node* p_bm);
+        void do_box_select(Rect2 p_box, Node* p_um, Node* p_bm, bool p_additive = false);
         void clear_selection();
+
+        // 程序化设置选中（编队选择/子组切换用），会校验队伍归属
+        void set_selected_units(Array p_ids, Node* p_um);
 
         void update_hover(Vector2 p_mouse_pos, Node* p_um, Node* p_bm);
 

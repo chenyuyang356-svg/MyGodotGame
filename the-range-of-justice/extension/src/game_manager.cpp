@@ -370,6 +370,7 @@ void GameManager::setup_system(int p_width, int p_height, Vector2i p_cell_size, 
 
 	attack_manager->set_building_manager(building_manager);
 	attack_manager->set_projectile_manager(projectile_manager);
+	attack_manager->set_effect_manager(effect_manager);
 
 	effect_manager->setup(fog_manager);
 
@@ -1483,6 +1484,9 @@ void GameManager::restore_game_state(const Dictionary& p_state) {
 	unit_manager->clear_all_units();
 	building_manager->clear_all_buildings();
 	group_manager->temp_groups.clear();
+	for (int i = 0; i < GroupManager::MAX_CONTROL_GROUPS; ++i) {
+		group_manager->control_groups[i].clear();
+	}
 
 	// --- 单位 ---
 	Array units = p_state["units"];
@@ -1515,6 +1519,7 @@ void GameManager::restore_game_state(const Dictionary& p_state) {
 		}
 		// 重置瞬态字段（编队/粒子/卡死检测等跨进程无意义的状态）
 		u.temp_group_id = -1;
+		u.control_group_count = 0;
 		u.prev_position = u.position; u.next_position = u.position;
 		u.prev_rotation = u.rotation; u.next_rotation = u.rotation;
 		u.prev_height = u.height; u.next_height = u.height;

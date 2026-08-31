@@ -1,5 +1,7 @@
 extends SelectionManager
 
+signal control_groups_changed
+
 var godot_icon: Texture2D = preload("res://icon.svg")
 @export var selection_item_scene: PackedScene = preload("res://ui/selection_item/selection_item.tscn")
 # --- 节点引用 (在编辑器中指定) ---
@@ -21,7 +23,14 @@ var press_start_screen_pos: Vector2 = Vector2.ZERO # 屏幕坐标：用于绘制
 var press_start_world_pos: Vector2 = Vector2.ZERO  # 世界坐标：用于传给 C++ 逻辑
 var is_actual_drag: bool = false
 var last_left_click_time: int = 0
-const TAG_BUILDER = 4 
+var shift_held_at_press: bool = false # 按下左键时是否按着 Shift (增选/反选)
+const TAG_BUILDER = 4
+
+# --- 编队系统 ---
+const MAX_CONTROL_GROUPS: int = 10
+var _last_group_idx: int = -1         # 双击跳转检测：上次按下的编队号
+var _last_group_press_ms: int = 0
+var _last_subgroup_key: String = ""   # Tab 子组循环：上次选中的单位类型
 
 func _ready() -> void:
 	connect("selection_changed", _on_selection_changed)
@@ -34,6 +43,14 @@ func _process(_delta):
 	# 这会让单位/建筑在鼠标划过时产生即时的高亮渲染反馈
 	var mouse_world = camera_3d.get_mouse_world_pos()
 	update_hover(mouse_world, unit_manager, building_manager)
+
+func _input(event: InputEvent):
+	# Tab 在 GUI 焦点遍历前拦截，用于编队子组循环
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_TAB:
+		if building_manager and building_manager.is_building_mode:
+			return
+		_cycle_subgroup()
+		get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent):
 	# 如果处于建筑放置模式（由建筑管理器控制），拦截并清理选择行为
@@ -50,32 +67,43 @@ func _unhandled_input(event: InputEvent):
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
+				shift_held_at_press = Input.is_key_pressed(KEY_SHIFT)
 				_on_left_pressed()
 			else:
 				_on_left_released()
-		
+
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			_on_right_pressed()
 
 	elif event is InputEventMouseMotion:
 		if is_left_down:
 			_on_left_drag_motion()
-	
+
 	elif event is InputEventKey and event.pressed and not event.echo:
+		var keycode = event.keycode
+
+		# 开发者模式：F1~F5 切换观察队伍
 		if multiplayer.is_server() and DebugManager.is_dev_mode:
-			var keycode = event.keycode
 			match keycode:
-				KEY_1:
+				KEY_F1:
 					team_id = 1
-				KEY_2:
+				KEY_F2:
 					team_id = 2
-				KEY_3:
+				KEY_F3:
 					team_id = 3
-				KEY_4:
+				KEY_F4:
 					team_id = 4
-				KEY_5:
+				KEY_F5:
 					team_id = 5
-	
+
+		# 编队快捷键：Ctrl+数字 存编队 / Shift+数字 追加 / 数字 选中(双击跳转)
+		var group_idx = _keycode_to_group_index(keycode)
+		if group_idx != -1:
+			if event.ctrl_pressed or event.shift_pressed:
+				assign_control_group(group_idx, event.shift_pressed)
+			else:
+				_on_control_group_requested(group_idx)
+			get_viewport().set_input_as_handled()
 
 func _on_selection_changed():
 	_update_information_panel()
@@ -135,23 +163,31 @@ func _on_left_drag_motion():
 func _on_left_released():
 	var release_world_pos = camera_3d.get_mouse_world_pos()
 	var current_time = Time.get_ticks_msec()
-	
+
 	if is_actual_drag:
-		# 1. 执行框选 (C++ 接口：使用空间网格筛选单位 ID)
+		# 1. 执行框选 (C++ 接口：使用空间网格筛选单位 ID；Shift 追加框选)
 		var box = _get_world_rect(press_start_world_pos, release_world_pos)
-		do_box_select(box, unit_manager, building_manager)
-	
+		do_box_select(box, unit_manager, building_manager, shift_held_at_press)
+
 	elif current_time - last_left_click_time < double_click_interval_ms:
 		# 2. 执行双击 (C++ 接口：选取屏幕内所有同类单位)
 		var view_rect = camera_3d.get_visible_world_rect()
 		do_type_select(release_world_pos, view_rect, unit_manager, building_manager)
 		last_left_click_time = 0
-	
+
 	else:
-		# 3. 执行单选 (C++ 接口：优先检测单位，后检测建筑)
-		do_single_select(release_world_pos, unit_manager, building_manager)
+		# 3. 执行单选 (C++ 接口：优先检测单位，后检测建筑；Shift 增选/反选)
+		var before = get_selected_unit_ids()
+		do_single_select(release_world_pos, unit_manager, building_manager, shift_held_at_press)
+		# Shift 反选剔除的单位：同时从编队中移除
+		if shift_held_at_press:
+			var after = get_selected_unit_ids()
+			for uid in before:
+				if not after.has(uid):
+					unit_manager.remove_unit_from_control_group(uid)
+					emit_signal("control_groups_changed")
 		last_left_click_time = current_time
-	
+
 	_reset_ui_state()
 
 # --- 鼠标右键逻辑 ---
@@ -162,6 +198,106 @@ func _on_right_pressed():
 	# 1. 判定点击了地面、单位还是建筑
 	# 2. 自动 emit_signal("command_issued", ...) 信号给 GameManager
 	handle_right_click(mouse_world_pos, unit_manager, building_manager)
+
+
+# --- 编队系统 ---
+
+func _keycode_to_group_index(keycode: int) -> int:
+	if keycode >= KEY_1 and keycode <= KEY_9:
+		return keycode - KEY_1
+	if keycode == KEY_0:
+		return 9
+	return -1
+
+# 选中编队；窗口期内再次触发(双击)则镜头跳转。键盘数字键与 UI 按钮共用
+func _on_control_group_requested(idx: int) -> void:
+	var ids = get_control_group_ids(idx)
+	if ids.is_empty():
+		return
+
+	var now = Time.get_ticks_msec()
+	var is_double = (_last_group_idx == idx and now - _last_group_press_ms <= double_click_interval_ms)
+	_last_group_idx = idx
+	_last_group_press_ms = now
+
+	set_selected_units(ids, unit_manager)
+
+	if is_double:
+		_center_camera_on_units(ids)
+
+# 分配编队。p_append 为 true 时把当前选中追加进已有编队 (Shift+数字)
+func assign_control_group(idx: int, p_append: bool = false) -> void:
+	var selected = get_selected_unit_ids()
+	if selected.is_empty():
+		return
+
+	var merged: Array = []
+	if p_append:
+		merged.assign(get_control_group_ids(idx))
+	for uid in selected:
+		if not merged.has(uid):
+			merged.append(uid)
+
+	unit_manager.set_control_group(idx, merged)
+	GlobalAudioManager.play_ui_sfx("InGameMenuClick")
+	emit_signal("control_groups_changed")
+
+# 解散编队 (清空成员)
+func disband_control_group(idx: int) -> void:
+	unit_manager.set_control_group(idx, [])
+	_last_group_idx = -1
+	emit_signal("control_groups_changed")
+
+func get_control_group_ids(idx: int) -> Array:
+	return unit_manager.get_control_group_units_alive(idx)
+
+func _center_camera_on_units(ids: Array) -> void:
+	if ids.is_empty():
+		return
+	var sum := Vector2.ZERO
+	for uid in ids:
+		sum += unit_manager.get_unit_position(uid)
+	camera_3d.jump_to_world(sum / ids.size())
+
+# Tab 子组循环：混合编队中按单位类型轮换选中
+func _cycle_subgroup() -> void:
+	var sel = get_selected_unit_ids()
+	if sel.size() < 2:
+		return
+
+	var type_order: Array = []
+	var by_type: Dictionary = {}
+	for uid in sel:
+		var stats = unit_manager.get_unit_stats(uid)
+		if stats == null:
+			continue
+		var key: String = stats.unit_name_key
+		if not by_type.has(key):
+			by_type[key] = []
+			type_order.append(key)
+		by_type[key].append(uid)
+
+	if type_order.size() < 2:
+		return
+
+	var next_idx = 0
+	if _last_subgroup_key != "" and type_order.has(_last_subgroup_key):
+		next_idx = (type_order.find(_last_subgroup_key) + 1) % type_order.size()
+	_last_subgroup_key = type_order[next_idx]
+	set_selected_units(by_type[_last_subgroup_key], unit_manager)
+
+# 点击信息面板头像：只选中该类型的单位 (子组单选)
+func _select_subgroup_by_key(type_key: String) -> void:
+	var subset: Array = []
+	var sel = get_selected_unit_ids()
+	for uid in sel:
+		var stats = unit_manager.get_unit_stats(uid)
+		if stats and stats.unit_name_key == type_key:
+			subset.append(uid)
+	if subset.is_empty() or subset.size() == sel.size():
+		return
+	_last_subgroup_key = type_key
+	set_selected_units(subset, unit_manager)
 
 
 # --- 选中单位或建筑 ---
@@ -179,12 +315,12 @@ func _update_information_panel() -> void:
 	for u_id in get_selected_unit_ids():
 		var stats = unit_manager.get_unit_stats(u_id)
 		if stats:
-			_add_to_registry(registry, stats.unit_name_key, godot_icon)
+			_add_to_registry(registry, stats.unit_name_key, godot_icon, true)
 
 	for b_id in get_selected_building_ids():
 		var stats = building_manager.get_building_stats(b_id)
 		if stats:
-			_add_to_registry(registry, stats.building_name_key, godot_icon)
+			_add_to_registry(registry, stats.building_name_key, godot_icon, false)
 
 	var keys = registry.keys()
 	keys.sort()
@@ -193,17 +329,28 @@ func _update_information_panel() -> void:
 		var data = registry[key_name]
 		var item = selection_item_scene.instantiate()
 		information_panel.add_child(item)
-		
+
 		# 在最终显示给 UI 时进行翻译
 		var translated_name = tr(key_name)
 		item.setup(translated_name, data.count, data.icon)
 
+		# 单位头像可点击：单选该类型子组
+		if data.is_unit and registry[key_name].count < get_selected_unit_ids().size():
+			item.set_meta("type_key", key_name)
+			item.mouse_filter = Control.MOUSE_FILTER_STOP
+			item.gui_input.connect(_on_selection_item_gui_input.bind(item))
+
+# 信息面板头像点击：选中该类型子组
+func _on_selection_item_gui_input(event: InputEvent, item: Control) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_select_subgroup_by_key(item.get_meta("type_key", ""))
+
 # 辅助函数：简化计数逻辑
-func _add_to_registry(reg: Dictionary, type_name: String, icon: Texture2D):
+func _add_to_registry(reg: Dictionary, type_name: String, icon: Texture2D, is_unit: bool):
 	if reg.has(type_name):
 		reg[type_name].count += 1
 	else:
-		reg[type_name] = {"count": 1, "icon": icon}
+		reg[type_name] = {"count": 1, "icon": icon, "is_unit": is_unit}
 
 
 func _show_production_buttons(building_ids: Array, stats: BuildingStats):

@@ -177,6 +177,11 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	var healing_tex: Texture2D = ResourceLoader.load("res://asset/particle/healing.png")
 	effect_manager.register_effect_type("Healing", healing_tex, 1000, 9.8, 0.1, 1.2)
 	
+	# 炮口开火闪光 (像素风格程序化生成: 16px点阵量化 + 4级离散色阶 + 逐帧爆裂顿挫)
+	# 参数依次为: 颜色, 像素大小, 调色板(0=火炮,1=机枪,2=重炮,3=能量), 白核, 火舌长, 侧喷度, 侧喷角(弧度), 侧喷长, 火花芒, 尺寸, 寿命, 前冲速度
+	effect_manager.register_effect_type("MuzzleFlash", null, 500, 0.0, 0.85, 1.0, true, true)
+	effect_manager.set_pixel_flash_params("MuzzleFlash", Color(1.0, 0.55, 0.10), 1.0, 0, 0.35, 0.90, 0.50, 0.87, 0.60, 0.40, 9.0, 0.12, 32.0)
+	
 	# 注册配置（本体 res://config + 玩家 mod user://mods，武器先行）
 	_register_all_configs(weapon_manager, unit_manager, building_manager, projectile_manager)
 	
@@ -243,7 +248,15 @@ func setup_game_with_map(map_res: MapResource) -> void:
 	# 如果地图特别宽，可能需要根据宽度来适配 size
 	if map_aspect_ratio > (minimap_container.custom_minimum_size.x / minimap_container.custom_minimum_size.y):
 		minimap_camera.size = map_real_width / (minimap_container.custom_minimum_size.x / minimap_container.custom_minimum_size.y)
-	
+
+	# --- 编队栏 UI (紧跟小地图下方) ---
+	var control_group_bar: PanelContainer = preload("res://main/control_group_bar.gd").new()
+	var right_sidebar: Container = minimap_border.get_parent()
+	right_sidebar.add_child(control_group_bar)
+	right_sidebar.move_child(control_group_bar, minimap_border.get_index() + 1)
+	control_group_bar.selection_manager = selection_manager
+	control_group_bar.unit_manager = unit_manager
+
 	# 3. 生成初始单位 (仅由主机/服务器执行)
 	if multiplayer.is_server():
 		spawn_initial_units(spawn_positions, players_settings, cell_size)
@@ -279,7 +292,7 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 		if spawn_positions.has(spawn_id):
 			var pos = spawn_positions[spawn_id]
 			# 在基地旁边生成建筑
-			GlobalGameManager.rpc_server_request_place_building("HumanBarrack", Vector2i(pos / Vector2(cell_size)), team_id, -1, true)
+			GlobalGameManager.rpc_server_request_place_building("WarFactory", Vector2i(pos / Vector2(cell_size)), team_id, -1, true)
 			# 测试用：网格化生成 50 辆 HeavyTank（10 列 x 5 行，间距 32px）
 			var tank_cols := 10
 			var tank_rows := 5
@@ -292,7 +305,7 @@ func spawn_initial_units(spawn_positions: Dictionary, players_settings: Dictiona
 					var tank_pos: Vector2 = pos + anchor_offset + Vector2(c * tank_spacing, r * tank_spacing)
 					# 安全网：个别被挡住的坦克吸附到最近可走格
 					tank_pos = _snap_to_walkable(tank_pos, cell_size, ffm)
-					GlobalGameManager.rpc_server_request_spawn_unit("TinyTank", tank_pos, team_id)
+					GlobalGameManager.rpc_server_request_spawn_unit("Fighter", tank_pos, team_id)
 			# 基地附近生成工兵和防空
 			GlobalGameManager.rpc_server_request_spawn_unit("Builder", pos + Vector2(0, 100), team_id)
 			# 如果是陆地地图，生成防空

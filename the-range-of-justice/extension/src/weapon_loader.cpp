@@ -37,6 +37,14 @@ Ref<WeaponStats> WeaponLoader::load_stats_from_cfg(String p_path, Ref<WeaponStat
             else if (key == "is_turret") stats->set_is_turret(value.to_lower().contains("true") || value.to_lower().contains("1"));
             else if (key == "can_attack_ground") stats->set_can_attack_ground(value.to_lower().contains("true") || value == "1");
             else if (key == "can_attack_air") stats->set_can_attack_air(value.to_lower().contains("true") || value == "1");
+            else if (key == "muzzle_flash" || key == "flash_enabled") stats->set_muzzle_flash_enabled(value.to_lower().contains("true") || value == "1");
+
+            // --- 枪口特效 ---
+            else if (key == "flash_scale") stats->set_flash_scale(value.to_float());
+            else if (key == "flash_life") stats->set_flash_life(value.to_float());
+            else if (key == "flash_preset") stats->set_flash_preset(value);
+            else if (key == "muzzle_flash_angle") stats->set_muzzle_flash_angle(value.to_float());
+            else if (key == "flash_trigger_frame" || key == "flash_frame") stats->set_flash_trigger_frame(value.to_int());
 
             // --- 战斗属性 ---
             else if (key == "damage") stats->set_damage(value.to_float());
@@ -45,6 +53,7 @@ Ref<WeaponStats> WeaponLoader::load_stats_from_cfg(String p_path, Ref<WeaponStat
             else if (key == "projectile_speed") stats->set_projectile_speed(value.to_float());
             else if (key == "splash_radius") stats->set_splash_radius(value.to_float());
             else if (key == "turn_speed") stats->set_turn_speed(value.to_float());
+            else if (key == "idle_rotate_speed") stats->set_idle_rotate_speed(value.to_float());
             else if (key == "firing_tolerance") stats->set_firing_tolerance(value.to_float());
 
             // --- 向量 ---
@@ -55,6 +64,28 @@ Ref<WeaponStats> WeaponLoader::load_stats_from_cfg(String p_path, Ref<WeaponStat
             else if (key == "muzzle_offset") {
                 PackedStringArray parts = value.split(",");
                 if (parts.size() >= 3) stats->set_muzzle_offset(Vector3(parts[0].to_float(), parts[1].to_float(), parts[2].to_float()));
+            }
+            else if (key == "muzzle_offsets") {
+                PackedStringArray m_list = value.split("|");
+                PackedVector3Array offsets;
+                for (int mi = 0; mi < m_list.size(); mi++) {
+                    PackedStringArray parts = m_list[mi].split(",");
+                    if (parts.size() >= 3) {
+                        offsets.append(Vector3(parts[0].to_float(), parts[1].to_float(), parts[2].to_float()));
+                    } else if (parts.size() == 2) {
+                        offsets.append(Vector3(parts[0].to_float(), parts[1].to_float(), 0.0f));
+                    }
+                }
+                if (!offsets.is_empty()) {
+                    stats->set_muzzle_offsets(offsets);
+                }
+            }
+            else if (key == "firing_mode") {
+                if (value.to_lower().contains("alter") || value == "1") {
+                    stats->set_firing_mode(1); // Alternating 轮射
+                } else {
+                    stats->set_firing_mode(0); // Simultaneous 齐射
+                }
             }
 
             // --- 渲染与动画 ---

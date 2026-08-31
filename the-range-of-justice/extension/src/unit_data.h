@@ -56,7 +56,8 @@ namespace godot {
 
         // 组管理相关数据
         int temp_group_id = -1;
-        int control_group_indices[3] = { -1, -1, -1 };
+        static constexpr int MAX_CONTROL_GROUP_MEMBERSHIPS = 3;
+        int control_group_indices[MAX_CONTROL_GROUP_MEMBERSHIPS] = { -1, -1, -1 };
         int control_group_count = 0;
 
         int team_id = 0;

@@ -22,6 +22,8 @@ namespace godot {
         int target_id = -1;             // 锁定的目标
 
         float anim_time = 0.0f;         // 武器动画播放时间
+        bool has_fired_current_cycle = false; // 当前攻击周期内是否已发射
+        int current_muzzle_idx = 0;     // 多枪口轮射模式下的当前枪口索引
         Vector2 local_position;         // 相对于主体中心的偏移位置（由主体的插槽决定）
 
         WeaponData() {}
@@ -38,6 +40,10 @@ namespace godot {
                     float step = stats->get_turn_speed() * p_delta;
                     if (Math::abs(angle_diff) <= step) rotation = final_target_angle;
                     else rotation += Math::sign(angle_diff) * step;
+                }
+                // 无目标但配置了 idle_rotate_speed：缓慢持续旋转（如防空炮塔空闲巡逻）
+                else if (stats->get_idle_rotate_speed() > 0.0f) {
+                    rotation += stats->get_idle_rotate_speed() * p_delta;
                 }
                 // 无目标：直接锁定车身朝向，避免车身转弯时炮塔滞后甩动
                 else {
@@ -69,6 +75,7 @@ namespace godot {
                 current_cooldown = stats->get_attack_interval();
                 state = WEAPON_ATTACKING;
                 anim_time = 0.0f;
+                has_fired_current_cycle = false;
                 return true;
             }
             return false;

@@ -1976,18 +1976,14 @@ int UnitManager::spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_tea
     return -1;
 }
 
-void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_ids) {
+void UnitManager::set_control_group(int p_index, const Array& p_unit_ids) {
     if (p_index < 0 || p_index >= group_manager->MAX_CONTROL_GROUPS) return;
 
     for (int old_uid : group_manager->control_groups[p_index]) {
-        int index = -1;
         auto it = id_to_index.find(old_uid);
-        if (it != id_to_index.end()) {
-            index = it->second;
-        }
-        if (index == -1) continue;
+        if (it == id_to_index.end()) continue;
 
-        UnitData& data = units[index]; 
+        UnitData& data = units[it->second];
         for (int i = 0; i < data.control_group_count; ++i) {
             if (data.control_group_indices[i] == p_index) {
                 data.control_group_indices[i] = data.control_group_indices[data.control_group_count - 1];
@@ -1996,22 +1992,59 @@ void UnitManager::set_control_group(int p_index, const std::vector<int>& p_unit_
             }
         }
     }
-   
-    group_manager->control_groups[p_index] = p_unit_ids;
 
-    for (int new_uid : p_unit_ids) { 
-        int index = -1;
-        auto it = id_to_index.find(new_uid);
-        if (it != id_to_index.end()) {
-            index = it->second;
+    std::vector<int>& group = group_manager->control_groups[p_index];
+    group.clear();
+    for (int i = 0; i < p_unit_ids.size(); i++) {
+        int new_uid = p_unit_ids[i];
+
+        bool is_dup = false;
+        for (int added_uid : group) {
+            if (added_uid == new_uid) { is_dup = true; break; }
         }
-        if (index == -1) continue;
+        if (is_dup) continue;
 
-        UnitData& data = units[index];
-        if (data.control_group_count < 3) { 
-            data.control_group_indices[data.control_group_count++] = p_index;
+        auto it = id_to_index.find(new_uid);
+        if (it == id_to_index.end()) continue;
+
+        UnitData& data = units[it->second];
+        if (data.control_group_count >= UnitData::MAX_CONTROL_GROUP_MEMBERSHIPS) continue;
+
+        data.control_group_indices[data.control_group_count++] = p_index;
+        group.push_back(new_uid);
+    }
+}
+
+Array UnitManager::get_control_group_units_alive(int p_index) {
+    Array result;
+    if (p_index < 0 || p_index >= group_manager->MAX_CONTROL_GROUPS) return result;
+    for (int uid : group_manager->control_groups[p_index]) {
+        auto it = id_to_index.find(uid);
+        if (it != id_to_index.end() && units[it->second].current_health > 0.0f) {
+            result.push_back(uid);
         }
     }
+    return result;
+}
+
+void UnitManager::remove_unit_from_control_group(int p_unit_id) {
+    auto it = id_to_index.find(p_unit_id);
+    if (it == id_to_index.end()) return;
+
+    UnitData& data = units[it->second];
+    for (int i = 0; i < data.control_group_count; ++i) {
+        int g_idx = data.control_group_indices[i];
+        if (g_idx < 0 || g_idx >= group_manager->MAX_CONTROL_GROUPS) continue;
+        auto& ids = group_manager->control_groups[g_idx];
+        for (size_t j = 0; j < ids.size(); ++j) {
+            if (ids[j] == p_unit_id) {
+                ids[j] = ids.back();
+                ids.pop_back();
+                break;
+            }
+        }
+    }
+    data.control_group_count = 0;
 }
 
 int UnitManager::get_unit_index_by_id(int p_id) {
@@ -2068,6 +2101,9 @@ void UnitManager::_bind_methods() {
     ClassDB::bind_method(D_METHOD("command_units_to_move", "unit_ids", "target_world_pos"), &UnitManager::command_units_to_move);
     ClassDB::bind_method(D_METHOD("command_units_to_patrol", "unit_ids", "waypoints"), &UnitManager::command_units_to_patrol);
     ClassDB::bind_method(D_METHOD("command_units_to_attack_target", "unit_ids", "target_id", "target_is_building", "building_manager"), &UnitManager::command_units_to_attack_target);
+    ClassDB::bind_method(D_METHOD("set_control_group", "index", "unit_ids"), &UnitManager::set_control_group);
+    ClassDB::bind_method(D_METHOD("get_control_group_units_alive", "index"), &UnitManager::get_control_group_units_alive);
+    ClassDB::bind_method(D_METHOD("remove_unit_from_control_group", "unit_id"), &UnitManager::remove_unit_from_control_group);
     ClassDB::bind_method(D_METHOD("get_unit_position", "unit_id"), &UnitManager::get_unit_position);
     ClassDB::bind_method(D_METHOD("get_unit_state", "unit_id"), &UnitManager::get_unit_state);
     ClassDB::bind_method(D_METHOD("get_unit_stats", "unit_id"), &UnitManager::get_unit_stats);

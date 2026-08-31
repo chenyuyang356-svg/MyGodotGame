@@ -34,6 +34,10 @@ void AttackManager::set_building_manager(BuildingManager* p_bmanager) {
     building_manager = p_bmanager;
 }
 
+void AttackManager::set_effect_manager(Node* p_node) {
+    effect_manager = Object::cast_to<EffectManager>(p_node);
+}
+
 bool AttackManager::_get_target_info(int p_target_id, bool p_is_building, Vector2& out_pos, float& out_radius) {
     if (p_is_building) {
         if (!building_manager) return false;
@@ -584,26 +588,36 @@ void AttackManager::_execute_weapon_data_attack(Vector2 p_source_pos, float p_so
     float angle_to_target = wd.target_direction.angle();
     float angle_diff = Math::abs(UtilityFunctions::angle_difference(wd.rotation, angle_to_target));
 
-    if (angle_diff > Math::deg_to_rad(wd.stats->get_firing_tolerance())) {
-        return; // 还没转到位，不攻击
+    if (angle_diff <= Math::deg_to_rad(wd.stats->get_firing_tolerance())) {
+        wd.try_attack(); // 冷却就绪且对准目标时进入攻击状态
     }
 
-    if (wd.try_attack()) { // 内部会重置冷却并触发动画状态
-        float dmg = wd.stats->get_damage();
-        float speed = wd.stats->get_projectile_speed();
+    // 在攻击动画播放到 flash_trigger_frame 指定帧时发射弹丸与闪光
+    if (wd.state == WEAPON_ATTACKING && !wd.has_fired_current_cycle) {
+        float trigger_time = (float)wd.stats->get_flash_trigger_frame() / (float)wd.stats->get_anim_fps();
+        if (wd.anim_time >= trigger_time) {
+            wd.has_fired_current_cycle = true;
 
-        Vector2 t_pos; float t_rad;
-        _get_target_info(p_target_id, p_target_is_b, t_pos, t_rad);
+            float dmg = wd.stats->get_damage();
+            float speed = wd.stats->get_projectile_speed();
 
-        if (speed <= 0.0f || speed > 5000.0f) {
-            if (wd.stats->get_splash_radius() > 0.0f)
-                apply_aoe_damage(t_pos, wd.stats->get_splash_radius(), dmg, p_source_id, p_source_is_b);
-            else
-                apply_damage(p_target_id, p_target_is_b, dmg, p_source_id, p_source_is_b);
-        }
-        else {
+            Vector2 t_pos; float t_rad;
+            _get_target_info(p_target_id, p_target_is_b, t_pos, t_rad);
+
             const Ref<WeaponStats>& ws = wd.stats;
-            Vector3 m_off = ws->get_muzzle_offset();
+            PackedVector3Array m_offsets = ws->get_muzzle_offsets();
+            if (m_offsets.is_empty()) {
+                m_offsets.append(ws->get_muzzle_offset());
+            }
+
+            int f_mode = ws->get_firing_mode();
+            int start_idx = 0;
+            int end_idx = m_offsets.size();
+            if (f_mode == 1 && m_offsets.size() > 1) { // 轮射模式 (Alternating)
+                start_idx = wd.current_muzzle_idx % m_offsets.size();
+                end_idx = start_idx + 1;
+                wd.current_muzzle_idx = (wd.current_muzzle_idx + 1) % m_offsets.size();
+            }
 
             // 1. 计算炮塔底座在世界空间的位置
             // 如果是建筑，不旋转底座偏移；如果是单位，底座偏移随单位旋转
@@ -615,20 +629,39 @@ void AttackManager::_execute_weapon_data_attack(Vector2 p_source_pos, float p_so
                 mount_world_pos += wd.local_position;
             }
 
-            // 2. 计算炮口在世界空间的位置 (相对于炮塔朝向旋转)
-            Vector2 muzzle_horizontal = Vector2(m_off.x, m_off.y).rotated(wd.rotation);
-            Vector2 final_spawn_pos = mount_world_pos + muzzle_horizontal;
+            for (int mi = start_idx; mi < end_idx; mi++) {
+                Vector3 m_off = m_offsets[mi];
 
-            // 3. 计算高度 (来源高度 + 炮塔偏移高度)
-            float final_start_height = p_source_h + m_off.z;
+                // 2. 计算枪口在世界空间的位置 (相对于炮塔朝向旋转)
+                Vector2 muzzle_horizontal = Vector2(m_off.x, m_off.y).rotated(wd.rotation);
+                Vector2 final_spawn_pos = mount_world_pos + muzzle_horizontal;
+                float final_start_height = p_source_h + m_off.z;
 
-            emit_signal("spawn_projectile_requested",
-                wd.stats->get_projectile_type_name(),
-                final_spawn_pos, final_start_height,
-                p_target_id, p_target_is_b, 0.0f,
-                p_source_id, p_source_is_b,
-                dmg
-            );
+                // --- 炮口开火闪光特效 (多层次程序化火焰, 投射物/瞬间命中武器通用) ---
+                if (effect_manager && ws->get_muzzle_flash_enabled()) {
+                    float flash_angle = wd.rotation + Math::deg_to_rad(ws->get_muzzle_flash_angle());
+                    effect_manager->emit_particle_rot("MuzzleFlash",
+                        Vector3(final_spawn_pos.x, final_start_height + 0.1f, final_spawn_pos.y),
+                        Vector3(), ws->get_flash_scale(), ws->get_flash_life(),
+                        flash_angle);
+                }
+
+                if (speed <= 0.0f || speed > 5000.0f) {
+                    if (wd.stats->get_splash_radius() > 0.0f)
+                        apply_aoe_damage(t_pos, wd.stats->get_splash_radius(), dmg, p_source_id, p_source_is_b);
+                    else
+                        apply_damage(p_target_id, p_target_is_b, dmg, p_source_id, p_source_is_b);
+                }
+                else {
+                    emit_signal("spawn_projectile_requested",
+                        wd.stats->get_projectile_type_name(),
+                        final_spawn_pos, final_start_height,
+                        p_target_id, p_target_is_b, 0.0f,
+                        p_source_id, p_source_is_b,
+                        dmg
+                    );
+                }
+            }
         }
     }
 }

@@ -84,6 +84,9 @@ Ref<BuildingStats> BuildingLoader::load_from_cfg(String p_path, WeaponManager* p
             else if (key == "working_row") stats->set_working_row(value.to_int());
             else if (key == "building_frames") stats->set_building_frames(value.to_int());
             else if (key == "working_hold_time") stats->set_working_hold_time(value.to_float());
+            else if (key == "finish_frames") stats->set_finish_frames(value.to_int());
+            else if (key == "turret_spin") stats->set_turret_spin(value.to_lower().contains("true") || value == "1");
+            else if (key == "turret_spin_speed") stats->set_turret_spin_speed(value.to_float());
 
             // --- 兵营 ---
             else if (key == "producible_units") {

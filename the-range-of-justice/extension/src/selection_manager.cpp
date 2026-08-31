@@ -4,19 +4,38 @@
 
 using namespace godot;
 
-void SelectionManager::do_single_select(Vector2 p_mouse_pos, Node* p_um, Node* p_bm) {
+void SelectionManager::do_single_select(Vector2 p_mouse_pos, Node* p_um, Node* p_bm, bool p_additive) {
     UnitManager* um = Object::cast_to<UnitManager>(p_um);
     BuildingManager* bm = Object::cast_to<BuildingManager>(p_bm);
 
     // 1. 优先检查单位 (由于单位小且移动，通常优先级更高)
     int u_id = um->get_unit_at_position(p_mouse_pos);
     if (u_id != -1 && um->get_unit_team_id(u_id) == team_id) {
-        clear_selection();
-        selected_unit_ids.insert(u_id);
-        current_selection_type = UNIT;
+        if (p_additive) {
+            // Shift 增选模式：单位与建筑选择互斥
+            if (!selected_building_ids.empty()) clear_selection();
+            if (selected_unit_ids.count(u_id) > 0) {
+                selected_unit_ids.erase(u_id);
+                if (selected_unit_ids.empty() && current_selection_type == UNIT) {
+                    current_selection_type = NONE;
+                }
+            }
+            else {
+                selected_unit_ids.insert(u_id);
+                current_selection_type = UNIT;
+            }
+        }
+        else {
+            clear_selection();
+            selected_unit_ids.insert(u_id);
+            current_selection_type = UNIT;
+        }
         emit_signal("selection_changed");
         return;
     }
+
+    // Shift 增选模式下点空处：保持原选中不变
+    if (p_additive) return;
 
     // 2. 检查建筑
     // 假设 FlowFieldManager 的 world_to_grid 在内部处理
@@ -67,10 +86,10 @@ void godot::SelectionManager::do_type_select(Vector2 p_mouse_pos, Rect2 p_screen
     emit_signal("selection_changed");
 }
 
-void SelectionManager::do_box_select(Rect2 p_box, Node* p_um, Node* p_bm) {
+void SelectionManager::do_box_select(Rect2 p_box, Node* p_um, Node* p_bm, bool p_additive) {
     UnitManager* um = Object::cast_to<UnitManager>(p_um);
     BuildingManager* bm = Object::cast_to<BuildingManager>(p_bm);
-    clear_selection();
+    if (!p_additive) clear_selection();
 
     //检查单位
     std::vector<int> uids = um->get_units_in_box(p_box, team_id);
@@ -80,11 +99,18 @@ void SelectionManager::do_box_select(Rect2 p_box, Node* p_um, Node* p_bm) {
         selected_unit_ids.insert(uid);
     }
 
+    if (!uids.empty()) {
+        // 单位与建筑选择互斥
+        selected_building_ids.clear();
+    }
+
     if (!selected_unit_ids.empty()) {
         current_selection_type = UNIT;
         emit_signal("selection_changed");
         return;
     }
+
+    if (p_additive) return;
 
     //检查建筑
     std::vector<int> bids = bm->get_buildings_in_box(p_box, team_id);
@@ -95,9 +121,26 @@ void SelectionManager::do_box_select(Rect2 p_box, Node* p_um, Node* p_bm) {
 
     if (!selected_building_ids.empty()) {
         current_selection_type = BUILDING;
-        
+
     }
 
+    emit_signal("selection_changed");
+}
+
+void SelectionManager::set_selected_units(Array p_ids, Node* p_um) {
+    UnitManager* um = Object::cast_to<UnitManager>(p_um);
+    clear_selection();
+
+    for (int i = 0; i < p_ids.size(); i++) {
+        int uid = p_ids[i];
+        if (!um || um->get_unit_team_id(uid) == team_id) {
+            selected_unit_ids.insert(uid);
+        }
+    }
+
+    if (!selected_unit_ids.empty()) {
+        current_selection_type = UNIT;
+    }
     emit_signal("selection_changed");
 }
 
@@ -227,9 +270,11 @@ PackedInt32Array SelectionManager::get_selected_building_ids() const {
 void SelectionManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("update_hover", "mouse_position", "unit_manager", "building_manager"), &SelectionManager::update_hover);
     ClassDB::bind_method(D_METHOD("handle_right_click", "mouse_position", "unit_manager", "building_manager"), &SelectionManager::handle_right_click);
-	ClassDB::bind_method(D_METHOD("do_single_select", "mouse_position", "unit_manager", "building_manager"), &SelectionManager::do_single_select);
+	ClassDB::bind_method(D_METHOD("do_single_select", "mouse_position", "unit_manager", "building_manager", "additive"), &SelectionManager::do_single_select, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("do_type_select", "mouse_position", "screen_rect", "unit_manager", "building_manager"), &SelectionManager::do_type_select);
-	ClassDB::bind_method(D_METHOD("do_box_select", "box", "unit_manager", "building_manager"), &SelectionManager::do_box_select);
+	ClassDB::bind_method(D_METHOD("do_box_select", "box", "unit_manager", "building_manager", "additive"), &SelectionManager::do_box_select, DEFVAL(false));
+
+    ClassDB::bind_method(D_METHOD("set_selected_units", "unit_ids", "unit_manager"), &SelectionManager::set_selected_units);
 
     ClassDB::bind_method(D_METHOD("request_unit_production", "building_id", "unit_type"), &SelectionManager::request_unit_production);
 

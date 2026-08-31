@@ -109,6 +109,11 @@ func _apply_bounds_constraint():
 		global_position.z = clamp(global_position.z, limit_min_z, limit_max_z)
 
 
+# 立即跳转到世界坐标 (XZ 平面)，越界由 _apply_bounds_constraint 下一帧自动修正
+func jump_to_world(pos: Vector2) -> void:
+	global_position.x = pos.x
+	global_position.z = pos.y
+
 func get_visible_world_rect() -> Rect2:
 	var viewport_rect = get_viewport().get_visible_rect()
 	var size_pixels = viewport_rect.size

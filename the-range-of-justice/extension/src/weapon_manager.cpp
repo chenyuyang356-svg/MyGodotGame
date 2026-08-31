@@ -179,7 +179,9 @@ void WeaponManager::update_multimesh_buffer(double p_delta, float p_alpha, UnitM
             mm->set_instance_color(i, get_team_color(unit.team_id));
 
             Transform3D s_xform = xform;
-            s_xform.origin = xform.origin + Vector3(4.0f, - 0.0002f, 4.0f);
+            // 阴影必须落地：与本体阴影一致，Z 不做 -u_h 高度补偿
+            // 否则空军单位(u_h>0)的武器剪影会保留高度补偿，贴着机身渲染，看起来像多出一套武器
+            s_xform.origin = Vector3(w_pos.x + 4.0f, u_h + fd - 0.1f, w_pos.y + 4.0f);
             s_mm->set_instance_transform(i, s_xform);
             s_mm->set_instance_custom_data(i, Color(f_idx, row, 0, 0));
         }
@@ -306,7 +308,11 @@ void WeaponManager::register_weapon(String p_name, String p_path) {
 
         // --- 实例化渲染组件 ---
         WeaponStats* stats_ptr = stats.ptr();
-        if (weapon_renderers.find(stats_ptr) == weapon_renderers.end()) {
+        // 没有有效贴图的武器（texture_path 缺省/为空）视为"无可见炮塔"，
+        // 不创建任何渲染组件，仅保留开火/战斗逻辑。
+        String tex_path = stats->get_texture_path();
+        Ref<Texture2D> tex = tex_path.is_empty() ? Ref<Texture2D>() : ResourceLoader::get_singleton()->load(tex_path);
+        if (weapon_renderers.find(stats_ptr) == weapon_renderers.end() && tex.is_valid()) {
             // 1. 本题 MultiMesh
             MultiMeshInstance3D* mmi = memnew(MultiMeshInstance3D);
             mmi->set_name(stats->get_weapon_name() + "_Renderer");
@@ -320,7 +326,6 @@ void WeaponManager::register_weapon(String p_name, String p_path) {
 
             Ref<QuadMesh> qmesh;
             qmesh.instantiate();
-            Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(stats->get_texture_path());
             if (tex.is_valid()) {
                 Vector2 frame_size = tex->get_size() / Vector2(stats->get_h_frames(), stats->get_v_frames());
                 qmesh->set_size(frame_size);

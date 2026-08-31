@@ -1,0 +1,9 @@
+building_name,building_name_key,building_type,placement,footprint,clearance,cost,build_time,health_max,base_height,producible_units,production_speed,working_anim帧,finish_anim帧,hold时间秒,idle_anim帧,weapon_mount,turret_spin,turret_spin_speed,texture_path,h_frames,v_frames,anim_fps,备注
+Collector,KEY_BUILDING_COLLECTOR,Collector,"land,on_resource","1,1","1,1",500,15.0,2000,,Fighter(模板遗留字段未生效),1.0,6,-,0,6,,,res://asset/building/collector.png,6,1,8,资源采集器 Gold每秒+10
+WarFactory,KEY_BUILDING_WAR_FACTORY,Barracks,land,"1,1","3,3",500,10.0,2000,,Builder,TinyTank,HeavyTank,1.0,1,-(回退=1),0,1,,,false,,res://asset/building/war_factory.png,1,1,8,战争工厂 替换原兵营 贴图含炮塔造型(静态) 无独立旋转炮塔
+Shipyard,KEY_BUILDING_SHIPYARD,Barracks,water,"1,1","3,3",500,10.0,2000,,Gunboat,Battleship,1.0,14,14,1.0,1,,,res://asset/building/shipyard.png,14,1,8,造船厂 生产完成一次性播放14帧下水动画并停留1秒
+Hangar,KEY_BUILDING_HANGAR,Barracks,land,"1,1","3,3",600,12.0,1800,,Fighter,Helicopter,AttackHelicopter,1.0,1,8,0,1,,,,res://asset/building/hangar.png,8,1,8,机库 替换原空军基地 生产完成一次性播放8帧开门动画后回第0帧
+CommandCentre,KEY_BUILDING_COMMAND_CENTRE,Barracks,land,"2,2","3,3",400,15.0,2500,,Builder,1.0,1,7,0.5,1,,,res://asset/building/command_centre.png,7,1,8,指挥中心 可产建造者 生产完成一次性播放7帧部署动画
+bunker,KEY_BUILDING_BUNKER,Turret,land,"1,1","1,1",400,8.0,800,6.0,,,,,1,"bunker_turrent, 0.0, -2.0",,,res://asset/building/bunker.png,1,1,8,地堡 发现敌人转动攻击 4帧开火动画
+machine_gun_bunker,KEY_BUILDING_MACHINE_GUN_BUNKER,Turret,land,"1,1","1,1",350,7.0,700,6.0,,,,,1,"machine_gun_bunker_turrent, 0.0, -2.0",,,res://asset/building/machine_gun_bunker.png,1,1,8,机枪地堡 发现敌人转动攻击 2帧开火动画
+anti_air_turrent,KEY_BUILDING_ANTI_AIR_TURRENT,Turret,land,"1,1","1,1",700,10.0,600,6.0,,,,,1,"anti_air_turrent_missle, 0.0, 0.0",,,res://asset/building/anti_air_turrent.png,1,1,8,防空导弹塔 炮塔空闲缓慢自转 发现敌人快速转向 对空

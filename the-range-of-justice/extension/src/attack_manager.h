@@ -1,6 +1,7 @@
 #pragma once
 #include <godot_cpp/classes/node.hpp>
-#include "unit_manager.h" 
+#include "effect_manager.h"
+#include "unit_manager.h"
 #include "building_manager.h"
 
 namespace godot {
@@ -13,6 +14,7 @@ namespace godot {
         UnitManager* unit_manager = nullptr;
         BuildingManager* building_manager = nullptr;
         ProjectileManager* projectile_manager = nullptr;
+        EffectManager* effect_manager = nullptr;
 
     protected:
         static void _bind_methods();
@@ -25,6 +27,7 @@ namespace godot {
         void setup(UnitManager* p_manager);
         void set_building_manager(BuildingManager* p_bmanager);
         void set_projectile_manager(ProjectileManager* p_proj_manager);
+        void set_effect_manager(Node* p_node);
 
         // 更新数据
         void update_units(double p_delta);

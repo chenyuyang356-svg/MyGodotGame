@@ -142,4 +142,16 @@ void BuildingStats::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_working_row"), &BuildingStats::get_working_row);
     ClassDB::bind_method(D_METHOD("set_working_row", "p_val"), &BuildingStats::set_working_row);
     ADD_PROPERTY(PropertyInfo(Variant::INT, "working_row"), "set_working_row", "get_working_row");
+
+    ClassDB::bind_method(D_METHOD("get_finish_frames"), &BuildingStats::get_finish_frames);
+    ClassDB::bind_method(D_METHOD("set_finish_frames", "p_val"), &BuildingStats::set_finish_frames);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "finish_frames"), "set_finish_frames", "get_finish_frames");
+
+    ClassDB::bind_method(D_METHOD("get_turret_spin"), &BuildingStats::get_turret_spin);
+    ClassDB::bind_method(D_METHOD("set_turret_spin", "p_val"), &BuildingStats::set_turret_spin);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "turret_spin"), "set_turret_spin", "get_turret_spin");
+
+    ClassDB::bind_method(D_METHOD("get_turret_spin_speed"), &BuildingStats::get_turret_spin_speed);
+    ClassDB::bind_method(D_METHOD("set_turret_spin_speed", "p_val"), &BuildingStats::set_turret_spin_speed);
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "turret_spin_speed"), "set_turret_spin_speed", "get_turret_spin_speed");
 }

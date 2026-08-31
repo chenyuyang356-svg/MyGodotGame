@@ -56,6 +56,11 @@ namespace godot {
         int working_row = 0;
         int building_frames = 1;
         float working_hold_time = 0.0f; // 工作动画最后一帧暂停秒数（0 = 不暂停）
+        int finish_frames = -1; // 生产完成时一次性动画帧数（-1 = 使用 working_frames）
+
+        // 工厂炮塔自转：生产单位时缓慢转动，生产结束保持当前朝向
+        bool turret_spin = false;
+        float turret_spin_speed = 30.0f; // 度/秒
 
         // --- 兵营类属性 ---
         PackedStringArray producible_units;
@@ -191,6 +196,18 @@ namespace godot {
 
         void set_working_hold_time(float p_val) { working_hold_time = p_val; }
         float get_working_hold_time() const { return working_hold_time; }
+
+        void set_finish_frames(int p_val) { finish_frames = p_val; }
+        int get_finish_frames() const { return finish_frames; }
+
+        // 一次性动画实际使用的帧数（未配置 finish_frames 时回退 working_frames）
+        int get_completion_frames() const { return finish_frames > 0 ? finish_frames : working_frames; }
+
+        void set_turret_spin(bool p_val) { turret_spin = p_val; }
+        bool get_turret_spin() const { return turret_spin; }
+
+        void set_turret_spin_speed(float p_val) { turret_spin_speed = p_val; }
+        float get_turret_spin_speed() const { return turret_spin_speed; }
 
         void set_dying_time(float p_val) { dying_time = p_val; }
         float get_dying_time() const { return dying_time; }

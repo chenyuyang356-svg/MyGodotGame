@@ -1,0 +1,641 @@
+[gd_scene load_steps=3 format=3 uid="uid://teamcolortester01"]
+
+[ext_resource type="Script" path="res://tool/team_color_tester/team_color_tester.gd" id="1_tester"]
+[ext_resource type="Shader" path="res://tool/team_color_tester/team_color_preview.gdshader" id="2_shader"]
+
+[node name="TeamColorTester" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_tester")
+
+[node name="Bg" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.09, 0.1, 0.12, 1)
+
+[node name="MainVBox" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 4
+
+[node name="TopBar" type="PanelContainer" parent="MainVBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 48)
+
+[node name="HBox" type="HBoxContainer" parent="MainVBox/TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LabelTarget" type="Label" parent="MainVBox/TopBar/HBox"]
+layout_mode = 2
+text = " 目标:"
+vertical_alignment = 1
+
+[node name="PrevBtn" type="Button" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+text = "◀"
+
+[node name="TargetSelector" type="OptionButton" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+
+[node name="NextBtn" type="Button" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+text = "▶"
+
+[node name="LoadFileBtn" type="Button" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "📂 打开外部PNG..."
+
+[node name="VSep1" type="VSeparator" parent="MainVBox/TopBar/HBox"]
+layout_mode = 2
+
+[node name="LabelMode" type="Label" parent="MainVBox/TopBar/HBox"]
+layout_mode = 2
+text = "模式:"
+vertical_alignment = 1
+
+[node name="ModeSplitBtn" type="Button" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "🎨 四阵营并排对比"
+
+[node name="ModeInspectBtn" type="Button" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "🔍 单体聚焦/探针"
+
+[node name="ModeMaskBtn" type="Button" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "🟣 遮罩高亮(254)"
+
+[node name="ModeLumBtn" type="Button" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "🌓 明暗分析"
+
+[node name="VSep2" type="VSeparator" parent="MainVBox/TopBar/HBox"]
+layout_mode = 2
+
+[node name="LabelAnim" type="Label" parent="MainVBox/TopBar/HBox"]
+layout_mode = 2
+text = "帧:"
+vertical_alignment = 1
+
+[node name="FrameSpin" type="SpinBox" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.0
+max_value = 100.0
+
+[node name="MaxFrameLabel" type="Label" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "/ 1"
+vertical_alignment = 1
+
+[node name="LabelRow" type="Label" parent="MainVBox/TopBar/HBox"]
+layout_mode = 2
+text = "行:"
+vertical_alignment = 1
+
+[node name="RowSpin" type="SpinBox" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.0
+max_value = 100.0
+
+[node name="MaxRowLabel" type="Label" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "/ 1"
+vertical_alignment = 1
+
+[node name="PlayBtn" type="Button" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "▶ 播放"
+
+[node name="LabelFps" type="Label" parent="MainVBox/TopBar/HBox"]
+layout_mode = 2
+text = "FPS:"
+vertical_alignment = 1
+
+[node name="FpsSpin" type="SpinBox" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 60.0
+value = 8.0
+
+[node name="VSep3" type="VSeparator" parent="MainVBox/TopBar/HBox"]
+layout_mode = 2
+
+[node name="LabelCustomColor" type="Label" parent="MainVBox/TopBar/HBox"]
+layout_mode = 2
+text = "自定义色:"
+vertical_alignment = 1
+
+[node name="CustomColorPicker" type="ColorPickerButton" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 28)
+layout_mode = 2
+size_flags_vertical = 4
+color = Color(0.9, 0.2, 0.8, 1)
+
+[node name="Spacer" type="Control" parent="MainVBox/TopBar/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="GridCheck" type="CheckButton" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "网格与边界"
+
+[node name="ZoomResetBtn" type="Button" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "居中复位"
+
+[node name="ZoomLabel" type="Label" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "x4.0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BodyHBox" type="HBoxContainer" parent="MainVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="CenterArea" type="Control" parent="MainVBox/BodyHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SplitViewContainer" type="ScrollContainer" parent="MainVBox/BodyHBox/CenterArea"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Grid" type="GridContainer" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+columns = 3
+
+[node name="PanelOrig" type="PanelContainer" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+custom_minimum_size = Vector2(200, 180)
+
+[node name="VBox" type="VBoxContainer" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelOrig"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelOrig/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+text = " ⚪ 原图 (Original / 未染色)"
+
+[node name="CardOrigAnchor" type="Control" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelOrig/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+clip_contents = true
+
+[node name="CardOrigStage" type="Node2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelOrig/VBox/CardOrigAnchor"]
+unique_name_in_owner = true
+texture_filter = 1
+position = Vector2(100, 70)
+scale = Vector2(3, 3)
+
+[node name="CardOrigBody" type="Sprite2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelOrig/VBox/CardOrigAnchor/CardOrigStage"]
+unique_name_in_owner = true
+texture_filter = 1
+
+[node name="CardOrigTurrets" type="Node2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelOrig/VBox/CardOrigAnchor/CardOrigStage"]
+unique_name_in_owner = true
+texture_filter = 1
+
+[node name="PanelTeam1" type="PanelContainer" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+custom_minimum_size = Vector2(200, 180)
+
+[node name="VBox" type="VBoxContainer" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam1"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam1/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 1, 0.3, 1)
+text = " 🟢 队伍 1 (Team Green)"
+
+[node name="CardTeam1Anchor" type="Control" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam1/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+clip_contents = true
+
+[node name="CardTeam1Stage" type="Node2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam1/VBox/CardTeam1Anchor"]
+unique_name_in_owner = true
+texture_filter = 1
+position = Vector2(100, 70)
+scale = Vector2(3, 3)
+
+[node name="CardTeam1Body" type="Sprite2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam1/VBox/CardTeam1Anchor/CardTeam1Stage"]
+unique_name_in_owner = true
+texture_filter = 1
+
+[node name="CardTeam1Turrets" type="Node2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam1/VBox/CardTeam1Anchor/CardTeam1Stage"]
+unique_name_in_owner = true
+texture_filter = 1
+
+[node name="PanelTeam2" type="PanelContainer" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+custom_minimum_size = Vector2(200, 180)
+
+[node name="VBox" type="VBoxContainer" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam2"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam2/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.3, 0.3, 1)
+text = " 🔴 队伍 2 (Team Red)"
+
+[node name="CardTeam2Anchor" type="Control" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam2/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+clip_contents = true
+
+[node name="CardTeam2Stage" type="Node2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam2/VBox/CardTeam2Anchor"]
+unique_name_in_owner = true
+texture_filter = 1
+position = Vector2(100, 70)
+scale = Vector2(3, 3)
+
+[node name="CardTeam2Body" type="Sprite2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam2/VBox/CardTeam2Anchor/CardTeam2Stage"]
+unique_name_in_owner = true
+texture_filter = 1
+
+[node name="CardTeam2Turrets" type="Node2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam2/VBox/CardTeam2Anchor/CardTeam2Stage"]
+unique_name_in_owner = true
+texture_filter = 1
+
+[node name="PanelTeam3" type="PanelContainer" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+custom_minimum_size = Vector2(200, 180)
+
+[node name="VBox" type="VBoxContainer" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam3"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam3/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 0.3, 1)
+text = " 🟡 队伍 3 (Team Yellow)"
+
+[node name="CardTeam3Anchor" type="Control" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam3/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+clip_contents = true
+
+[node name="CardTeam3Stage" type="Node2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam3/VBox/CardTeam3Anchor"]
+unique_name_in_owner = true
+texture_filter = 1
+position = Vector2(100, 70)
+scale = Vector2(3, 3)
+
+[node name="CardTeam3Body" type="Sprite2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam3/VBox/CardTeam3Anchor/CardTeam3Stage"]
+unique_name_in_owner = true
+texture_filter = 1
+
+[node name="CardTeam3Turrets" type="Node2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam3/VBox/CardTeam3Anchor/CardTeam3Stage"]
+unique_name_in_owner = true
+texture_filter = 1
+
+[node name="PanelTeam4" type="PanelContainer" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+custom_minimum_size = Vector2(200, 180)
+
+[node name="VBox" type="VBoxContainer" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam4"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam4/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.6, 1, 1)
+text = " 🔵 队伍 4 (Team Blue)"
+
+[node name="CardTeam4Anchor" type="Control" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam4/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+clip_contents = true
+
+[node name="CardTeam4Stage" type="Node2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam4/VBox/CardTeam4Anchor"]
+unique_name_in_owner = true
+texture_filter = 1
+position = Vector2(100, 70)
+scale = Vector2(3, 3)
+
+[node name="CardTeam4Body" type="Sprite2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam4/VBox/CardTeam4Anchor/CardTeam4Stage"]
+unique_name_in_owner = true
+texture_filter = 1
+
+[node name="CardTeam4Turrets" type="Node2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelTeam4/VBox/CardTeam4Anchor/CardTeam4Stage"]
+unique_name_in_owner = true
+texture_filter = 1
+
+[node name="PanelCustom" type="PanelContainer" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+custom_minimum_size = Vector2(200, 180)
+
+[node name="VBox" type="VBoxContainer" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelCustom"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelCustom/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.3, 0.9, 1)
+text = " 🟣 自定义染色 (Custom Color)"
+
+[node name="CardCustomAnchor" type="Control" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelCustom/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+clip_contents = true
+
+[node name="CardCustomStage" type="Node2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelCustom/VBox/CardCustomAnchor"]
+unique_name_in_owner = true
+texture_filter = 1
+position = Vector2(100, 70)
+scale = Vector2(3, 3)
+
+[node name="CardCustomBody" type="Sprite2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelCustom/VBox/CardCustomAnchor/CardCustomStage"]
+unique_name_in_owner = true
+texture_filter = 1
+
+[node name="CardCustomTurrets" type="Node2D" parent="MainVBox/BodyHBox/CenterArea/SplitViewContainer/Grid/PanelCustom/VBox/CardCustomAnchor/CardCustomStage"]
+unique_name_in_owner = true
+texture_filter = 1
+
+[node name="InspectViewContainer" type="Control" parent="MainVBox/BodyHBox/CenterArea"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CanvasViewport" type="Control" parent="MainVBox/BodyHBox/CenterArea/InspectViewContainer"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CanvasStage" type="Node2D" parent="MainVBox/BodyHBox/CenterArea/InspectViewContainer/CanvasViewport"]
+unique_name_in_owner = true
+texture_filter = 1
+
+[node name="InspectSprite" type="Sprite2D" parent="MainVBox/BodyHBox/CenterArea/InspectViewContainer/CanvasViewport/CanvasStage"]
+unique_name_in_owner = true
+texture_filter = 1
+
+[node name="TurretContainer" type="Node2D" parent="MainVBox/BodyHBox/CenterArea/InspectViewContainer/CanvasViewport/CanvasStage"]
+unique_name_in_owner = true
+texture_filter = 1
+
+[node name="GridOverlay" type="Node2D" parent="MainVBox/BodyHBox/CenterArea/InspectViewContainer/CanvasViewport/CanvasStage"]
+unique_name_in_owner = true
+
+[node name="RightSidebar" type="PanelContainer" parent="MainVBox/BodyHBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(330, 0)
+
+[node name="Margin" type="MarginContainer" parent="MainVBox/BodyHBox/RightSidebar"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HeaderTurret" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "🎯 炮塔与武器挂载 (Mounted Turret)"
+
+[node name="TurretCard" type="PanelContainer" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox"]
+layout_mode = 2
+
+[node name="TurretVBox" type="VBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/TurretCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TurretInfoLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/TurretCard/TurretVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🎯 挂载武器: 无"
+autowrap_mode = 2
+
+[node name="TurretCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/TurretCard/TurretVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "显示挂载炮塔"
+
+[node name="AngleHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/TurretCard/TurretVBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/TurretCard/TurretVBox/AngleHBox"]
+layout_mode = 2
+text = "朝向:"
+
+[node name="TurretAngleSlider" type="HSlider" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/TurretCard/TurretVBox/AngleHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+max_value = 360.0
+step = 0.5
+
+[node name="TurretAngleLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/TurretCard/TurretVBox/AngleHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(45, 0)
+layout_mode = 2
+text = "0.0°"
+horizontal_alignment = 2
+
+[node name="TurretAutoRotCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/TurretCard/TurretVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🔄 炮塔自动匀速旋转"
+
+[node name="HSep0" type="HSeparator" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox"]
+layout_mode = 2
+
+[node name="HeaderProbe" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "🔬 像素级探针 (Pixel Probe)"
+
+[node name="ProbeCard" type="PanelContainer" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox"]
+layout_mode = 2
+
+[node name="ProbeVBox" type="VBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/ProbeCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ProbeStatusBadge" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/ProbeCard/ProbeVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "将鼠标悬停在画布上查看像素"
+
+[node name="ColorHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/ProbeCard/ProbeVBox"]
+layout_mode = 2
+
+[node name="ProbeColorRect" type="ColorRect" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/ProbeCard/ProbeVBox/ColorHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+color = Color(0.2, 0.2, 0.2, 1)
+
+[node name="ProbeRgbaLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/ProbeCard/ProbeVBox/ColorHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "RGBA: (0, 0, 0, 0)"
+
+[node name="ProbeHsvLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/ProbeCard/ProbeVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "HSV: (H: 0°, S: 0%, V: 0%)"
+
+[node name="ProbeCoordLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/ProbeCard/ProbeVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "坐标: (0, 0)"
+
+[node name="HSep1" type="HSeparator" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox"]
+layout_mode = 2
+
+[node name="HeaderStats" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "📊 染色遮罩统计 (Health Check)"
+
+[node name="StatsVBox" type="VBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="StatSizeLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/StatsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "车体尺寸: 0 × 0"
+
+[node name="StatOpaqueLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/StatsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "车体实心像素: 0"
+
+[node name="StatMaskLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/StatsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 1, 0.4, 1)
+text = "Alpha 254 染色区: 0 px (0%)"
+
+[node name="StatNonMaskLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/StatsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.8, 1, 1)
+text = "Alpha 255 原色区: 0 px (0%)"
+
+[node name="StatTurretLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/StatsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "挂载炮塔: 0 个"
+
+[node name="StatStatusBanner" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox/StatsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 2
+text = "正在分析..."
+
+[node name="HSep2" type="HSeparator" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox"]
+layout_mode = 2
+
+[node name="HeaderGuide" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "💡 操作与说明指南"
+
+[node name="GuideLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.75, 0.75, 1)
+autowrap_mode = 2
+text = "• 比例与位置: 与炮塔定位器 (Turret Positioner) 几何坐标完全对齐
+• 滚轮缩放: 0.5x ~ 20x 像素无损放大
+• 中键/右键: 平移画布
+• 染色分析: 实时检测 Alpha 254 并在各个阵营着色"
+
+[node name="FileDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
+title = "选择需要测试的 PNG 贴图"
+size = Vector2i(700, 500)
+ok_button_text = "打开"
+file_mode = 0
+access = 2
+filters = PackedStringArray("*.png ; PNG 图像文件")
+
+[connection signal="draw" from="MainVBox/BodyHBox/CenterArea/InspectViewContainer/CanvasViewport/CanvasStage/GridOverlay" to="." method="_on_grid_overlay_draw"]

@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://cncac2nxk8d7y"
+
+[deps]
+
+files=["res://building_reference.building.translation", "res://building_reference.building.translation", "res://building_reference.placement.translation", "res://building_reference.footprint.translation", "res://building_reference.clearance.translation", "res://building_reference.cost.translation", "res://building_reference.build.translation", "res://building_reference.health.translation", "res://building_reference.base.translation", "res://building_reference.producible.translation", "res://building_reference.production.translation", "res://building_reference.working.translation", "res://building_reference.finish.translation", "res://building_reference.hold时间秒.translation", "res://building_reference.idle.translation", "res://building_reference.weapon.translation", "res://building_reference.turret.translation", "res://building_reference.turret.translation", "res://building_reference.texture.translation", "res://building_reference.h.translation", "res://building_reference.v.translation", "res://building_reference.anim.translation", "res://building_reference.备注.translation"]
+
+source_file="res://building_reference.csv"
+dest_files=["res://building_reference.building.translation", "res://building_reference.building.translation", "res://building_reference.placement.translation", "res://building_reference.footprint.translation", "res://building_reference.clearance.translation", "res://building_reference.cost.translation", "res://building_reference.build.translation", "res://building_reference.health.translation", "res://building_reference.base.translation", "res://building_reference.producible.translation", "res://building_reference.production.translation", "res://building_reference.working.translation", "res://building_reference.finish.translation", "res://building_reference.hold时间秒.translation", "res://building_reference.idle.translation", "res://building_reference.weapon.translation", "res://building_reference.turret.translation", "res://building_reference.turret.translation", "res://building_reference.texture.translation", "res://building_reference.h.translation", "res://building_reference.v.translation", "res://building_reference.anim.translation", "res://building_reference.备注.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

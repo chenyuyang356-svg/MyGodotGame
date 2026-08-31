@@ -224,7 +224,9 @@ namespace godot {
 		void register_units_from_dir(String p_dir_path);
 		int spawn_unit_by_type(String p_type_name, Vector2 p_pos, int p_team_id, int p_forced_id = -1);
 
-		void set_control_group(int p_index, const std::vector<int>& p_unit_ids);
+		void set_control_group(int p_index, const Array& p_unit_ids);
+		Array get_control_group_units_alive(int p_index);
+		void remove_unit_from_control_group(int p_unit_id);
 
 		// 攻击模块
 		int get_unit_index_by_id(int p_id); 

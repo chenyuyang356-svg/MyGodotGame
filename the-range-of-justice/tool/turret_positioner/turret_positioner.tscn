@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://6rasw1a8p48t" path="res://tool/turret_positioner/turret_positioner.gd" id="1"]
 
-[node name="TurretPositioner" type="Control"]
+[node name="TurretPositioner" type="Control" unique_id=1956832301]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -11,153 +11,166 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1")
 
-[node name="StageContainer" type="Control" parent="."]
+[node name="Bg" type="ColorRect" parent="." unique_id=2013643939]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
+color = Color(0.09, 0.1, 0.12, 1)
 
-[node name="Bg" type="ColorRect" parent="StageContainer"]
+[node name="MainVBox" type="VBoxContainer" parent="." unique_id=546841617]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
-color = Color(0.1, 0.12, 0.15, 1)
+theme_override_constants/separation = 4
 
-[node name="Stage" type="Node2D" parent="StageContainer"]
+[node name="TopBar" type="PanelContainer" parent="MainVBox" unique_id=156957554]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
 
-[node name="GridDraw" type="Node2D" parent="StageContainer/Stage"]
-
-[node name="BodySprite" type="Sprite2D" parent="StageContainer/Stage"]
-
-[node name="TurretContainer" type="Node2D" parent="StageContainer/Stage"]
-
-[node name="HandlesDraw" type="Node2D" parent="StageContainer/Stage"]
-
-[node name="UI" type="CanvasLayer" parent="."]
-
-[node name="TopBar" type="PanelContainer" parent="UI"]
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 12.0
-offset_top = 10.0
-offset_right = -12.0
-offset_bottom = 60.0
-grow_horizontal = 2
-
-[node name="HBox" type="HBoxContainer" parent="UI/TopBar"]
+[node name="HBox" type="HBoxContainer" parent="MainVBox/TopBar" unique_id=240749510]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="UnitLabel" type="Label" parent="UI/TopBar/HBox"]
+[node name="UnitLabel" type="Label" parent="MainVBox/TopBar/HBox" unique_id=2046665649]
 layout_mode = 2
-text = "目标:"
+text = " 目标:"
 vertical_alignment = 1
 
-[node name="PrevUnitBtn" type="Button" parent="UI/TopBar/HBox"]
+[node name="PrevUnitBtn" type="Button" parent="MainVBox/TopBar/HBox" unique_id=1335571803]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 text = "◀"
 
-[node name="UnitSelector" type="OptionButton" parent="UI/TopBar/HBox"]
+[node name="UnitSelector" type="OptionButton" parent="MainVBox/TopBar/HBox" unique_id=1312791640]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(160, 0)
+custom_minimum_size = Vector2(170, 0)
 layout_mode = 2
 
-[node name="NextUnitBtn" type="Button" parent="UI/TopBar/HBox"]
+[node name="NextUnitBtn" type="Button" parent="MainVBox/TopBar/HBox" unique_id=864596271]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 text = "▶"
 
-[node name="VSep1" type="VSeparator" parent="UI/TopBar/HBox"]
+[node name="BodyFrameHBox" type="HBoxContainer" parent="MainVBox/TopBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "底盘/车体贴图帧 (针对直升机/多帧单位，可切至第2帧避开旋转螺旋桨对挂载点的遮挡)"
+
+[node name="BodyFrameLabel" type="Label" parent="MainVBox/TopBar/HBox/BodyFrameHBox"]
+layout_mode = 2
+text = "底盘帧:"
+vertical_alignment = 1
+
+[node name="SpinBodyFrame" type="SpinBox" parent="MainVBox/TopBar/HBox/BodyFrameHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.0
+max_value = 10.0
+step = 1.0
+value = 0.0
+
+[node name="VSep1" type="VSeparator" parent="MainVBox/TopBar/HBox" unique_id=1834334902]
 layout_mode = 2
 
-[node name="ModeLabel" type="Label" parent="UI/TopBar/HBox"]
+[node name="ModeLabel" type="Label" parent="MainVBox/TopBar/HBox" unique_id=1784711140]
 layout_mode = 2
 text = "模式:"
 vertical_alignment = 1
 
-[node name="ModeMountBtn" type="Button" parent="UI/TopBar/HBox"]
+[node name="ModeMountBtn" type="Button" parent="MainVBox/TopBar/HBox" unique_id=1148042387]
 unique_name_in_owner = true
 layout_mode = 2
 toggle_mode = true
 text = "🎯 挂载点(1)"
 
-[node name="ModePivotBtn" type="Button" parent="UI/TopBar/HBox"]
+[node name="ModePivotBtn" type="Button" parent="MainVBox/TopBar/HBox" unique_id=1039433776]
 unique_name_in_owner = true
 layout_mode = 2
 toggle_mode = true
 text = "🔴 枢轴(2)"
 
-[node name="ModeMuzzleBtn" type="Button" parent="UI/TopBar/HBox"]
+[node name="ModeMuzzleBtn" type="Button" parent="MainVBox/TopBar/HBox" unique_id=1618578098]
 unique_name_in_owner = true
 layout_mode = 2
 toggle_mode = true
 text = "⚡ 枪口(3)"
 
-[node name="VSep2" type="VSeparator" parent="UI/TopBar/HBox"]
-layout_mode = 2
-
-[node name="SaveUnitBtn" type="Button" parent="UI/TopBar/HBox"]
+[node name="ModeTargetBtn" type="Button" parent="MainVBox/TopBar/HBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "💾 保存单位"
+toggle_mode = true
+text = "🎯 标靶(4)"
 
-[node name="SaveWeaponBtn" type="Button" parent="UI/TopBar/HBox"]
+[node name="VSep2" type="VSeparator" parent="MainVBox/TopBar/HBox" unique_id=110936663]
+layout_mode = 2
+
+[node name="SaveAllBtn" type="Button" parent="MainVBox/TopBar/HBox" unique_id=1833394224]
 unique_name_in_owner = true
 layout_mode = 2
-text = "💾 保存武器"
-
-[node name="SaveAllBtn" type="Button" parent="UI/TopBar/HBox"]
-unique_name_in_owner = true
-layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 1, 0.4, 1)
 text = "💾 保存全部 (Ctrl+S)"
 
-[node name="ResetBtn" type="Button" parent="UI/TopBar/HBox"]
+[node name="SaveUnitBtn" type="Button" parent="MainVBox/TopBar/HBox" unique_id=1164505803]
+unique_name_in_owner = true
+layout_mode = 2
+text = "💾 存单位"
+
+[node name="SaveWeaponBtn" type="Button" parent="MainVBox/TopBar/HBox" unique_id=990886078]
+unique_name_in_owner = true
+layout_mode = 2
+text = "💾 存武器"
+
+[node name="ResetBtn" type="Button" parent="MainVBox/TopBar/HBox" unique_id=28790658]
 unique_name_in_owner = true
 layout_mode = 2
 text = "↺ 还原"
 
-[node name="VSep3" type="VSeparator" parent="UI/TopBar/HBox"]
+[node name="Spacer" type="Control" parent="MainVBox/TopBar/HBox" unique_id=962129831]
 layout_mode = 2
+size_flags_horizontal = 3
 
-[node name="GridCheck" type="CheckButton" parent="UI/TopBar/HBox"]
+[node name="GridCheck" type="CheckButton" parent="MainVBox/TopBar/HBox" unique_id=1639158025]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "网格"
 
-[node name="RadiusCheck" type="CheckButton" parent="UI/TopBar/HBox"]
+[node name="RadiusCheck" type="CheckButton" parent="MainVBox/TopBar/HBox" unique_id=718955350]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "碰撞半径"
 
-[node name="TurretsCheck" type="CheckButton" parent="UI/TopBar/HBox"]
+[node name="TurretsCheck" type="CheckButton" parent="MainVBox/TopBar/HBox" unique_id=1571855143]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "炮塔贴图"
 
-[node name="Spacer" type="Control" parent="UI/TopBar/HBox"]
+[node name="LegendCheck" type="CheckButton" parent="MainVBox/TopBar/HBox" unique_id=1316534460]
+unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
+button_pressed = true
+text = "图例说明"
 
-[node name="ZoomOutBtn" type="Button" parent="UI/TopBar/HBox"]
+[node name="VSep3" type="VSeparator" parent="MainVBox/TopBar/HBox" unique_id=1728755350]
+layout_mode = 2
+
+[node name="ZoomOutBtn" type="Button" parent="MainVBox/TopBar/HBox" unique_id=895091655]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 text = "-"
 
-[node name="ZoomLabel" type="Label" parent="UI/TopBar/HBox"]
+[node name="ZoomLabel" type="Label" parent="MainVBox/TopBar/HBox" unique_id=2120589556]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(48, 0)
 layout_mode = 2
@@ -165,97 +178,301 @@ text = "x4.0"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="ZoomInBtn" type="Button" parent="UI/TopBar/HBox"]
+[node name="ZoomInBtn" type="Button" parent="MainVBox/TopBar/HBox" unique_id=61781766]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 text = "+"
 
-[node name="ZoomResetBtn" type="Button" parent="UI/TopBar/HBox"]
+[node name="ZoomResetBtn" type="Button" parent="MainVBox/TopBar/HBox" unique_id=318949605]
 unique_name_in_owner = true
 layout_mode = 2
 text = "100%"
 
-[node name="ZoomFitBtn" type="Button" parent="UI/TopBar/HBox"]
+[node name="ZoomFitBtn" type="Button" parent="MainVBox/TopBar/HBox" unique_id=1266953376]
 unique_name_in_owner = true
 layout_mode = 2
 text = "居中"
 
-[node name="RightSidebar" type="PanelContainer" parent="UI"]
-anchors_preset = 11
-anchor_left = 1.0
+[node name="BodyHBox" type="HBoxContainer" parent="MainVBox" unique_id=1468757341]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="StageContainer" type="Control" parent="MainVBox/BodyHBox" unique_id=1231753817]
+clip_contents = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Stage" type="Node2D" parent="MainVBox/BodyHBox/StageContainer" unique_id=1488509699]
+texture_filter = 1
+
+[node name="GridDraw" type="Node2D" parent="MainVBox/BodyHBox/StageContainer/Stage" unique_id=1342273364]
+
+[node name="BodySprite" type="Sprite2D" parent="MainVBox/BodyHBox/StageContainer/Stage" unique_id=1573079041]
+texture_filter = 1
+
+[node name="TurretContainer" type="Node2D" parent="MainVBox/BodyHBox/StageContainer/Stage" unique_id=899269724]
+texture_filter = 1
+
+[node name="HandlesDraw" type="Node2D" parent="MainVBox/BodyHBox/StageContainer/Stage" unique_id=722585322]
+
+[node name="LegendOverlay" type="PanelContainer" parent="MainVBox/BodyHBox/StageContainer" unique_id=906324595]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 260.0
+offset_bottom = 210.0
+mouse_filter = 2
+
+[node name="Margin" type="MarginContainer" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay" unique_id=849101127]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin" unique_id=1158516818]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox" unique_id=2106081843]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 13
+text = "📖 画布图例与图标说明"
+
+[node name="HSep" type="HSeparator" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox" unique_id=102932149]
+layout_mode = 2
+
+[node name="ItemMount" type="HBoxContainer" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox" unique_id=862762344]
+layout_mode = 2
+
+[node name="Dot" type="ColorRect" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemMount" unique_id=150675095]
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+size_flags_vertical = 4
+color = Color(0.2, 0.7, 1, 1)
+
+[node name="Label" type="Label" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemMount" unique_id=144508845]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = " 蓝色圆环: 车体挂载点 (Mount)"
+
+[node name="ItemPivot" type="HBoxContainer" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox" unique_id=446970485]
+layout_mode = 2
+
+[node name="Dot" type="ColorRect" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemPivot" unique_id=1377093551]
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+size_flags_vertical = 4
+color = Color(1, 0.25, 0.25, 1)
+
+[node name="Label" type="Label" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemPivot" unique_id=473791401]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = " 红色十字: 武器旋转轴心 (Pivot)"
+
+[node name="ItemMuzzle" type="HBoxContainer" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox" unique_id=1704380407]
+layout_mode = 2
+
+[node name="Dot" type="ColorRect" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemMuzzle" unique_id=1454807474]
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+size_flags_vertical = 4
+color = Color(1, 0.85, 0.2, 1)
+
+[node name="Label" type="Label" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemMuzzle" unique_id=36505469]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = " 黄色圆环: 枪口开火位置 (Muzzle)"
+
+[node name="ItemFacing" type="HBoxContainer" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox" unique_id=1663794635]
+layout_mode = 2
+
+[node name="Dot" type="ColorRect" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemFacing" unique_id=907416083]
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+size_flags_vertical = 4
+color = Color(1, 0.5, 0.2, 1)
+
+[node name="Label" type="Label" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemFacing" unique_id=1220594802]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = " 橙色射线: 炮塔实时旋转朝向"
+
+[node name="ItemOrigin" type="HBoxContainer" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox" unique_id=1975176107]
+layout_mode = 2
+
+[node name="Dot" type="ColorRect" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemOrigin" unique_id=1422839263]
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+size_flags_vertical = 4
+
+[node name="Label" type="Label" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemOrigin" unique_id=842308437]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = " 白色原点: 车身底盘原点 (0, 0)"
+
+[node name="ItemRadius" type="HBoxContainer" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox" unique_id=1699274437]
+layout_mode = 2
+
+[node name="Dot" type="ColorRect" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemRadius" unique_id=745093479]
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+size_flags_vertical = 4
+color = Color(0.2, 0.8, 1, 1)
+
+[node name="Label" type="Label" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemRadius" unique_id=1204389035]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = " 青色虚线圆: 物理碰撞体积半径"
+
+[node name="ItemTarget" type="HBoxContainer" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox"]
+layout_mode = 2
+
+[node name="Dot" type="ColorRect" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemTarget"]
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+size_flags_vertical = 4
+color = Color(1, 0.25, 0.25, 1)
+
+[node name="Label" type="Label" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemTarget"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = " 红色标靶圈: 受击目标 (Target Dummy)"
+
+[node name="ItemProj" type="HBoxContainer" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox"]
+layout_mode = 2
+
+[node name="Dot" type="ColorRect" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemProj"]
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+size_flags_vertical = 4
+color = Color(1, 0.75, 0.15, 1)
+
+[node name="Label" type="Label" parent="MainVBox/BodyHBox/StageContainer/LegendOverlay/Margin/VBox/ItemProj"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = " 飞行弹丸/尾迹: 投射物弹道 (Projectile)"
+
+[node name="BottomToastHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/StageContainer" unique_id=1805132694]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -310.0
-offset_top = 70.0
+offset_left = 12.0
+offset_top = -36.0
 offset_right = -12.0
-offset_bottom = -12.0
-grow_horizontal = 0
-grow_vertical = 2
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
 
-[node name="VBox" type="VBoxContainer" parent="UI/RightSidebar"]
+[node name="HintLabel" type="Label" parent="MainVBox/BodyHBox/StageContainer/BottomToastHBox" unique_id=2008232759]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_colors/font_color = Color(0.7, 0.75, 0.8, 1)
+text = "💡 左键拖拽句柄/标靶 | 中键/右键平移 | 滚轮缩放 | F 键手动开火 | 空格键旋转 | 1/2/3/4 切换模式 | Ctrl+S 保存"
 
-[node name="MountsHeader" type="Label" parent="UI/RightSidebar/VBox"]
+[node name="Spacer" type="Control" parent="MainVBox/BodyHBox/StageContainer/BottomToastHBox" unique_id=1456033292]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ToastLabel" type="Label" parent="MainVBox/BodyHBox/StageContainer/BottomToastHBox" unique_id=1130510161]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
+text = "就绪"
+
+[node name="RightSidebar" type="PanelContainer" parent="MainVBox/BodyHBox" unique_id=1658584959]
+custom_minimum_size = Vector2(340, 0)
+layout_mode = 2
+
+[node name="Scroll" type="ScrollContainer" parent="MainVBox/BodyHBox/RightSidebar" unique_id=3708594]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="Margin" type="MarginContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll" unique_id=557620888]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin" unique_id=1764224694]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="MountsHeader" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox" unique_id=1720006604]
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
-text = "■ 武器挂载点 (Mounts)"
+text = "📌 武器挂载点列表 (Mounts)"
 
-[node name="MountItemList" type="ItemList" parent="UI/RightSidebar/VBox"]
+[node name="MountCard" type="PanelContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox" unique_id=78322355]
+layout_mode = 2
+
+[node name="CardVBox" type="VBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/MountCard" unique_id=1559347523]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MountItemList" type="ItemList" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/MountCard/CardVBox" unique_id=1273124916]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 110)
 layout_mode = 2
 
-[node name="MountBtnGrid" type="GridContainer" parent="UI/RightSidebar/VBox"]
+[node name="MountBtnGrid" type="GridContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/MountCard/CardVBox" unique_id=1785577953]
 layout_mode = 2
 columns = 3
 
-[node name="AddMountBtn" type="Button" parent="UI/RightSidebar/VBox/MountBtnGrid"]
+[node name="AddMountBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/MountCard/CardVBox/MountBtnGrid" unique_id=699714447]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "+ 添加"
 
-[node name="DelMountBtn" type="Button" parent="UI/RightSidebar/VBox/MountBtnGrid"]
+[node name="DelMountBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/MountCard/CardVBox/MountBtnGrid" unique_id=1085902343]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "- 删除"
 
-[node name="MirrorMountBtn" type="Button" parent="UI/RightSidebar/VBox/MountBtnGrid"]
+[node name="MirrorMountBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/MountCard/CardVBox/MountBtnGrid" unique_id=1381446454]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "🪞 X镜像"
 
-[node name="MirrorDupBtn" type="Button" parent="UI/RightSidebar/VBox/MountBtnGrid"]
+[node name="MirrorDupBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/MountCard/CardVBox/MountBtnGrid" unique_id=1568067820]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "🪞 镜像克隆"
 
-[node name="MoveUpBtn" type="Button" parent="UI/RightSidebar/VBox/MountBtnGrid"]
+[node name="MoveUpBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/MountCard/CardVBox/MountBtnGrid" unique_id=374029022]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "⬆ 上移"
 
-[node name="MoveDownBtn" type="Button" parent="UI/RightSidebar/VBox/MountBtnGrid"]
+[node name="MoveDownBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/MountCard/CardVBox/MountBtnGrid" unique_id=67870917]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "⬇ 下移"
 
-[node name="MountPosGrid" type="GridContainer" parent="UI/RightSidebar/VBox"]
+[node name="MountPosHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/MountCard/CardVBox" unique_id=409764606]
 layout_mode = 2
-columns = 4
 
-[node name="MountXLabel" type="Label" parent="UI/RightSidebar/VBox/MountPosGrid"]
+[node name="MountXLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/MountCard/CardVBox/MountPosHBox" unique_id=951261728]
 layout_mode = 2
-text = "挂载 X:"
+text = "挂载坐标 X:"
 
-[node name="SpinMountX" type="SpinBox" parent="UI/RightSidebar/VBox/MountPosGrid"]
+[node name="SpinMountX" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/MountCard/CardVBox/MountPosHBox" unique_id=663884449]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -263,11 +480,11 @@ min_value = -500.0
 max_value = 500.0
 step = 0.5
 
-[node name="MountYLabel" type="Label" parent="UI/RightSidebar/VBox/MountPosGrid"]
+[node name="MountYLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/MountCard/CardVBox/MountPosHBox" unique_id=800019565]
 layout_mode = 2
-text = "Y:"
+text = " Y:"
 
-[node name="SpinMountY" type="SpinBox" parent="UI/RightSidebar/VBox/MountPosGrid"]
+[node name="SpinMountY" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/MountCard/CardVBox/MountPosHBox" unique_id=1838918460]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -275,28 +492,36 @@ min_value = -500.0
 max_value = 500.0
 step = 0.5
 
-[node name="HSep1" type="HSeparator" parent="UI/RightSidebar/VBox"]
+[node name="HSep1" type="HSeparator" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox" unique_id=767379607]
 layout_mode = 2
 
-[node name="WeaponHeader" type="Label" parent="UI/RightSidebar/VBox"]
+[node name="WeaponHeader" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox" unique_id=553378754]
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
-text = "■ 武器枢轴与属性 (Weapon)"
+text = "🎯 武器标定 (Pivot & Muzzle)"
 
-[node name="WeaponInfoLabel" type="Label" parent="UI/RightSidebar/VBox"]
+[node name="WeaponCard" type="PanelContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox" unique_id=2119766046]
+layout_mode = 2
+
+[node name="WeaponVBox" type="VBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard" unique_id=2019115924]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="WeaponInfoLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox" unique_id=970158053]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.8, 1, 1)
 text = "武器: 无"
 
-[node name="PivotGrid" type="GridContainer" parent="UI/RightSidebar/VBox"]
+[node name="PivotHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox" unique_id=846125816]
 layout_mode = 2
-columns = 4
 
-[node name="PivotXLabel" type="Label" parent="UI/RightSidebar/VBox/PivotGrid"]
+[node name="PivotXLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/PivotHBox" unique_id=1992728972]
 layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
 text = "枢轴 X:"
 
-[node name="SpinPivotX" type="SpinBox" parent="UI/RightSidebar/VBox/PivotGrid"]
+[node name="SpinPivotX" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/PivotHBox" unique_id=646906658]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -304,11 +529,12 @@ min_value = -500.0
 max_value = 500.0
 step = 0.5
 
-[node name="PivotYLabel" type="Label" parent="UI/RightSidebar/VBox/PivotGrid"]
+[node name="PivotYLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/PivotHBox" unique_id=631916232]
 layout_mode = 2
-text = "Y:"
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+text = " Y:"
 
-[node name="SpinPivotY" type="SpinBox" parent="UI/RightSidebar/VBox/PivotGrid"]
+[node name="SpinPivotY" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/PivotHBox" unique_id=1866822911]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -316,15 +542,64 @@ min_value = -500.0
 max_value = 500.0
 step = 0.5
 
-[node name="MuzzleGrid" type="GridContainer" parent="UI/RightSidebar/VBox"]
+[node name="MuzzleToolbarHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox"]
 layout_mode = 2
-columns = 4
+theme_override_constants/separation = 4
 
-[node name="MuzXLabel" type="Label" parent="UI/RightSidebar/VBox/MuzzleGrid"]
+[node name="MuzzleSelectLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/MuzzleToolbarHBox"]
 layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+text = "当前枪口:"
+
+[node name="MuzzleOption" type="OptionButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/MuzzleToolbarHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="AddMuzzleBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/MuzzleToolbarHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+tooltip_text = "添加新枪口 (快捷键: A 或 N，或在画布上按住 Shift+点击 直接在鼠标位置创建)"
+text = "➕"
+
+[node name="DelMuzzleBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/MuzzleToolbarHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 0)
+tooltip_text = "删除当前选中的枪口 (快捷键: Delete 或 Backspace)"
+layout_mode = 2
+text = "➖"
+
+[node name="MirrorMuzzleBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/MuzzleToolbarHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "将当前枪口水平镜像并添加为新枪口（快捷键: M，调好左翼枪口后一键对称生成右翼枪口）"
+text = "🪞镜像"
+
+[node name="FiringModeHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox"]
+layout_mode = 2
+tooltip_text = "开火模式: 齐射 (所有枪口同时发射) 或 轮射 (左右枪口交替轮流发射)"
+
+[node name="FiringModeLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/FiringModeHBox"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+text = "开火模式:"
+
+[node name="FiringModeOption" type="OptionButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/FiringModeHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MuzzleHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox" unique_id=1229562859]
+layout_mode = 2
+
+[node name="MuzXLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/MuzzleHBox" unique_id=1157805801]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
 text = "枪口 X:"
 
-[node name="SpinMuzzleX" type="SpinBox" parent="UI/RightSidebar/VBox/MuzzleGrid"]
+[node name="SpinMuzzleX" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/MuzzleHBox" unique_id=1821409236]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -332,11 +607,12 @@ min_value = -500.0
 max_value = 500.0
 step = 0.5
 
-[node name="MuzYLabel" type="Label" parent="UI/RightSidebar/VBox/MuzzleGrid"]
+[node name="MuzYLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/MuzzleHBox" unique_id=717840118]
 layout_mode = 2
-text = "Y:"
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+text = " Y:"
 
-[node name="SpinMuzzleY" type="SpinBox" parent="UI/RightSidebar/VBox/MuzzleGrid"]
+[node name="SpinMuzzleY" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/MuzzleHBox" unique_id=1728078691]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -344,11 +620,15 @@ min_value = -500.0
 max_value = 500.0
 step = 0.5
 
-[node name="MuzZLabel" type="Label" parent="UI/RightSidebar/VBox/MuzzleGrid"]
+[node name="MuzZHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox" unique_id=2096770705]
 layout_mode = 2
-text = "高度 Z:"
 
-[node name="SpinMuzzleZ" type="SpinBox" parent="UI/RightSidebar/VBox/MuzzleGrid"]
+[node name="MuzZLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/MuzZHBox" unique_id=1604166973]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+text = "枪口高度 Z:"
+
+[node name="SpinMuzzleZ" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/MuzZHBox" unique_id=1756357382]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -356,134 +636,873 @@ min_value = -500.0
 max_value = 500.0
 step = 0.5
 
-[node name="HSep2" type="HSeparator" parent="UI/RightSidebar/VBox"]
+[node name="AnimFpsHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox" unique_id=1476687250]
+layout_mode = 2
+tooltip_text = "武器动画基础帧率 (每秒播放几帧，修改后按 Ctrl+S 存入武器 .cfg)"
+
+[node name="AnimFpsLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/AnimFpsHBox" unique_id=1166580636]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.9, 1, 1)
+text = "动画帧率:"
+
+[node name="SpinAnimFps" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/WeaponCard/WeaponVBox/AnimFpsHBox" unique_id=1687252561]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 60.0
+value = 10.0
+suffix = " FPS"
+
+[node name="HSep2" type="HSeparator" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox" unique_id=535223889]
 layout_mode = 2
 
-[node name="PreviewHeader" type="Label" parent="UI/RightSidebar/VBox"]
+[node name="PreviewHeader" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox" unique_id=1584461314]
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
-text = "■ 实时旋转与测试 (Preview)"
+text = "🔄 旋转测试与开火 (Preview)"
 
-[node name="AngleHBox" type="HBoxContainer" parent="UI/RightSidebar/VBox"]
+[node name="PreviewCard" type="PanelContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox" unique_id=476271606]
 layout_mode = 2
 
-[node name="AngleLabel" type="Label" parent="UI/RightSidebar/VBox/AngleHBox"]
+[node name="PreviewVBox" type="VBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard" unique_id=1709208787]
 layout_mode = 2
-text = "角度:"
+theme_override_constants/separation = 8
 
-[node name="AngleSlider" type="HSlider" parent="UI/RightSidebar/VBox/AngleHBox"]
+[node name="AngleHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox" unique_id=1486576364]
+layout_mode = 2
+
+[node name="AngleLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox/AngleHBox" unique_id=1609209651]
+layout_mode = 2
+text = "朝向:"
+
+[node name="AngleSlider" type="HSlider" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox/AngleHBox" unique_id=274674102]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 max_value = 360.0
-step = 0.5
 
-[node name="AngleValueLabel" type="Label" parent="UI/RightSidebar/VBox/AngleHBox"]
+[node name="AngleValueLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox/AngleHBox" unique_id=103323069]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(45, 0)
 layout_mode = 2
 text = "0.0°"
 horizontal_alignment = 2
 
-[node name="AngleBtnHBox" type="HBoxContainer" parent="UI/RightSidebar/VBox"]
+[node name="AngleBtnHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox" unique_id=1626359520]
 layout_mode = 2
+theme_override_constants/separation = 4
 
-[node name="BtnAngle0" type="Button" parent="UI/RightSidebar/VBox/AngleBtnHBox"]
+[node name="BtnAngle0" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox/AngleBtnHBox" unique_id=1734914801]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "0° (右)"
 
-[node name="BtnAngle90" type="Button" parent="UI/RightSidebar/VBox/AngleBtnHBox"]
+[node name="BtnAngle90" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox/AngleBtnHBox" unique_id=987258957]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "90° (下)"
 
-[node name="BtnAngle180" type="Button" parent="UI/RightSidebar/VBox/AngleBtnHBox"]
+[node name="BtnAngle180" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox/AngleBtnHBox" unique_id=1849033333]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "180° (左)"
 
-[node name="BtnAngle270" type="Button" parent="UI/RightSidebar/VBox/AngleBtnHBox"]
+[node name="BtnAngle270" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox/AngleBtnHBox" unique_id=545034060]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "270° (上)"
 
-[node name="TestChecksVBox" type="VBoxContainer" parent="UI/RightSidebar/VBox"]
+[node name="TestChecksVBox" type="VBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox" unique_id=523179082]
 layout_mode = 2
 
-[node name="AutoRotCheck" type="CheckButton" parent="UI/RightSidebar/VBox/TestChecksVBox"]
+[node name="AutoRotCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox/TestChecksVBox" unique_id=946581514]
 unique_name_in_owner = true
 layout_mode = 2
 text = "🔄 自动匀速旋转 (空格键)"
 
-[node name="MouseAimCheck" type="CheckButton" parent="UI/RightSidebar/VBox/TestChecksVBox"]
+[node name="PlaybackControlHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox/TestChecksVBox" unique_id=1796335817]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SpeedLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox/TestChecksVBox/PlaybackControlHBox" unique_id=60461605]
+layout_mode = 2
+text = "倍速:"
+
+[node name="TimeScaleOption" type="OptionButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox/TestChecksVBox/PlaybackControlHBox" unique_id=1274054394]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+selected = 3
+item_count = 5
+popup/item_0/text = "0.1x (超慢速)"
+popup/item_0/id = 0
+popup/item_1/text = "0.25x (慢放)"
+popup/item_1/id = 1
+popup/item_2/text = "0.5x (半速)"
+popup/item_2/id = 2
+popup/item_3/text = "1.0x (原速)"
+popup/item_3/id = 3
+popup/item_4/text = "2.0x (二倍速)"
+popup/item_4/id = 4
+
+[node name="AnimPlayBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox/TestChecksVBox/PlaybackControlHBox" unique_id=234669504]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⏸ 暂停"
+
+[node name="AnimStepBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox/TestChecksVBox/PlaybackControlHBox" unique_id=1467537261]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⏭ 单步"
+
+[node name="MouseAimCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox/TestChecksVBox" unique_id=143471475]
 unique_name_in_owner = true
 layout_mode = 2
 text = "🎯 鼠标瞄准跟随"
 
-[node name="FireAnimCheck" type="CheckButton" parent="UI/RightSidebar/VBox/TestChecksVBox"]
+[node name="FireAnimCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/PreviewCard/PreviewVBox/TestChecksVBox" unique_id=184768874]
 unique_name_in_owner = true
 layout_mode = 2
-text = "💥 开火帧动画测试"
+text = "💥 开火动画帧预览"
 
-[node name="BottomBar" type="PanelContainer" parent="UI"]
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 12.0
-offset_top = -42.0
-offset_right = -330.0
-offset_bottom = -10.0
-grow_horizontal = 2
-grow_vertical = 0
-
-[node name="HBox" type="HBoxContainer" parent="UI/BottomBar"]
+[node name="HSep2B" type="HSeparator" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox" unique_id=437988323]
 layout_mode = 2
 
-[node name="HintLabel" type="Label" parent="UI/BottomBar/HBox"]
+[node name="FlashHeader" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox" unique_id=1178304431]
 layout_mode = 2
-text = "💡 提示: 左键拖拽句柄 | 中键/右键平移画布 | 滚轮缩放 | Ctrl+S 保存全部"
-vertical_alignment = 1
+theme_override_font_sizes/font_size = 15
+text = "✨ 炮口闪光特效 (MuzzleFlash)"
 
-[node name="Spacer" type="Control" parent="UI/BottomBar/HBox"]
+[node name="FlashCard" type="PanelContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox" unique_id=350698395]
+layout_mode = 2
+
+[node name="FlashVBox" type="VBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard" unique_id=402252062]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="FlashWeaponEnableCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "🔥 武器启用开火特效 (muzzle_flash)"
+tooltip_text = "是否为此武器开启开火闪光/尾焰特效。修理工程车(Builder)、采矿车、充能等无火光武器可关闭此项"
+
+[node name="FlashEnableCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=172079338]
+unique_name_in_owner = true
+layout_mode = 2
+text = "✨ 枪口闪光循环预览"
+
+[node name="FlashAllMountsCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "🌐 全武器同步开火 (所有挂载点)"
+tooltip_text = "开启后，直升机左右双翼导弹、多联装主炮等所有挂载点将同时在各自物理坐标处开火喷射"
+
+[node name="PresetLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=930493571]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 12
+text = "🎯 武器闪光预设:"
+
+[node name="PresetHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=208003497]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="PresetCannonBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/PresetHBox" unique_id=1438229078]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+text = "💥火炮"
 
-[node name="ToastLabel" type="Label" parent="UI/BottomBar/HBox"]
+[node name="PresetAutoGunBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/PresetHBox" unique_id=1081807909]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🔫机炮"
+
+[node name="PresetHeavyBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/PresetHBox" unique_id=1891331425]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🚢巨炮"
+
+[node name="PresetEnergyBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/PresetHBox" unique_id=238018998]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "⚡能量"
+
+[node name="PresetMissileBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/PresetHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🚀导弹"
+
+[node name="FlashAngleHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=1776764574]
+layout_mode = 2
+tooltip_text = "炮口焰喷射方向偏移 (度, 相对炮管朝向)。0=沿炮管; 正=顺时针偏转; 负=逆时针"
+
+[node name="FlashAngleLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashAngleHBox" unique_id=2090922151]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "方向:"
+
+[node name="SpinFlashAngle" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashAngleHBox" unique_id=271888749]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -180.0
+max_value = 180.0
+step = 5.0
+suffix = "°"
+
+[node name="FlashFrameHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=297046977]
+layout_mode = 2
+tooltip_text = "开火对齐帧 (在攻击图集动画播放到第几帧时喷出炮口焰和发射弹丸，0=第0帧瞬发)"
+
+[node name="FlashFrameLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashFrameHBox" unique_id=1265796384]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "对齐帧:"
+
+[node name="SpinFlashFrame" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashFrameHBox" unique_id=1016032317]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 20.0
+suffix = "帧"
+
+[node name="FlashColorHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=717011927]
+layout_mode = 2
+
+[node name="FlashColorLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashColorHBox" unique_id=527940995]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "基色:"
+
+[node name="FlashColorPicker" type="ColorPickerButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashColorHBox" unique_id=1320309158]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+size_flags_horizontal = 3
+color = Color(1, 0.82, 0.35, 1)
+
+[node name="FlashScaleHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=1819545068]
+layout_mode = 2
+
+[node name="FlashScaleLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashScaleHBox" unique_id=2034242677]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "尺寸:"
+
+[node name="FlashScaleSlider" type="HSlider" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashScaleHBox" unique_id=601358078]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 1.0
+max_value = 30.0
+step = 0.5
+value = 8.0
+
+[node name="FlashLifeHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=1361937443]
+layout_mode = 2
+
+[node name="FlashLifeLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashLifeHBox" unique_id=1937599104]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "寿命:"
+
+[node name="FlashLifeSlider" type="HSlider" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashLifeHBox" unique_id=1190261243]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 0.03
+max_value = 0.5
+step = 0.01
+value = 0.12
+
+[node name="FlashSpeedHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=928332658]
+layout_mode = 2
+
+[node name="FlashSpeedLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashSpeedHBox" unique_id=22238991]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "前冲:"
+
+[node name="FlashSpeedSlider" type="HSlider" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashSpeedHBox" unique_id=656169747]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+max_value = 80.0
+value = 30.0
+
+[node name="FlashCoreHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=1156729421]
+layout_mode = 2
+
+[node name="FlashCoreLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashCoreHBox" unique_id=817750878]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "白核:"
+
+[node name="FlashCoreSlider" type="HSlider" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashCoreHBox" unique_id=124331128]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 0.05
+max_value = 0.6
+step = 0.01
+value = 0.28
+
+[node name="FlashConeLenHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=1263763890]
+layout_mode = 2
+
+[node name="FlashConeLenLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashConeLenHBox" unique_id=717512857]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "火舌长:"
+
+[node name="FlashConeLenSlider" type="HSlider" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashConeLenHBox" unique_id=2062972142]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 0.1
+max_value = 1.5
+step = 0.01
+value = 0.85
+
+[node name="FlashConeWidthHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=1788742699]
+layout_mode = 2
+
+[node name="FlashConeWidthLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashConeWidthHBox" unique_id=1121151794]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "火舌锐:"
+
+[node name="FlashConeWidthSlider" type="HSlider" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashConeWidthHBox" unique_id=1761365017]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 2.0
+max_value = 40.0
+value = 14.0
+
+[node name="FlashSideStrHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=1389420202]
+layout_mode = 2
+
+[node name="FlashSideStrLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashSideStrHBox" unique_id=564030199]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "侧喷度:"
+
+[node name="FlashSideStrSlider" type="HSlider" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashSideStrHBox" unique_id=556975100]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+max_value = 1.0
+step = 0.01
+value = 0.45
+
+[node name="FlashSideAngleHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=1894077305]
+layout_mode = 2
+
+[node name="FlashSideAngleLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashSideAngleHBox" unique_id=706968565]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "侧喷角:"
+
+[node name="FlashSideAngleSlider" type="HSlider" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashSideAngleHBox" unique_id=158166694]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 30.0
+max_value = 90.0
+value = 60.0
+
+[node name="FlashSideLenHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=2093583453]
+layout_mode = 2
+
+[node name="FlashSideLenLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashSideLenHBox" unique_id=339999538]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "侧喷长:"
+
+[node name="FlashSideLenSlider" type="HSlider" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashSideLenHBox" unique_id=797082081]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 0.1
+max_value = 1.0
+step = 0.01
+value = 0.55
+
+[node name="FlashSparksHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=1306177918]
+layout_mode = 2
+
+[node name="FlashSparksLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashSparksHBox" unique_id=549226778]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "火花芒:"
+
+[node name="FlashSparksSlider" type="HSlider" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashSparksHBox" unique_id=5460997]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+max_value = 1.0
+step = 0.01
+value = 0.35
+
+[node name="FlashPixelHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=955091055]
+layout_mode = 2
+
+[node name="FlashPixelLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashPixelHBox" unique_id=138359187]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "像素粒度:"
+
+[node name="FlashPixelSlider" type="HSlider" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox/FlashPixelHBox" unique_id=627000807]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 0.5
+max_value = 3.0
+step = 0.5
+value = 1.0
+
+[node name="FlashSaveBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=1637080487]
+unique_name_in_owner = true
+layout_mode = 2
+text = "💾 保存开火特效到当前武器配置 (.cfg)"
+
+[node name="FlashCopyBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/FlashCard/FlashVBox" unique_id=251287329]
+unique_name_in_owner = true
+layout_mode = 2
+text = "📋 复制全局代码 (可选)"
+
+[node name="HSepProj" type="HSeparator" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox"]
+layout_mode = 2
+
+[node name="ProjHeader" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "🚀 投射物与标靶攻击 (Projectiles & Target)"
+
+[node name="ProjCard" type="PanelContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox"]
+layout_mode = 2
+
+[node name="ProjVBox" type="VBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TargetHeaderLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+theme_override_font_sizes/font_size = 13
+text = "🎯 目标标靶设置 (Target Dummy)"
+
+[node name="TargetDummyEnableCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "🎯 显示目标标靶 (Target Dummy)"
+tooltip_text = "在画布中显示受击标靶，可在画布中直接左键拖拽改变位置"
+
+[node name="TargetAimCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🎯 炮塔自动对准标靶 (Aim At Target)"
+tooltip_text = "开启后，炮塔朝向将实时自动跟踪对准标靶位置"
+
+[node name="TargetPosHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+
+[node name="TargetXLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/TargetPosHBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+text = "标靶 X:"
+
+[node name="SpinTargetX" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/TargetPosHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -1000.0
+max_value = 1000.0
+step = 1.0
+value = 140.0
+
+[node name="TargetYLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/TargetPosHBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+text = " Y:"
+
+[node name="SpinTargetY" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/TargetPosHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -1000.0
+max_value = 1000.0
+step = 1.0
+value = 0.0
+
+[node name="TargetHeightHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+
+[node name="TargetHeightLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/TargetHeightHBox"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+text = "标靶高度 Z:"
+
+[node name="SpinTargetZ" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/TargetHeightHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+step = 1.0
+value = 0.0
+suffix = "px"
+
+[node name="TargetMoveCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🏃 标靶巡逻游走 (测试动态追踪)"
+tooltip_text = "标靶在周围持续做椭圆巡逻运动，用于测试导弹制导与开火提前量"
+
+[node name="TargetControlHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TargetResetBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/TargetControlHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "↺ 标靶居中复位"
+
+[node name="TargetClearHitsBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/TargetControlHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🎯 清零受击数"
+
+[node name="TargetHitLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
-text = "就绪"
-vertical_alignment = 1
+theme_override_font_sizes/font_size = 12
+text = "🎯 标靶命中: 0 次"
 
-[node name="ToastTimer" type="Timer" parent="."]
+[node name="HSepP1" type="HSeparator" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+
+[node name="FireControlHeaderLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.7, 0.2, 1)
+theme_override_font_sizes/font_size = 13
+text = "🔥 投射物发射控制 (Fire Controls)"
+
+[node name="ProjEnableCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "🚀 启用投射物开火模拟"
+
+[node name="FireBtnHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="FireProjBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/FireBtnHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 0.8, 0.2, 1)
+text = "🔥 单发开火 (F)"
+
+[node name="AutoFireCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/FireBtnHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "⏱ 自动连发"
+
+[node name="FireIntervalHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+
+[node name="FireIntervalLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/FireIntervalHBox"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "连发间隔:"
+
+[node name="SpinFireInterval" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/FireIntervalHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.05
+max_value = 5.0
+step = 0.05
+value = 0.4
+suffix = "秒"
+
+[node name="FireSyncAnimCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "🎬 与武器开火动画帧对齐发射"
+tooltip_text = "开启后，开火动画预览循环到达对齐帧 (flash_trigger_frame) 时自动发射弹丸"
+
+[node name="FireAllMountsCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "🌐 全挂载点同步开火 (多炮塔/多翼)"
+tooltip_text = "开启后，所有挂载点及多枪口将根据开火模式（齐射/轮射）同时或交替发射"
+
+[node name="HSepP2" type="HSeparator" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+
+[node name="ProjParamsHeaderLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 13
+text = "⚙️ 投射物属性参数 (Projectile Params)"
+
+[node name="ProjTypeHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+
+[node name="ProjTypeLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjTypeHBox"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "弹丸类型:"
+
+[node name="ProjTypeOption" type="OptionButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjTypeHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ProjTextureHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+
+[node name="ProjTextureLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjTextureHBox"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "贴图/预设:"
+
+[node name="ProjTextureOption" type="OptionButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjTextureHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ProjSpeedHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+
+[node name="ProjSpeedLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjSpeedHBox"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "飞行速度:"
+
+[node name="SpinProjSpeed" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjSpeedHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 50.0
+max_value = 3000.0
+step = 25.0
+value = 800.0
+suffix = "px/s"
+
+[node name="ProjArcHeightHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+tooltip_text = "炮弹抛物线弹道最高附加高度 (仅在 Shell 模式下生效)"
+
+[node name="ProjArcHeightLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjArcHeightHBox"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "抛物线高:"
+
+[node name="SpinProjArcHeight" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjArcHeightHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+step = 1.0
+value = 15.0
+suffix = "px"
+
+[node name="ProjAccelHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+tooltip_text = "导弹飞行加速度 (越飞越快，仅在 Missile 模式下生效)"
+
+[node name="ProjAccelLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjAccelHBox"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "导弹加速:"
+
+[node name="SpinProjAccel" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjAccelHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 3000.0
+step = 25.0
+value = 300.0
+suffix = "px/s²"
+
+[node name="ProjTurnSpeedHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+tooltip_text = "导弹制导转向速度 (每秒最大转向弧度)"
+
+[node name="ProjTurnSpeedLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjTurnSpeedHBox"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "转向角速:"
+
+[node name="SpinProjTurnSpeed" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjTurnSpeedHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.5
+max_value = 30.0
+step = 0.5
+value = 6.0
+suffix = "rad/s"
+
+[node name="ProjSplashHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+
+[node name="ProjSplashLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjSplashHBox"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "溅射半径:"
+
+[node name="SpinProjSplash" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjSplashHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 200.0
+step = 1.0
+value = 0.0
+suffix = "px"
+
+[node name="ProjScaleHBox" type="HBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+layout_mode = 2
+
+[node name="ProjScaleLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjScaleHBox"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "弹丸尺寸:"
+
+[node name="SpinProjScale" type="SpinBox" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox/ProjScaleHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.2
+max_value = 4.0
+step = 0.1
+value = 1.0
+suffix = "x"
+
+[node name="ProjHealingCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "💚 治疗光束模式 (is_healing)"
+tooltip_text = "工程车/修理单位使用，命中展示绿色修复光效与绿色假光"
+
+[node name="ProjTrailCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "💨 尾随烟尘/推进粒子 (Trail)"
+
+[node name="ProjShadowCheck" type="CheckButton" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "🌑 地面假光与投影 (Shadow & Glow)"
+
+[node name="ProjSyncWeaponBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🔄 从当前武器配置同步投射物参数"
+
+[node name="ProjSaveBtn" type="Button" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/ProjCard/ProjVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "💾 保存投射物参数到当前武器配置 (.cfg)"
+
+[node name="HSep3" type="HSeparator" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox" unique_id=1039062918]
+layout_mode = 2
+
+[node name="GuideHeader" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox" unique_id=1796586702]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "💡 操作与快捷键说明 (Guide)"
+
+[node name="GuideCard" type="PanelContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox" unique_id=1649505772]
+layout_mode = 2
+
+[node name="GuideVBox" type="VBoxContainer" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/GuideCard" unique_id=1947247916]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="GuideShortcutsLabel" type="Label" parent="MainVBox/BodyHBox/RightSidebar/Scroll/Margin/VBox/GuideCard/GuideVBox" unique_id=1212519015]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 12
+text = "• 数字键 1/2/3/4: 切换 挂载/枢轴/枪口/标靶 模式
+• F 键: 手动发射投射物攻击标靶
+• 空格键: 开始/暂停 炮塔自动匀速旋转
+• R 键: 炮塔朝向立即复位至 0.0°
+• Shift + 左键: 在点击处快速创建枪口
+• 左键拖拽标靶: 随意改变受击目标位置测试弹道与导弹追踪
+• Ctrl + S: 一键保存当前单位与武器配置
+• 鼠标中键/右键: 自由平移画布视口
+• 鼠标滚轮: 平滑缩放视口 (0.25x ~ 20.0x)"
+autowrap_mode = 2
+
+[node name="ToastTimer" type="Timer" parent="." unique_id=1208835804]
 one_shot = true
 
-[node name="AddWeaponDialog" type="ConfirmationDialog" parent="."]
+[node name="AddWeaponDialog" type="ConfirmationDialog" parent="." unique_id=20985546]
+unique_name_in_owner = true
 title = "添加武器挂载"
 size = Vector2i(360, 420)
 
-[node name="VBox" type="VBoxContainer" parent="AddWeaponDialog"]
+[node name="VBox" type="VBoxContainer" parent="AddWeaponDialog" unique_id=1708126563]
 offset_left = 8.0
 offset_top = 8.0
 offset_right = 352.0
 offset_bottom = 371.0
 
-[node name="Label" type="Label" parent="AddWeaponDialog/VBox"]
+[node name="Label" type="Label" parent="AddWeaponDialog/VBox" unique_id=512977836]
 layout_mode = 2
 text = "选择要挂载的武器类型:"
 
-[node name="WeaponPickList" type="ItemList" parent="AddWeaponDialog/VBox"]
+[node name="WeaponPickList" type="ItemList" parent="AddWeaponDialog/VBox" unique_id=264492471]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 
-[connection signal="draw" from="StageContainer/Stage/GridDraw" to="." method="_on_grid_draw"]
-[connection signal="draw" from="StageContainer/Stage/HandlesDraw" to="." method="_on_handles_draw"]
+[connection signal="gui_input" from="MainVBox/BodyHBox/StageContainer" to="." method="_on_stage_container_gui_input"]
+[connection signal="resized" from="MainVBox/BodyHBox/StageContainer" to="." method="_on_stage_container_resized"]
+[connection signal="draw" from="MainVBox/BodyHBox/StageContainer/Stage/GridDraw" to="." method="_on_grid_draw"]
+[connection signal="draw" from="MainVBox/BodyHBox/StageContainer/Stage/HandlesDraw" to="." method="_on_handles_draw"]
 [connection signal="timeout" from="ToastTimer" to="." method="_on_toast_timeout"]
-
